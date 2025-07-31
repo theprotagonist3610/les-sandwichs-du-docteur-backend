@@ -1,19 +1,45 @@
 import { useState } from "react";
-import { auth } from "../firebase";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { registerUser, loginWithEmail } from "@/components/userToolkit";
 import { Loader2 } from "lucide-react";
-
+import { toast } from "sonner";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [telephone, setTelephone] = useState(""); // ✅ Nouveau champ
+  const [adminCode, setAdminCode] = useState("");
   const [isRegister, setIsRegister] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  const input =
+    "w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-secondary";
+
+  const getErrorMessage = (error) => {
+    const code = error.code;
+
+    if (!code) return "Une erreur inconnue s'est produite.";
+
+    switch (code) {
+      case "auth/user-not-found":
+        return "Aucun compte n'existe avec cet email.";
+      case "auth/wrong-password":
+        return "Mot de passe incorrect.";
+      case "auth/email-already-in-use":
+        return "Cet email est déjà utilisé.";
+      case "auth/invalid-email":
+        return "Adresse email invalide.";
+      case "auth/weak-password":
+        return "Le mot de passe est trop faible.";
+      case "auth/too-many-requests":
+        return "Trop de tentatives. Réessayez plus tard.";
+      default:
+        return "Erreur : " + code.replace("auth/", "").replaceAll("-", " ");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,14 +48,32 @@ export default function Login() {
 
     try {
       if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const registerPromise = await registerUser(
+          email,
+          password,
+          telephone,
+          nom,
+          prenom,
+          adminCode
+        );
+        toast.promise(registerPromise, {
+          loading: "Inscription en cours ...",
+          success: (data) => {
+            return `Votre compte à été crée avec succès. Vous pouvez vous connecter avec vos identifiants`;
+          },
+          error: "Un probleme est survenu lors de la création de votre compte",
+        });
+        let timeout = setTimeout(() => clearTimeout(timeout), 2000);
+        navigate("/login");
+        setIsRegister(false);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userData = await loginWithEmail(email, password);
+        if (!userData) throw new Error("Compte inactif ou inexistant.");
+        navigate("/");
       }
-      navigate("/");
     } catch (err) {
-      setError("Email ou mot de passe incorrect.");
       console.error(err);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -56,7 +100,7 @@ export default function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-secondary"
+            className={input}
           />
           <input
             type="password"
@@ -64,8 +108,44 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-secondary"
+            className={input}
           />
+
+          {isRegister && (
+            <>
+              <input
+                type="text"
+                placeholder="Nom"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                required
+                className={input}
+              />
+              <input
+                type="text"
+                placeholder="Prénom"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                required
+                className={input}
+              />
+              <input
+                type="tel"
+                placeholder="Téléphone"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                required
+                className={input}
+              />
+              <input
+                type="text"
+                placeholder="Code admin (optionnel)"
+                value={adminCode}
+                onChange={(e) => setAdminCode(e.target.value)}
+                className={input}
+              />
+            </>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -85,7 +165,15 @@ export default function Login() {
 
         <p
           className="text-center text-sm text-gray-600 cursor-pointer hover:text-primary"
-          onClick={() => setIsRegister(!isRegister)}>
+          onClick={() => {
+            setIsRegister(!isRegister);
+            setError("");
+            setNom("");
+            setPrenom("");
+            setTelephone(""); // ✅ Reset champ
+            setAdminCode("");
+            setPassword("");
+          }}>
           {isRegister
             ? "Déjà inscrit ? Se connecter"
             : "Pas encore de compte ? S'inscrire"}

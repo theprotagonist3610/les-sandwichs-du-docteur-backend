@@ -14,3 +14,30 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// {
+//   code_commande: "CMD20250724-001",
+//   prenom_client: "Marthe",
+//   telephone: "22999999999",
+//   type_appel: "direct", // ou "whatsapp"
+//   adresse: "Quartier Zongo",
+//   indication_adresse: "Face à la mosquée",
+//   date_livraison: Timestamp,
+//   heure_livraison: "15:30",
+//   paiement: {
+//     solde: false,
+//     type: "momo+especes", // ou "momo" ou "especes" ou "plus_tard"
+//     montant_momo: 2500,
+//     montant_especes: 2500,
+//     reste_a_devoir: 0
+//   },
+//   cout_total: 5000,
+//   livreur: "BB Express",
+//   vendeuse: "Prénom Nom",           // <--- AJOUT ICI
+//   produits: [
+//     { nom: "pain_simple_viande", quantite: 1, prix_unitaire: 1200 },
+//     { nom: "yaourt_nature", quantite: 1, prix_unitaire: 600 }
+//   ],
+//   createdAt: Timestamp,
+//   updatedAt: Timestamp
+// }
