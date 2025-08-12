@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -42,12 +42,14 @@ import {
 } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { User, Phone, Venus, Bike, Smartphone } from "lucide-react";
+import PaiementSelector from "./PaiementSelector";
+import { sortBy } from "lodash";
 const ALivrerDialog = ({ open, onClose, onValider }) => {
-  const { adresses } = useCommande();
+  const { adresses, paiement, updatePaiement } = useCommande();
   const [alertOpen, setAlertOpen] = useState(false);
   const [pendingInfos, setPendingInfos] = useState(null);
-
+  const [prixLivraison, setPrixLivraison] = useState({ depart: 0, prix: 0 });
   const form = useForm({
     defaultValues: {
       nom: "",
@@ -57,13 +59,36 @@ const ALivrerDialog = ({ open, onClose, onValider }) => {
       adresse: "",
       indication: "",
       numeroLivraison: "",
+      prenomLivraison: "",
+      typeAppel: "direct",
       dateLivraison: new Date(),
       heureLivraison: "",
     },
   });
-
   const watchFields = form.watch();
-
+  const numeroLivraison = form.watch("numeroLivraison");
+  const typeAppel = form.watch("typeAppel");
+  const adresse = form.watch("adresse");
+  useEffect(() => {
+    let location = adresses.find((el) => el.id === adresse);
+    if (location) {
+      let list = location?.tarifs;
+      list = sortBy(list, [
+        function (el) {
+          return el.tarif;
+        },
+      ]);
+      setPrixLivraison({ depart: list[0]?.depart_nom, prix: list[0]?.tarif });
+      updatePaiement({
+        infos: {
+          ...paiement.infos,
+          prix_livraison: prixLivraison.prix,
+          depart_livraison: prixLivraison.depart,
+        },
+        statut: paiement.statut,
+      });
+    }
+  }, [adresse]);
   const handleSubmitForm = (data) => {
     if (!data.adresse || !data.numeroLivraison || !data.heureLivraison) {
       setPendingInfos(data);
@@ -188,7 +213,7 @@ const ALivrerDialog = ({ open, onClose, onValider }) => {
                               : "Choisir une adresse"}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
+                        <PopoverContent className="w-full p-0 bg-white">
                           <Command>
                             <CommandInput placeholder="Rechercher..." />
                             <CommandList>
@@ -212,7 +237,14 @@ const ALivrerDialog = ({ open, onClose, onValider }) => {
                   </FormItem>
                 )}
               />
-
+              {adresse && (
+                <div>
+                  <FormLabel>
+                    <Bike className="inline w-4 h-4 mr-1" />
+                    {`Prix Livraison : ${prixLivraison?.prix}`}
+                  </FormLabel>
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="indication"
@@ -222,6 +254,55 @@ const ALivrerDialog = ({ open, onClose, onValider }) => {
                       <Textarea
                         placeholder="Indication d'adresse (optionnel)"
                         rows={2}
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="numeroLivraison"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        placeholder="Numéro pour la livraison"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              {numeroLivraison && (
+                <div>
+                  <FormLabel>
+                    <Smartphone className="inline w-4 h-4 mr-1" />
+                    Type d'appel
+                  </FormLabel>
+                  <div className="flex gap-2 mt-1">
+                    {["direct", "whatsapp"].map((mode) => (
+                      <Button
+                        key={mode}
+                        type="button"
+                        size="sm"
+                        variant={typeAppel === mode ? "default" : "outline"}
+                        onClick={() => form.setValue("typeAppel", mode)}>
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <FormField
+                control={form.control}
+                name="prenomLivraison"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        placeholder="Prénom pour la livraison (optionnel)"
                         {...field}
                       />
                     </FormControl>
@@ -245,7 +326,7 @@ const ALivrerDialog = ({ open, onClose, onValider }) => {
                               "Choisir une date"}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="p-0">
+                        <PopoverContent className="p-0 bg-white">
                           <Calendar
                             mode="single"
                             selected={field.value}
@@ -276,9 +357,7 @@ const ALivrerDialog = ({ open, onClose, onValider }) => {
               {/* PaiementSelector */}
               <div>
                 <FormLabel>Moyen de paiement</FormLabel>
-                <div className="text-sm italic text-gray-400 mt-1">
-                  (Sélecteur de paiement à insérer ici)
-                </div>
+                <PaiementSelector prixLivraison={prixLivraison} />
               </div>
 
               <DialogFooter>

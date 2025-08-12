@@ -14,7 +14,6 @@ import VendeuseDetail from "./pages/VendeuseDetail";
 import CuisinierDetail from "./pages/CuisinierDetail";
 import PointDeVenteDetail from "./pages/PointDeVenteDetail";
 import TypeNumeroDetail from "./pages/TypeNumeroDetail";
-import CommandeRapide from "./pages/CommandeRapide";
 import CommandPage from "./pages/CommandPage";
 import Notifications from "./pages/Notifications";
 import Account from "./pages/Account";
@@ -24,7 +23,9 @@ import Admin from "./pages/Admin";
 import PrivateRoute from "./components/PrivateRoute";
 import AdresseDetail from "./pages/AdresseDetail";
 import MoyenPaiementDetail from "./pages/MoyenPaiementDetail";
+import CommandeDetails from "./pages/CommandeDetails";
 import { CommandeProvider } from "./context/CommandContext";
+import { CommandDetailProvider } from "./context/CommandDetailContext";
 function App() {
   return (
     <>
@@ -108,6 +109,16 @@ function App() {
           element={
             <PrivateRoute requiredFonction={["superviseur"]}>
               <StockDetail />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/commandes/:commandeId"
+          element={
+            <PrivateRoute requiredFonction={["superviseur"]}>
+              <CommandDetailProvider>
+                <CommandeDetails />
+              </CommandDetailProvider>
             </PrivateRoute>
           }
         />
@@ -207,29 +218,3 @@ function App() {
 }
 
 export default App;
-
-// {
-//   adresse:"Littoral-Cotonou-Akpakpa",
-//   code_commande:"",
-//   cout_total:"",
-//   date_livraison:"",
-//   heure_livraison:"",
-//   indication_adresse:"",
-//   livreur:"",
-//   details_commande:"",
-//   paiement:"",
-//   client:"",
-//   telephone_client:"",
-//   numero_client:"",
-//   numero_a_livrer:"",
-//   prenom_a_livrer:"",
-//   type_appel:"",
-//   prix_livraison:"",
-//   statut_livraison:"",
-//   incident_livraison:"",
-//   point_de_vente:"",
-//   createdAt:"",
-//   vendeur:"",
-//   paiement:"",
-//   moyen_paiement:""
-// }

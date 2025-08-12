@@ -80,7 +80,7 @@ export default function CalculatriceDialog({
                   size="sm"
                   variant={
                     k === "C"
-                      ? "destructive"
+                      ? "outline"
                       : k === "Del"
                       ? "outline"
                       : k === "OK"

@@ -1,9 +1,66 @@
+@font-face {
+  font-family: Quartzo;
+  src: url("./assets/fonts/quartzo/QUARTZO/QUARTZO____PERSONAL_USE_ONLY.ttf");
+}
+@font-face {
+  font-family: Alkia;
+  src: url("./assets/fonts/alkia/Alkia.ttf");
+}
+@font-face {
+  font-family: Amladen;
+  src: url("./assets/fonts/amladen-bohiga/AmladenBohiga-yYYPM.otf");
+}
+@font-face {
+  font-family: Audrey_bold;
+  src: url("./assets/fonts/audrey/Audrey-Bold.otf");
+}
+@font-face {
+  font-family: Audrey_normal;
+  src: url("./assets/fonts/audrey/Audrey-Normal.otf");
+}
+@font-face {
+  font-family: Break;
+  src: url("./assets/fonts/break-2/break_bold.ttf");
+}
+@font-face {
+  font-family: Coco;
+  src: url("./assets/fonts/coco/Coco-Bold.otf");
+}
+@font-face {
+  font-family: Morena;
+  src: url("./assets/fonts/morena/Morena-Bold.otf");
+}
+@font-face {
+  font-family: Morganite;
+  src: url("./assets/fonts/morganite/Morganite-Bold.ttf");
+}
+@font-face {
+  font-family: Nunito_bold;
+  src: url("./assets/fonts/nunito/Nunito-Bold.ttf");
+}
+@font-face {
+  font-family: Nunito_regular;
+  src: url("./assets/fonts/nunito/Nunito-Regular.ttf");
+}
+@font-face {
+  font-family: Rattudiy;
+  src: url("./assets/fonts/rattudiy-trial/RattudiytrialRegular-9MM5L.otf");
+}
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
+  --font-Alkia:Alkia,"sans-serif";
+  --font-Audrey_bold:Audrey_bold,"sans-serif";
+  --font-Audrey_normal:Audrey_normal,"sans-serif";
+  --font-Break:Break,"sans-serif";
+  --font-Coco:Coco,"sans-serif";
+  --font-Morena:Morena,"sans-serif";
+  --font-Nunito_bold:Nunito_bold,"sans-serif";
+  --font-Nunito_regular:Nunito_regular,"sans-serif";
+  --font-Rattudiy:Rattudiy,"sans-serif";
   --color-beige-500: oklch(0.95 0.03 85);
   /* #ffe8c9 */
   --color-bordeaux-500: oklch(0.43 0.25 24);

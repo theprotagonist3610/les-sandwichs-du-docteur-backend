@@ -147,7 +147,7 @@ export default function HeaderCommandes({
 
   // ---- Toolbar collapsible ----
   function Toolbar() {
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(true);
 
     return (
       <div className="bg-white p-4 w-full max-w-full mx-auto">

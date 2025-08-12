@@ -52,7 +52,7 @@ const PointDeVente = () => {
                     : "Choisir un point de vente"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
+              <PopoverContent className="w-full p-0 bg-white">
                 <Command>
                   <CommandInput placeholder="Rechercher..." />
                   <CommandList>

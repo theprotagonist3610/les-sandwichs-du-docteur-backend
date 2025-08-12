@@ -24,6 +24,7 @@ export const CommandeProvider = ({ children }) => {
       montant_recu_momo: 0,
       reliquat_rendu: 0,
       reste_a_devoir: 0,
+      prix_livraison: 0,
       dette: 0,
     },
     statut: "non paye", // ou "paye partiellement", "paye"
@@ -37,18 +38,11 @@ export const CommandeProvider = ({ children }) => {
   const adresses = useAdressesLivraison();
   const moyensPaiement = useMoyensPaiement();
 
-  const updatePaiement = (newInfos) => {
-    setPaiement((prev) => ({
-      ...prev,
-      infos: { ...prev.infos, ...newInfos },
-    }));
-  };
-
-  const setPaiementStatut = (statut) => {
-    setPaiement((prev) => ({
-      ...prev,
+  const updatePaiement = ({ infos, statut }) => {
+    setPaiement({
+      infos,
       statut,
-    }));
+    });
   };
 
   // Ajouter un produit à la commande
@@ -100,6 +94,7 @@ export const CommandeProvider = ({ children }) => {
         montant_recu_momo: 0,
         reliquat_rendu: 0,
         reste_a_devoir: 0,
+        prix_livraison: 0,
         dette: 0,
       },
       statut: "non paye",

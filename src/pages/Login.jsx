@@ -69,7 +69,7 @@ export default function Login() {
       } else {
         const userData = await loginWithEmail(email, password);
         if (!userData) throw new Error("Compte inactif ou inexistant.");
-        navigate("/");
+        navigate("/backoffice");
       }
     } catch (err) {
       console.error(err);
@@ -84,7 +84,7 @@ export default function Login() {
       <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg space-y-6">
         <div className="flex justify-center">
           <img
-            src="logo.png"
+            src="/logo.png"
             alt="Logo"
             className="w-20 h-20 rounded-full shadow"
           />

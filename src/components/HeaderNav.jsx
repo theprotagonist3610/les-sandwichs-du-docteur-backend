@@ -59,119 +59,128 @@ export default function HeaderNav({ onRefresh }) {
     }`;
 
   return (
-    <header className="sticky top-0 z-30 bg-white shadow-sm flex flex-col w-full">
-      <div className="flex justify-between items-center p-2 w-full">
-        {/* Logo + menu burger */}
-        <div className="flex items-center justify-between w-full gap-4">
-          {/* Colonne 1 : logo */}
+    <header className="sticky top-0 z-30 bg-white shadow-sm w-full">
+      {/* Conteneur principal en deux lignes */}
+      <div className="flex flex-col w-full">
+        {/* Ligne 1 : Logo (gauche) + Menu burger (droite) */}
+        <div className="flex items-center justify-between w-full">
+          {/* Logo */}
           <div className="shrink-0">
             <img
-              src="/logo.png"
+              src="/logo_petit.PNG"
               alt="Logo"
-              className="w-14 h-14 rounded-full"
+              className="ml-4 h-16 w-auto"
             />
           </div>
 
-          {/* Colonne 2 : titre de page (stretchable) */}
-          <div className="flex-1">
+          {/* Menu Burger (Sheet) */}
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="m-2">
+                <Menu size={24} />
+              </Button>
+            </SheetTrigger>
+
+            <AnimatePresence>
+              {open && (
+                <SheetContent side="left" className="w-64 pt-8 overflow-hidden">
+                  <motion.nav
+                    className="flex flex-col gap-4"
+                    initial={{ x: -100, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -100, opacity: 0 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 260,
+                      damping: 20,
+                    }}>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/")}
+                      onClick={() => navigate("/")}>
+                      <Home size={18} /> Tableau de bord
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/commande-rapide/")}
+                      onClick={() => navigate("/commande-rapide/")}>
+                      <BadgeDollarSign size={18} /> Panneau de vente
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/menu/")}
+                      onClick={() => navigate("/menu/")}>
+                      <UtensilsCrossed size={18} /> Menu
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/stocks/")}
+                      onClick={() => navigate("/stocks/")}>
+                      <Boxes size={18} /> Stock
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/commandes/")}
+                      onClick={() => navigate("/commandes/")}>
+                      <ClipboardList size={18} /> Commandes
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/statistiques/")}
+                      onClick={() => navigate("/statistiques/")}>
+                      <BarChart2 size={18} /> Statistiques
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={linkClass("/admin/")}
+                      onClick={() => navigate("/admin/")}>
+                      <User2 size={18} /> Admin
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-lg gap-2 w-full text-red-600"
+                      onClick={handleLogout}>
+                      <LogOut size={18} /> Déconnexion
+                    </Button>
+                  </motion.nav>
+                </SheetContent>
+              )}
+            </AnimatePresence>
+          </Sheet>
+        </div>
+
+        {/* Ligne 2 : Titre (gauche) + Utilisateur (droite) */}
+        <div className="flex justify-between">
+          <div className="ml-2">
             <span className="text-base font-semibold">{locationTitle()}</span>
           </div>
-
-          {/* Colonne 3 : bonjour + badge */}
           {user && (
-            <div className="flex flex-col items-center text-right shrink-0">
-              <span className="text-sm text-gray-500">
-                Bonjour, {user.prenom} 👋
-              </span>
-              <span
-                className={`inline-block mt-1 px-2 py-0.5 text-xs rounded-full font-medium ${
-                  badgeColors[user.fonction] || badgeColors.default
-                }`}>
-                {user.fonction.charAt(0).toUpperCase() + user.fonction.slice(1)}
-              </span>
-            </div>
+            <>
+              {user?.prenom && (
+                <div className="text-sm text-gray-500">Mr. {user.prenom}</div>
+              )}
+              {user?.fonction && (
+                <div
+                  className={`mr-2 inline-block mt-1 px-2 py-0.5 text-xs rounded-full font-medium ${
+                    badgeColors[user.fonction] || badgeColors.default
+                  }`}>
+                  {user?.fonction?.charAt(0).toUpperCase() +
+                    user?.fonction?.slice(1)}
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* Menu Burger (Sheet) */}
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="m-2">
-              <Menu size={24} />
-            </Button>
-          </SheetTrigger>
-          <AnimatePresence>
-            {open && (
-              <SheetContent side="left" className="w-64 pt-8 overflow-hidden">
-                <motion.nav
-                  className="flex flex-col gap-4"
-                  initial={{ x: -100, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -100, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 20 }}>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/")}
-                    onClick={() => navigate("/")}>
-                    <Home size={18} /> Tableau de bord
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/commande-rapide")}
-                    onClick={() => navigate("/commande-rapide")}>
-                    <BadgeDollarSign size={18} /> Panneau de vente
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/menu")}
-                    onClick={() => navigate("/menu")}>
-                    <UtensilsCrossed size={18} /> Menu
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/stocks")}
-                    onClick={() => navigate("/stocks")}>
-                    <Boxes size={18} /> Stock
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/commandes")}
-                    onClick={() => navigate("/commandes")}>
-                    <ClipboardList size={18} /> Commandes
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/statistiques")}
-                    onClick={() => navigate("/statistiques")}>
-                    <BarChart2 size={18} /> Statistiques
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={linkClass("/admin")}
-                    onClick={() => navigate("/admin")}>
-                    <User2 size={18} /> Admin
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="justify-start text-lg gap-2 w-full text-red-600"
-                    onClick={handleLogout}>
-                    <LogOut size={18} /> Déconnexion
-                  </Button>
-                </motion.nav>
-              </SheetContent>
-            )}
-          </AnimatePresence>
-        </Sheet>
-
-        {/* AppToolbar (desktop) */}
+        {/* AppToolbar (desktop) — inchangé */}
         <div className="hidden md:flex">
           <AppToolbar onRefresh={handleRefresh} />
         </div>
-      </div>
 
-      {/* AppToolbar (mobile) */}
-      <div className="md:hidden mt-2">
-        <AppToolbar onRefresh={handleRefresh} />
+        {/* AppToolbar (mobile) — inchangé */}
+        <div className="md:hidden mt-2">
+          <AppToolbar onRefresh={handleRefresh} />
+        </div>
       </div>
     </header>
   );
