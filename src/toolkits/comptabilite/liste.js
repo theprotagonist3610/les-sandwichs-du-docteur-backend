@@ -1,0 +1,696 @@
+const comptes = [
+  {
+    groupe: "Capitaux",
+    liste: [
+      {
+        denomination: "Investissement initial",
+        type: "fonds propres",
+        code_lsd: "CAP001",
+        code_ohada: "101",
+      },
+      {
+        denomination: "Résultat de l'exercice",
+        type: "résultat",
+        code_lsd: "CAP002",
+        code_ohada: "130",
+      },
+    ],
+  },
+  {
+    groupe: "Trésorerie",
+    liste: [
+      {
+        denomination: "Caisse espèces",
+        type: "disponibilités",
+        code_lsd: "TRES001",
+        code_ohada: "571",
+      },
+      {
+        denomination: "Mobile Money",
+        type: "disponibilités",
+        code_lsd: "TRES002",
+        code_ohada: "572",
+      },
+      {
+        denomination: "Banque - Compte courant",
+        type: "disponibilités",
+        code_lsd: "TRES003",
+        code_ohada: "521",
+      },
+      {
+        denomination: "Banque - Compte épargne",
+        type: "disponibilités",
+        code_lsd: "TRES004",
+        code_ohada: "522",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Matières premières",
+    liste: [
+      {
+        denomination: "Achat viande de bœuf",
+        type: "charge",
+        code_lsd: "ACH001",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat viande de poulet",
+        type: "charge",
+        code_lsd: "ACH002",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat viande de mouton",
+        type: "charge",
+        code_lsd: "ACH003",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat viande de lapin",
+        type: "charge",
+        code_lsd: "ACH004",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat poisson",
+        type: "charge",
+        code_lsd: "ACH005",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat pain simple",
+        type: "charge",
+        code_lsd: "ACH006",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat pain viennois",
+        type: "charge",
+        code_lsd: "ACH007",
+        code_ohada: "601",
+      },
+      {
+        denomination: "Achat pommes de terre",
+        type: "charge",
+        code_lsd: "ACH008",
+        code_ohada: "601",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Épices et condiments",
+    liste: [
+      {
+        denomination: "Achat épices moulues",
+        type: "charge",
+        code_lsd: "EPI001",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat poivron",
+        type: "charge",
+        code_lsd: "EPI002",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat échalotte",
+        type: "charge",
+        code_lsd: "EPI003",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat haricots verts",
+        type: "charge",
+        code_lsd: "EPI004",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat gingembre",
+        type: "charge",
+        code_lsd: "EPI005",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat ail",
+        type: "charge",
+        code_lsd: "EPI006",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat poivre",
+        type: "charge",
+        code_lsd: "EPI007",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat sel",
+        type: "charge",
+        code_lsd: "EPI008",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat laurier",
+        type: "charge",
+        code_lsd: "EPI009",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat citronnelle",
+        type: "charge",
+        code_lsd: "EPI010",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat menthe",
+        type: "charge",
+        code_lsd: "EPI011",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat mayonnaise",
+        type: "charge",
+        code_lsd: "EPI012",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat moutarde",
+        type: "charge",
+        code_lsd: "EPI013",
+        code_ohada: "602",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Fruits et produits laitiers",
+    liste: [
+      {
+        denomination: "Achat bananes",
+        type: "charge",
+        code_lsd: "FRU001",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat mangues",
+        type: "charge",
+        code_lsd: "FRU002",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat avocat",
+        type: "charge",
+        code_lsd: "FRU003",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat citron",
+        type: "charge",
+        code_lsd: "FRU004",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat lait en poudre",
+        type: "charge",
+        code_lsd: "LAI001",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat yaourt témoin",
+        type: "charge",
+        code_lsd: "LAI002",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat sucre",
+        type: "charge",
+        code_lsd: "AUT001",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat chocolat",
+        type: "charge",
+        code_lsd: "AUT002",
+        code_ohada: "602",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Grains et friandises",
+    liste: [
+      {
+        denomination: "Achat mil/sorgho",
+        type: "charge",
+        code_lsd: "GRA001",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat couscous",
+        type: "charge",
+        code_lsd: "GRA002",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat bonbons",
+        type: "charge",
+        code_lsd: "FRI001",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat chewing-gum",
+        type: "charge",
+        code_lsd: "FRI002",
+        code_ohada: "602",
+      },
+      {
+        denomination: "Achat sodas (Coca, Sprite, Fanta)",
+        type: "charge",
+        code_lsd: "BOS001",
+        code_ohada: "602",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Emballages",
+    liste: [
+      {
+        denomination: "Achat box 16x16",
+        type: "charge",
+        code_lsd: "EMB001",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat papier kraft",
+        type: "charge",
+        code_lsd: "EMB002",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat cuillères jetables",
+        type: "charge",
+        code_lsd: "EMB003",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat pots yaourt petits",
+        type: "charge",
+        code_lsd: "EMB004",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat pots yaourt grands",
+        type: "charge",
+        code_lsd: "EMB005",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat pots sauce",
+        type: "charge",
+        code_lsd: "EMB006",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat papier torchon",
+        type: "charge",
+        code_lsd: "EMB007",
+        code_ohada: "604",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Étiquettes et publicité",
+    liste: [
+      {
+        denomination: "Achat étiquettes box",
+        type: "charge",
+        code_lsd: "ETI001",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat étiquettes pot",
+        type: "charge",
+        code_lsd: "ETI002",
+        code_ohada: "604",
+      },
+      {
+        denomination: "Achat bâche publicitaire",
+        type: "charge",
+        code_lsd: "PUB001",
+        code_ohada: "622",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Habillement",
+    liste: [
+      {
+        denomination: "Achat T-shirts",
+        type: "charge",
+        code_lsd: "HAB001",
+        code_ohada: "605",
+      },
+      {
+        denomination: "Achat masques chirurgicaux",
+        type: "charge",
+        code_lsd: "HAB002",
+        code_ohada: "605",
+      },
+      {
+        denomination: "Achat calots chirurgicaux",
+        type: "charge",
+        code_lsd: "HAB003",
+        code_ohada: "605",
+      },
+      {
+        denomination: "Achat tabliers",
+        type: "charge",
+        code_lsd: "HAB004",
+        code_ohada: "605",
+      },
+      {
+        denomination: "Achat gants",
+        type: "charge",
+        code_lsd: "HAB005",
+        code_ohada: "605",
+      },
+      {
+        denomination: "Achat casquettes",
+        type: "charge",
+        code_lsd: "HAB006",
+        code_ohada: "605",
+      },
+    ],
+  },
+  {
+    groupe: "Achats - Ustensiles et appareils",
+    liste: [
+      {
+        denomination: "Achat couteaux",
+        type: "immobilisation",
+        code_lsd: "UST001",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat planches à découper",
+        type: "immobilisation",
+        code_lsd: "UST002",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat allumettes",
+        type: "charge",
+        code_lsd: "UST003",
+        code_ohada: "605",
+      },
+      {
+        denomination: "Achat louche",
+        type: "immobilisation",
+        code_lsd: "UST004",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat marmite",
+        type: "immobilisation",
+        code_lsd: "UST005",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat chauffe-eau",
+        type: "immobilisation",
+        code_lsd: "APP001",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat machine à vide",
+        type: "immobilisation",
+        code_lsd: "APP002",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat moulinex",
+        type: "immobilisation",
+        code_lsd: "APP003",
+        code_ohada: "244",
+      },
+      {
+        denomination: "Achat kiosque",
+        type: "immobilisation",
+        code_lsd: "MAT001",
+        code_ohada: "231",
+      },
+    ],
+  },
+  {
+    groupe: "Charges externes",
+    liste: [
+      {
+        denomination: "Paiement livreurs",
+        type: "charge",
+        code_lsd: "TIE001",
+        code_ohada: "624",
+      },
+      {
+        denomination: "Connexion internet",
+        type: "charge",
+        code_lsd: "TIE002",
+        code_ohada: "626",
+      },
+      {
+        denomination: "Eau courante",
+        type: "charge",
+        code_lsd: "TIE003",
+        code_ohada: "625",
+      },
+      {
+        denomination: "Électricité",
+        type: "charge",
+        code_lsd: "TIE004",
+        code_ohada: "625",
+      },
+    ],
+  },
+  {
+    groupe: "Ventes - Box",
+    liste: [
+      {
+        denomination: "Vente box poisson",
+        type: "produit",
+        code_lsd: "VEN001",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box viande",
+        type: "produit",
+        code_lsd: "VEN002",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box lapin",
+        type: "produit",
+        code_lsd: "VEN003",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box mouton",
+        type: "produit",
+        code_lsd: "VEN004",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box poulet",
+        type: "produit",
+        code_lsd: "VEN005",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box mixte poisson-viande",
+        type: "produit",
+        code_lsd: "VEN006",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box mixte viande-mouton",
+        type: "produit",
+        code_lsd: "VEN007",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente box mixte poulet-mouton",
+        type: "produit",
+        code_lsd: "VEN008",
+        code_ohada: "701",
+      },
+    ],
+  },
+  {
+    groupe: "Ventes - Pain",
+    liste: [
+      {
+        denomination: "Vente pain simple poisson",
+        type: "produit",
+        code_lsd: "VEN009",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain simple viande",
+        type: "produit",
+        code_lsd: "VEN010",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain simple lapin",
+        type: "produit",
+        code_lsd: "VEN011",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain simple mouton",
+        type: "produit",
+        code_lsd: "VEN012",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain simple poulet",
+        type: "produit",
+        code_lsd: "VEN013",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain viennois poisson",
+        type: "produit",
+        code_lsd: "VEN014",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain viennois viande",
+        type: "produit",
+        code_lsd: "VEN015",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain viennois lapin",
+        type: "produit",
+        code_lsd: "VEN016",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain viennois mouton",
+        type: "produit",
+        code_lsd: "VEN017",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente pain viennois poulet",
+        type: "produit",
+        code_lsd: "VEN018",
+        code_ohada: "701",
+      },
+    ],
+  },
+  {
+    groupe: "Ventes - Boissons",
+    liste: [
+      {
+        denomination: "Vente Coca-Cola",
+        type: "produit",
+        code_lsd: "VEN019",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente Sprite",
+        type: "produit",
+        code_lsd: "VEN020",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente Fanta",
+        type: "produit",
+        code_lsd: "VEN021",
+        code_ohada: "701",
+      },
+    ],
+  },
+  {
+    groupe: "Ventes - Yaourt",
+    liste: [
+      {
+        denomination: "Vente yaourt petit banane",
+        type: "produit",
+        code_lsd: "VEN022",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt petit mangue",
+        type: "produit",
+        code_lsd: "VEN023",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt petit nature",
+        type: "produit",
+        code_lsd: "VEN024",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt petit chocolat",
+        type: "produit",
+        code_lsd: "VEN025",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt grand banane",
+        type: "produit",
+        code_lsd: "VEN026",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt grand mangue",
+        type: "produit",
+        code_lsd: "VEN027",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt grand nature",
+        type: "produit",
+        code_lsd: "VEN028",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente yaourt grand chocolat",
+        type: "produit",
+        code_lsd: "VEN029",
+        code_ohada: "701",
+      },
+    ],
+  },
+  {
+    groupe: "Ventes - Dégué et frites",
+    liste: [
+      {
+        denomination: "Vente dégué petit",
+        type: "produit",
+        code_lsd: "VEN030",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente dégué grand",
+        type: "produit",
+        code_lsd: "VEN031",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente portion frites petite",
+        type: "produit",
+        code_lsd: "VEN032",
+        code_ohada: "701",
+      },
+      {
+        denomination: "Vente portion frites grande",
+        type: "produit",
+        code_lsd: "VEN033",
+        code_ohada: "701",
+      },
+    ],
+  },
+];
+
+export default comptes;

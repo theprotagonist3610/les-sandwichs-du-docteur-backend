@@ -1,84 +1,228 @@
-@font-face {
-  font-family: Quartzo;
-  src: url("./assets/fonts/quartzo/QUARTZO/QUARTZO____PERSONAL_USE_ONLY.ttf");
-}
-@font-face {
-  font-family: Alkia;
-  src: url("./assets/fonts/alkia/Alkia.ttf");
-}
-@font-face {
-  font-family: Amladen;
-  src: url("./assets/fonts/amladen-bohiga/AmladenBohiga-yYYPM.otf");
-}
-@font-face {
-  font-family: Audrey_bold;
-  src: url("./assets/fonts/audrey/Audrey-Bold.otf");
-}
-@font-face {
-  font-family: Audrey_normal;
-  src: url("./assets/fonts/audrey/Audrey-Normal.otf");
-}
-@font-face {
-  font-family: Break;
-  src: url("./assets/fonts/break-2/break_bold.ttf");
-}
-@font-face {
-  font-family: Coco;
-  src: url("./assets/fonts/coco/Coco-Bold.otf");
-}
-@font-face {
-  font-family: Morena;
-  src: url("./assets/fonts/morena/Morena-Bold.otf");
-}
-@font-face {
-  font-family: Morganite;
-  src: url("./assets/fonts/morganite/Morganite-Bold.ttf");
-}
-@font-face {
-  font-family: Nunito_bold;
-  src: url("./assets/fonts/nunito/Nunito-Bold.ttf");
-}
-@font-face {
-  font-family: Nunito_regular;
-  src: url("./assets/fonts/nunito/Nunito-Regular.ttf");
-}
-@font-face {
-  font-family: Rattudiy;
-  src: url("./assets/fonts/rattudiy-trial/RattudiytrialRegular-9MM5L.otf");
-}
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Dark mode via class .dark sur <html> */
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  --font-Alkia:Alkia,"sans-serif";
-  --font-Audrey_bold:Audrey_bold,"sans-serif";
-  --font-Audrey_normal:Audrey_normal,"sans-serif";
-  --font-Break:Break,"sans-serif";
-  --font-Coco:Coco,"sans-serif";
-  --font-Morena:Morena,"sans-serif";
-  --font-Nunito_bold:Nunito_bold,"sans-serif";
-  --font-Nunito_regular:Nunito_regular,"sans-serif";
-  --font-Rattudiy:Rattudiy,"sans-serif";
-  --color-beige-500: oklch(0.95 0.03 85);
-  /* #ffe8c9 */
-  --color-bordeaux-500: oklch(0.43 0.25 24);
-  /* #a41624 */
-  --color-orangeclair-500: oklch(0.85 0.15 65);
-  /* #ffb564 */
-  --color-orangedark-500: oklch(0.72 0.22 50);
-  /* #d9571d */
+/* ========= LIGHT (par défaut) =========
+  Marque (fixe): 
+  - Primary (brand):     #a41624
+  - Accent (miel):       #ffb564
+  - Spice (épicé):       #d9571d
+  - Cream (support):     #ffe8c9
+  Neutres (varient): background, foreground, card, popover, muted, border, input, ring, sidebar...
+*/
+:root {
+  /* Neutres — light */
+  --background: #fff8f1;
+  /* fond clair doux */
+  --foreground: #1f1c19;
+  /* texte principal */
+  --card: #ffffff;
+  --card-foreground: #1f1c19;
+  --popover: #ffffff;
+  --popover-foreground: #1f1c19;
 
-  --color-background: var(--color-beige-500);
-  --color-primary: var(--color-bordeaux-500);
-  --color-secondary: var(--color-orangeclair-500);
-  --color-accent: var(--color-orangedark-500);
+  /* Marque — FIXE (light & dark) */
+  --primary: #a41624;
+  /* brand rouge */
+  --primary-foreground: #ffffff;
 
-  --color-text-primary: oklch(0.1 0 0);
-  /* Presque noir */
-  --color-text-light: oklch(1 0 0);
-  /* Blanc */
+  /* Tons secondaires / surfaces */
+  --secondary: #ffe8c9;
+  /* cream support */
+  --secondary-foreground: #1f1c19;
+
+  /* Surfaces atténuées / muted */
+  --muted: #f8efe4;
+  /* cream+ */
+  --muted-foreground: #475569;
+  /* gris lisible sur clair */
+
+  /* Accent d'action */
+  --accent: #ffb564;
+  /* miel */
+  --accent-foreground: #1b120a;
+
+  /* Destructive (épicé/alerte) */
+  --destructive: #d9571d;
+  /* spice */
+  --destructive-foreground: #ffffff;
+
+  /* Traits / champs / focus */
+  --border: #ecdcc8;
+  --input: #ecdcc8;
+  --ring: #ffb564;
+  /* halo de focus = accent */
+
+  /* Palette chart par défaut (lisible sur clair) */
+  --chart-1: #a41624;
+  /* brand */
+  --chart-2: #ffb564;
+  /* accent */
+  --chart-3: #d9571d;
+  /* spice */
+  --chart-4: #ffe8c9;
+  /* cream */
+  --chart-5: #5c0c14;
+  /* bordeaux profond */
+
+  /* Rayon */
+  --radius: 0.625rem;
+
+  /* Sidebar */
+  --sidebar: #fff8f1;
+  --sidebar-foreground: #1f1c19;
+  --sidebar-primary: #a41624;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffb564;
+  --sidebar-accent-foreground: #1b120a;
+  --sidebar-border: #ecdcc8;
+  --sidebar-ring: #ffb564;
 }
 
+/* ========= DARK =========
+  Marque CONSERVÉE (mêmes hex que ci-dessus).
+  On ne change que les neutres pour du sombre confortable.
+*/
+.dark {
+  /* Neutres — dark très adoucis */
+  --background: #212127;
+  /* était #1a1b1e → beaucoup plus doux et chaleureux */
+  --foreground: #eceef4;
+  /* légèrement plus lumineux */
+  --card: #252530;
+  /* était #1e1f24 → plus doux et chaleureux */
+  --card-foreground: #eceef4;
+  --popover: #252530;
+  /* était #1e1f24 → plus doux */
+  --popover-foreground: #eceef4;
 
+  /* Marque — FIXE (identique) */
+  --primary: #a41624;
+  --primary-foreground: #ffffff;
+
+  /* Surfaces secondaires sombres tempérées très adoucies */
+  --secondary: #2e2a1f;
+  /* était #2a2418 → plus chaud et doux */
+  --secondary-foreground: #eceef4;
+
+  /* Muted sombre très adouci */
+  --muted: #2a2b32;
+  /* était #25262b → plus lumineux et doux */
+  --muted-foreground: #98a5bb;
+  /* était #93a0b6 → légèrement plus lumineux */
+
+  /* Accent inchangé (miel), mais plus lisible sur sombre */
+  --accent: #ffb564;
+  --accent-foreground: #0e0a07;
+
+  /* Destructive sombre (épicé) adouci */
+  --destructive: #d9571d;
+  --destructive-foreground: #212127;
+  /* suit le nouveau background */
+
+  /* Traits / champs / focus très adoucis */
+  --border: #35373f;
+  /* était #2f3038 → plus visible et doux */
+  --input: #35373f;
+  /* était #2f3038 → plus visible */
+  --ring: #ffb564;
+
+  /* Chart — contraste mieux sur dark */
+  --chart-1: #ffb564;
+  --chart-2: #a41624;
+  --chart-3: #d9571d;
+  --chart-4: #ffe8c9;
+  --chart-5: #6c7890;
+
+  /* Sidebar sombre très adoucie */
+  --sidebar: #252530;
+  /* était #1e1f24 → plus doux, suit card */
+  --sidebar-foreground: #eceef4;
+  --sidebar-primary: #a41624;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffb564;
+  --sidebar-accent-foreground: #0e0a07;
+  --sidebar-border: #35373f;
+  /* était #2f3038 → plus visible */
+  --sidebar-ring: #ffb564;
+}
+
+/* Version encore plus douce si nécessaire */
+.dark.ultra-soft {
+  /* Pour les utilisateurs qui veulent encore plus de douceur */
+  --background: #242530;
+  /* Version ultra-douce du background */
+  --card: #282935;
+  /* Cards encore plus douces */
+  --popover: #282935;
+  --secondary: #32302a;
+  /* Secondary encore plus chaud */
+  --muted: #2f3138;
+  /* Muted plus lumineux */
+  --border: #3a3d47;
+  /* Borders plus visibles */
+  --input: #3a3d47;
+  --sidebar: #282935;
+  --sidebar-border: #3a3d47;
+}
+
+/* ========= Mapping @theme inline → classes Tailwind ========= */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ========= Base ========= */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Transition fluide pour tous les éléments lors du changement de thème */
+  *,
+  *::before,
+  *::after {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+}

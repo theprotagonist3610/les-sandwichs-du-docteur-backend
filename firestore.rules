@@ -1,18 +1,59 @@
-rules_version='2'
-
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // Superviseur via custom claim OU via users/{uid}.fonction
+    function isSupervisor() {
+      return isAuthed() && (
+        (('fonction' in request.auth.token) &&
+          (request.auth.token.fonction) == 'superviseur')
+        ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.fonction) == 'superviseur')
+      );
+    }
+
+    // 0) users: lecture du propre profil (pour récupérer "fonction")
+    match /users/{uid} {
+      // lire son propre doc
+      allow read: if isAuthed() && request.auth.uid == uid;
+
+      // (optionnel) créer son doc à l'inscription
+      allow create: if isAuthed() && request.auth.uid == uid;
+
+      // modifications réservées aux superviseurs
+      allow update, delete: if isSupervisor();
+    }
+
+    // 1) client_utils : lecture publique, écriture réservée superviseur
+    match /client_utils/{docPath=**} {
+      allow read: if true;
+      allow write: if isSupervisor();
+    }
+
+    // 2) client_commandes : CRUD public + garde-fous doux
+    match /client_commandes/{docPath=**} {
+      allow read: if true;
+
+      allow create: if
+        (!('items' in request.resource.data) || request.resource.data.items.size() <= 50) &&
+        (!('createdAt' in request.resource.data) || request.resource.data.createdAt == request.time);
+
+      allow update: if
+        request.resource.data.diff(resource.data).changedKeys().size() > 0 &&
+        (!('items' in request.resource.data) || request.resource.data.items.size() <= 50) &&
+        (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt == request.time);
+
+      allow delete: if true;
+    }
+
+    // 3) Tout le reste : réservé aux superviseurs
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 8, 25);
+      allow read, write: if isSupervisor();
     }
   }
 }
