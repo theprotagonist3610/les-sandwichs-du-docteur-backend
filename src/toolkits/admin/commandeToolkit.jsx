@@ -2,16 +2,22 @@
  * commandeToolkit.jsx
  * Gestion des commandes (ventes) avec intégration comptable automatique
  *
+ * SYSTÈME DE QUEUE ANTI-COLLISION (comme stockToolkit):
+ * Toutes les opérations de création/modification/suppression passent par une queue
+ * d'opérations pour garantir l'atomicité et éviter les collisions Firestore.
+ *
  * Structure Firestore:
  *  - ventes/today : document array qui enregistre toutes les commandes du jour
  *  - ventes/archives/liste/{DDMMYYYY} : document array qui archive les ventes de chaque jour
  *  - ventes/ventes_en_attente : document array qui enregistre toutes les ventes non soldées, non livrées ou non servies
  *  - ventes/statistiques : document array qui enregistre les statistiques hebdomadaires
+ *  - ventes/operationsQueue : document array qui contient la queue des opérations (create, update, delete)
  *
  * Consignes respectées:
  *  1. Structure optimisée pour limiter les lectures Firestore (cache local)
  *  2. Triggers RTDB pour synchronisation automatique des hooks
  *  3. Intégration comptabiliteToolkit pour transactions automatiques
+ *  4. Système de queue pour éviter les collisions Firestore (comme stockToolkit)
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -110,6 +116,37 @@ const StatistiquesJourSchema = z.object({
   tendance: z.enum(["hausse", "baisse", "stable"]).default("stable"),
 });
 
+/**
+ * Schema pour une opération dans la queue
+ */
+export const QueuedCommandeOperationSchema = z.object({
+  id: z.string().min(1, "L'ID est requis"),
+  timestamp: z.number().positive("Le timestamp doit être positif"),
+  type: z.enum([
+    OPERATION_TYPES.CREATE,
+    OPERATION_TYPES.UPDATE,
+    OPERATION_TYPES.DELETE,
+    OPERATION_TYPES.DELETE_BATCH,
+  ]),
+  status: z.enum([
+    OPERATION_STATUS.PENDING,
+    OPERATION_STATUS.PROCESSING,
+    OPERATION_STATUS.COMPLETED,
+    OPERATION_STATUS.FAILED,
+  ]),
+  payload: z.object({
+    commandeData: z.any().optional(), // Pour CREATE
+    commandeId: z.string().optional(), // Pour UPDATE et DELETE
+    commandeIds: z.array(z.string()).optional(), // Pour DELETE_BATCH
+    updates: z.any().optional(), // Pour UPDATE
+  }),
+  userId: z.string().min(1, "userId est requis"),
+  error: z.string().optional(),
+  retryCount: z.number().min(0).default(0),
+  createdAt: z.number().positive(),
+  processedAt: z.number().optional(),
+});
+
 // ============================================================================
 // CONSTANTES
 // ============================================================================
@@ -119,10 +156,28 @@ const TODAY_DOC = "today";
 const ARCHIVES_PATH = "archives/liste";
 const VENTES_EN_ATTENTE_DOC = "ventes_en_attente";
 const STATISTIQUES_DOC = "statistiques";
+const COMMANDES_OPERATIONS_QUEUE_PATH = "ventes/operationsQueue";
 const RTDB_COMMANDES_NOTIFICATIONS = "notifications/commandes";
 
 const CACHE_KEY_PREFIX = "commandes_cache_";
 const CACHE_TIMESTAMP_KEY = "commandes_cache_timestamp_";
+const LOCAL_LAST_CLEANUP_KEY = "lsd_commandes_last_cleanup";
+
+// Statuts des opérations dans la queue
+export const OPERATION_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  FAILED: "failed",
+};
+
+// Types d'opérations de commandes
+export const OPERATION_TYPES = {
+  CREATE: "create",
+  UPDATE: "update",
+  DELETE: "delete",
+  DELETE_BATCH: "delete_batch",
+};
 
 // Codes OHADA pour les ventes (automatiquement détectés)
 const CODE_VENTE_PRODUITS_FINIS = "701"; // Vente de produits finis (sandwichs, yaourts)
@@ -226,7 +281,7 @@ function calculateTendance(totalToday, totalYesterday) {
  */
 async function createComptabiliteOperationsForCommande(commande, userId) {
   try {
-    const { paiement, details } = commande;
+    const { paiement } = commande;
 
     // Déterminer le code OHADA (701 pour produits finis, 707 pour marchandises)
     // Par défaut: 701 (ventes de sandwichs/yaourts = produits finis)
@@ -309,15 +364,437 @@ async function deleteComptabiliteOperationsForCommande(commandeId, userId) {
 }
 
 // ============================================================================
-// FONCTIONS CRUD - COMMANDES
+// GESTION DE LA QUEUE D'OPÉRATIONS - ANTI-COLLISION
+// ============================================================================
+
+// Variable globale pour éviter les exécutions simultanées
+let isExecutingCommandes = false;
+
+/**
+ * Helpers pour le nettoyage automatique de la queue
+ */
+function getLastCleanupDate() {
+  try {
+    return localStorage.getItem(LOCAL_LAST_CLEANUP_KEY);
+  } catch (error) {
+    console.error("❌ Erreur lecture dernier nettoyage:", error);
+    return null;
+  }
+}
+
+function saveLastCleanupDate(dateKey) {
+  try {
+    localStorage.setItem(LOCAL_LAST_CLEANUP_KEY, dateKey);
+    console.log("✅ Date de nettoyage sauvegardée:", dateKey);
+  } catch (error) {
+    console.error("❌ Erreur sauvegarde date nettoyage:", error);
+  }
+}
+
+function shouldCleanCommandeQueue() {
+  const today = getDateKey();
+  const lastCleanup = getLastCleanupDate();
+
+  if (!lastCleanup) {
+    return true; // Jamais nettoyé
+  }
+
+  return today !== lastCleanup;
+}
+
+/**
+ * Ajoute une opération à la queue
+ * @param {string} type - Type d'opération (create, update, delete, delete_batch)
+ * @param {Object} payload - Données de l'opération
+ * @param {string} userId - ID de l'utilisateur
+ * @returns {Promise<Object>} L'opération créée
+ */
+export async function enqueueCommandeOperation(type, payload, userId = "system") {
+  try {
+    const now = Date.now();
+    const operationId = `CMD-OP-${nanoid(10)}`;
+
+    const operation = {
+      id: operationId,
+      timestamp: now,
+      type,
+      status: OPERATION_STATUS.PENDING,
+      payload,
+      userId,
+      retryCount: 0,
+      createdAt: now,
+    };
+
+    // Valider l'opération
+    const validatedOperation = QueuedCommandeOperationSchema.parse(operation);
+
+    // Ajouter à la queue avec runTransaction pour éviter les collisions
+    const queueRef = doc(db, COMMANDES_OPERATIONS_QUEUE_PATH);
+
+    await runTransaction(db, async (transaction) => {
+      const queueDoc = await transaction.get(queueRef);
+      const currentQueue = queueDoc.exists()
+        ? queueDoc.data().operations || []
+        : [];
+
+      currentQueue.push(validatedOperation);
+
+      transaction.set(queueRef, { operations: currentQueue }, { merge: true });
+    });
+
+    console.log("✅ Opération ajoutée à la queue:", operationId);
+
+    // Notification
+    await createRTDBNotification(
+      "Opération en file d'attente",
+      `Opération ${type} ajoutée à la queue`,
+      "info"
+    );
+
+    return validatedOperation;
+  } catch (error) {
+    console.error("❌ Erreur ajout opération à la queue:", error);
+    throw error;
+  }
+}
+
+/**
+ * Exécute toutes les opérations en attente dans la queue
+ * Les opérations sont exécutées chronologiquement avec runTransaction
+ * @returns {Promise<Object>} Résumé de l'exécution { success: number, failed: number, errors: [] }
+ */
+export async function executeCommandeOperations() {
+  // Éviter les exécutions simultanées
+  if (isExecutingCommandes) {
+    console.log("⏳ Exécution déjà en cours, opération ignorée");
+    return { success: 0, failed: 0, errors: [], skipped: true };
+  }
+
+  try {
+    isExecutingCommandes = true;
+    console.log("🔄 Début de l'exécution des opérations commandes...");
+
+    const queueRef = doc(db, COMMANDES_OPERATIONS_QUEUE_PATH);
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    await runTransaction(db, async (transaction) => {
+      // 1. Récupérer la queue
+      const queueDoc = await transaction.get(queueRef);
+      if (!queueDoc.exists()) {
+        console.log("📭 Queue vide");
+        return;
+      }
+
+      const queue = queueDoc.data().operations || [];
+
+      // 2. Filtrer les opérations en attente
+      const pendingOps = queue.filter(
+        (op) => op.status === OPERATION_STATUS.PENDING
+      );
+
+      if (pendingOps.length === 0) {
+        console.log("📭 Aucune opération en attente");
+        return;
+      }
+
+      // 3. Trier chronologiquement
+      pendingOps.sort((a, b) => a.timestamp - b.timestamp);
+
+      console.log(`📋 ${pendingOps.length} opérations à traiter`);
+
+      // 4. Récupérer TOUS les documents nécessaires (AVANT toute écriture)
+      const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+      const attenteRef = doc(db, VENTES_PATH, VENTES_EN_ATTENTE_DOC);
+      const now = Date.now();
+
+      // IMPORTANT: Toutes les lectures avant toute écriture
+      const [todayDoc, attenteDoc] = await Promise.all([
+        transaction.get(todayRef),
+        transaction.get(attenteRef),
+      ]);
+
+      let commandes = todayDoc.exists() ? todayDoc.data().liste || [] : [];
+      let attentes = attenteDoc.exists() ? attenteDoc.data().liste || [] : [];
+
+      // 5. Exécuter chaque opération
+      for (const operation of pendingOps) {
+        try {
+          // Trouver l'opération dans la queue d'origine
+          const operationInQueue = queue.find((op) => op.id === operation.id);
+          if (!operationInQueue) {
+            console.error(`⚠️ Opération ${operation.id} introuvable`);
+            continue;
+          }
+
+          const { type, payload } = operation;
+
+          // Traiter selon le type d'opération
+          if (type === OPERATION_TYPES.CREATE) {
+            // CREATE: Ajouter une nouvelle commande
+            const { commandeData } = payload;
+            const commande = {
+              id: generateCommandeId(),
+              createdBy: operation.userId,
+              createdAt: now,
+              ...commandeData,
+            };
+
+            // Valider avec le schema
+            const validatedCommande = CommandeSchema.parse(commande);
+            commandes.push(validatedCommande);
+
+            // Ajouter aux attentes si nécessaire
+            if (
+              validatedCommande.statut === "non livree" ||
+              validatedCommande.statut === "non servi" ||
+              validatedCommande.paiement.dette > 0
+            ) {
+              attentes.push(validatedCommande);
+            }
+
+            // Créer opérations comptables (en dehors de la transaction)
+            operationInQueue._pendingComptaOps = validatedCommande;
+
+          } else if (type === OPERATION_TYPES.UPDATE) {
+            // UPDATE: Modifier une commande existante
+            const { commandeId, updates } = payload;
+            const index = commandes.findIndex((c) => c.id === commandeId);
+
+            if (index === -1) {
+              throw new Error(`Commande ${commandeId} non trouvée`);
+            }
+
+            commandes[index] = {
+              ...commandes[index],
+              ...updates,
+              updatedBy: operation.userId,
+              updatedAt: now,
+            };
+
+            // Mettre à jour dans attentes
+            const attenteIndex = attentes.findIndex((a) => a.id === commandeId);
+            const updatedCommande = commandes[index];
+
+            if (
+              updatedCommande.statut === "livree" ||
+              updatedCommande.statut === "servi"
+            ) {
+              if (updatedCommande.paiement.dette === 0) {
+                attentes = attentes.filter((a) => a.id !== commandeId);
+              }
+            } else {
+              if (attenteIndex !== -1) {
+                attentes[attenteIndex] = updatedCommande;
+              } else {
+                attentes.push(updatedCommande);
+              }
+            }
+
+          } else if (type === OPERATION_TYPES.DELETE) {
+            // DELETE: Supprimer une commande
+            const { commandeId } = payload;
+            const filtered = commandes.filter((c) => c.id !== commandeId);
+
+            if (filtered.length === commandes.length) {
+              throw new Error(`Commande ${commandeId} non trouvée`);
+            }
+
+            commandes = filtered;
+            attentes = attentes.filter((a) => a.id !== commandeId);
+
+            // Marquer pour suppression comptable (en dehors de la transaction)
+            operationInQueue._pendingComptaDelete = commandeId;
+
+          } else if (type === OPERATION_TYPES.DELETE_BATCH) {
+            // DELETE_BATCH: Supprimer plusieurs commandes
+            const { commandeIds } = payload;
+            commandes = commandes.filter((c) => !commandeIds.includes(c.id));
+            attentes = attentes.filter((a) => !commandeIds.includes(a.id));
+
+            // Marquer pour suppression comptable (en dehors de la transaction)
+            operationInQueue._pendingComptaDeleteBatch = commandeIds;
+          }
+
+          // Marquer l'opération comme complétée
+          operationInQueue.status = OPERATION_STATUS.COMPLETED;
+          operationInQueue.processedAt = now;
+          results.success++;
+
+          console.log(`✅ Opération ${operation.id} exécutée`);
+        } catch (error) {
+          // Marquer l'opération comme échouée
+          const operationInQueue = queue.find((op) => op.id === operation.id);
+          if (operationInQueue) {
+            operationInQueue.status = OPERATION_STATUS.FAILED;
+            operationInQueue.error = error.message;
+            operationInQueue.retryCount = (operationInQueue.retryCount || 0) + 1;
+          }
+
+          results.failed++;
+          results.errors.push({
+            operationId: operation.id,
+            error: error.message,
+          });
+
+          console.error(`❌ Échec opération ${operation.id}:`, error.message);
+        }
+      }
+
+      // 6. ÉCRITURES: Sauvegarder toutes les modifications
+      transaction.set(todayRef, { liste: commandes });
+      transaction.set(attenteRef, { liste: attentes });
+      transaction.set(queueRef, { operations: queue }, { merge: true });
+    });
+
+    // 7. Traiter les opérations comptables APRÈS la transaction Firestore
+    // (car createOperation fait ses propres transactions)
+    const queueDoc = await getDoc(queueRef);
+    if (queueDoc.exists()) {
+      const queue = queueDoc.data().operations || [];
+      for (const operation of queue) {
+        if (operation._pendingComptaOps) {
+          await createComptabiliteOperationsForCommande(
+            operation._pendingComptaOps,
+            operation.userId
+          );
+        }
+        if (operation._pendingComptaDelete) {
+          await deleteComptabiliteOperationsForCommande(
+            operation._pendingComptaDelete,
+            operation.userId
+          );
+        }
+        if (operation._pendingComptaDeleteBatch) {
+          for (const cmdId of operation._pendingComptaDeleteBatch) {
+            await deleteComptabiliteOperationsForCommande(cmdId, operation.userId);
+          }
+        }
+      }
+    }
+
+    // 8. Mettre à jour les statistiques
+    await MakeCommandeStatistiques();
+
+    // 9. Invalider le cache
+    clearCache("today");
+    clearCache("attente");
+
+    console.log(
+      `✅ Exécution terminée: ${results.success} réussies, ${results.failed} échouées`
+    );
+
+    // Notifications
+    if (results.success > 0) {
+      await createRTDBNotification(
+        "Opérations commandes",
+        `${results.success} opération(s) effectuée(s)`,
+        "success"
+      );
+    }
+
+    if (results.failed > 0) {
+      await createRTDBNotification(
+        "Opérations commandes",
+        `${results.failed} opération(s) échouée(s)`,
+        "warning"
+      );
+    }
+
+    return results;
+  } catch (error) {
+    console.error("❌ Erreur exécution des opérations:", error);
+    throw error;
+  } finally {
+    isExecutingCommandes = false;
+  }
+}
+
+/**
+ * Nettoie la queue en supprimant les opérations complétées ou échouées
+ * @returns {Promise<number>} Nombre d'opérations supprimées
+ */
+export async function cleanCommandeQueue() {
+  try {
+    const queueRef = doc(db, COMMANDES_OPERATIONS_QUEUE_PATH);
+    let removedCount = 0;
+
+    await runTransaction(db, async (transaction) => {
+      const queueDoc = await transaction.get(queueRef);
+
+      if (!queueDoc.exists()) {
+        return;
+      }
+
+      const queue = queueDoc.data().operations || [];
+
+      // Garder UNIQUEMENT les opérations pending et processing
+      const filteredQueue = queue.filter((op) => {
+        const shouldKeep =
+          op.status === OPERATION_STATUS.PENDING ||
+          op.status === OPERATION_STATUS.PROCESSING;
+
+        if (!shouldKeep) removedCount++;
+        return shouldKeep;
+      });
+
+      transaction.set(queueRef, { operations: filteredQueue }, { merge: true });
+    });
+
+    // Sauvegarder la date du nettoyage
+    const today = getDateKey();
+    saveLastCleanupDate(today);
+
+    console.log(`✅ Queue nettoyée: ${removedCount} opérations supprimées`);
+
+    if (removedCount > 0) {
+      await createRTDBNotification(
+        "Queue nettoyée",
+        `${removedCount} opérations complétées/échouées supprimées`,
+        "info"
+      );
+    }
+
+    return removedCount;
+  } catch (error) {
+    console.error("❌ Erreur nettoyage de la queue:", error);
+    throw error;
+  }
+}
+
+/**
+ * Vérifie si un nettoyage est nécessaire et l'exécute si besoin
+ * @returns {Promise<number|null>} Nombre d'opérations supprimées ou null
+ */
+export async function autoCleanCommandeQueue() {
+  try {
+    if (shouldCleanCommandeQueue()) {
+      console.log(
+        "🧹 Détection d'un nouveau jour - Nettoyage automatique de la queue"
+      );
+      const removedCount = await cleanCommandeQueue();
+      return removedCount;
+    }
+    return null;
+  } catch (error) {
+    console.error("❌ Erreur nettoyage automatique:", error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// FONCTIONS CRUD - COMMANDES (AVEC QUEUE)
 // ============================================================================
 
 /**
- * Créer une nouvelle commande
+ * Créer une nouvelle commande (AVEC QUEUE ANTI-COLLISION)
  * Crée automatiquement les opérations comptables associées
  * @param {Object} commandeData - Données de la commande
  * @param {string} userId - ID de l'utilisateur créateur
- * @returns {Promise<Object>} La commande créée
+ * @returns {Promise<Object>} L'opération en queue
  */
 export async function CreateCommande(commandeData, userId = "system") {
   try {
@@ -326,58 +803,29 @@ export async function CreateCommande(commandeData, userId = "system") {
       await ArchiverYesterdayCommandes();
     }
 
-    const commande = CommandeSchema.parse({
-      id: generateCommandeId(),
-      createdBy: userId,
-      createdAt: serverTimestamp(),
-      ...commandeData,
+    // Nettoyage automatique au changement de jour
+    autoCleanCommandeQueue().catch((err) => {
+      console.error("❌ Erreur nettoyage automatique:", err);
     });
 
-    const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
-
-    await runTransaction(db, async (transaction) => {
-      const todayDoc = await transaction.get(todayRef);
-      const commandes = todayDoc.exists() ? todayDoc.data().liste || [] : [];
-
-      commandes.push(commande);
-      transaction.set(todayRef, { liste: commandes });
-
-      // Si commande non soldée, non livrée ou non servie, ajouter aux ventes en attente
-      if (
-        commande.statut === "non livree" ||
-        commande.statut === "non servi" ||
-        commande.paiement.dette > 0
-      ) {
-        const attenteRef = doc(db, VENTES_PATH, VENTES_EN_ATTENTE_DOC);
-        const attenteDoc = await transaction.get(attenteRef);
-        const attentes = attenteDoc.exists()
-          ? attenteDoc.data().liste || []
-          : [];
-
-        attentes.push(commande);
-        transaction.set(attenteRef, { liste: attentes });
-      }
-    });
-
-    // Créer les opérations comptables automatiquement
-    await createComptabiliteOperationsForCommande(commande, userId);
-
-    // Mettre à jour les statistiques
-    await MakeCommandeStatistiques();
-
-    // Invalider le cache
-    clearCache("today");
-    clearCache("attente");
-
-    // Notification
-    await createRTDBNotification(
-      "Commande créée",
-      `Commande ${commande.id} créée - ${commande.paiement.total} FCFA`,
-      "success"
+    // Ajouter l'opération à la queue
+    const operation = await enqueueCommandeOperation(
+      OPERATION_TYPES.CREATE,
+      { commandeData },
+      userId
     );
 
-    console.log("✅ Commande créée:", commande.id);
-    return commande;
+    console.log(`✅ Opération CREATE ajoutée à la queue:`, operation.id);
+
+    // Déclencher l'exécution des opérations en attente
+    executeCommandeOperations().catch((err) => {
+      console.error(
+        "❌ Erreur lors de l'exécution automatique des opérations:",
+        err
+      );
+    });
+
+    return operation;
   } catch (error) {
     console.error("❌ Erreur CreateCommande:", error);
     throw error;
@@ -385,83 +833,32 @@ export async function CreateCommande(commandeData, userId = "system") {
 }
 
 /**
- * Mettre à jour une commande existante
+ * Mettre à jour une commande existante (AVEC QUEUE ANTI-COLLISION)
  * @param {string} commandeId - ID de la commande
  * @param {Object} updates - Modifications à appliquer
  * @param {string} userId - ID de l'utilisateur
- * @returns {Promise<Object>} La commande mise à jour
+ * @returns {Promise<Object>} L'opération en queue
  */
 export async function UpdateCommande(commandeId, updates, userId = "system") {
   try {
-    const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
-    let updatedCommande = null;
-
-    await runTransaction(db, async (transaction) => {
-      const todayDoc = await transaction.get(todayRef);
-
-      if (!todayDoc.exists()) {
-        throw new Error("Document today introuvable");
-      }
-
-      const commandes = todayDoc.data().liste || [];
-      const index = commandes.findIndex((c) => c.id === commandeId);
-
-      if (index === -1) {
-        throw new Error(`Commande ${commandeId} non trouvée`);
-      }
-
-      commandes[index] = {
-        ...commandes[index],
-        ...updates,
-        updatedBy: userId,
-        updatedAt: serverTimestamp(),
-      };
-
-      updatedCommande = commandes[index];
-      transaction.set(todayRef, { liste: commandes });
-
-      // Mettre à jour les ventes en attente
-      const attenteRef = doc(db, VENTES_PATH, VENTES_EN_ATTENTE_DOC);
-      const attenteDoc = await transaction.get(attenteRef);
-      let attentes = attenteDoc.exists() ? attenteDoc.data().liste || [] : [];
-
-      // Retirer de attente si commande soldée/livrée/servie
-      if (
-        updatedCommande.statut === "livree" ||
-        updatedCommande.statut === "servi"
-      ) {
-        if (updatedCommande.paiement.dette === 0) {
-          attentes = attentes.filter((a) => a.id !== commandeId);
-        }
-      } else {
-        // Ajouter ou mettre à jour dans attente
-        const attenteIndex = attentes.findIndex((a) => a.id === commandeId);
-        if (attenteIndex !== -1) {
-          attentes[attenteIndex] = updatedCommande;
-        } else {
-          attentes.push(updatedCommande);
-        }
-      }
-
-      transaction.set(attenteRef, { liste: attentes });
-    });
-
-    // Mettre à jour les statistiques
-    await MakeCommandeStatistiques();
-
-    // Invalider le cache
-    clearCache("today");
-    clearCache("attente");
-
-    // Notification
-    await createRTDBNotification(
-      "Commande modifiée",
-      `Commande ${commandeId} mise à jour`,
-      "info"
+    // Ajouter l'opération à la queue
+    const operation = await enqueueCommandeOperation(
+      OPERATION_TYPES.UPDATE,
+      { commandeId, updates },
+      userId
     );
 
-    console.log("✅ Commande mise à jour:", commandeId);
-    return updatedCommande;
+    console.log(`✅ Opération UPDATE ajoutée à la queue:`, operation.id);
+
+    // Déclencher l'exécution des opérations en attente
+    executeCommandeOperations().catch((err) => {
+      console.error(
+        "❌ Erreur lors de l'exécution automatique des opérations:",
+        err
+      );
+    });
+
+    return operation;
   } catch (error) {
     console.error("❌ Erreur UpdateCommande:", error);
     throw error;
@@ -494,61 +891,32 @@ export async function GetCommandes() {
 }
 
 /**
- * Supprimer une commande
+ * Supprimer une commande (AVEC QUEUE ANTI-COLLISION)
  * Supprime également les opérations comptables associées
  * @param {string} commandeId - ID de la commande à supprimer
  * @param {string} userId - ID de l'utilisateur
- * @returns {Promise<boolean>} true si succès
+ * @returns {Promise<Object>} L'opération en queue
  */
 export async function DeleteCommande(commandeId, userId = "system") {
   try {
-    const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
-
-    await runTransaction(db, async (transaction) => {
-      const todayDoc = await transaction.get(todayRef);
-
-      if (!todayDoc.exists()) {
-        throw new Error("Document today introuvable");
-      }
-
-      const commandes = todayDoc.data().liste || [];
-      const filtered = commandes.filter((c) => c.id !== commandeId);
-
-      if (filtered.length === commandes.length) {
-        throw new Error(`Commande ${commandeId} non trouvée`);
-      }
-
-      transaction.set(todayRef, { liste: filtered });
-
-      // Supprimer des ventes en attente
-      const attenteRef = doc(db, VENTES_PATH, VENTES_EN_ATTENTE_DOC);
-      const attenteDoc = await transaction.get(attenteRef);
-      if (attenteDoc.exists()) {
-        const attentes = attenteDoc.data().liste || [];
-        const filteredAttentes = attentes.filter((a) => a.id !== commandeId);
-        transaction.set(attenteRef, { liste: filteredAttentes });
-      }
-    });
-
-    // Supprimer les opérations comptables
-    await deleteComptabiliteOperationsForCommande(commandeId, userId);
-
-    // Mettre à jour les statistiques
-    await MakeCommandeStatistiques();
-
-    // Invalider le cache
-    clearCache("today");
-    clearCache("attente");
-
-    // Notification
-    await createRTDBNotification(
-      "Commande supprimée",
-      `Commande ${commandeId} supprimée`,
-      "warning"
+    // Ajouter l'opération à la queue
+    const operation = await enqueueCommandeOperation(
+      OPERATION_TYPES.DELETE,
+      { commandeId },
+      userId
     );
 
-    console.log("✅ Commande supprimée:", commandeId);
-    return true;
+    console.log(`✅ Opération DELETE ajoutée à la queue:`, operation.id);
+
+    // Déclencher l'exécution des opérations en attente
+    executeCommandeOperations().catch((err) => {
+      console.error(
+        "❌ Erreur lors de l'exécution automatique des opérations:",
+        err
+      );
+    });
+
+    return operation;
   } catch (error) {
     console.error("❌ Erreur DeleteCommande:", error);
     throw error;
@@ -632,65 +1000,31 @@ export async function CreateCommandeBatch(commandesData, userId = "system") {
 }
 
 /**
- * Supprimer plusieurs commandes en batch
+ * Supprimer plusieurs commandes en batch (AVEC QUEUE ANTI-COLLISION)
  * @param {Array} commandeIds - Tableau d'IDs de commandes
  * @param {string} userId - ID de l'utilisateur
- * @returns {Promise<number>} Nombre de commandes supprimées
+ * @returns {Promise<Object>} L'opération en queue
  */
 export async function DeleteCommandeBatch(commandeIds, userId = "system") {
   try {
-    const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
-    let deletedCount = 0;
-
-    await runTransaction(db, async (transaction) => {
-      const todayDoc = await transaction.get(todayRef);
-
-      if (!todayDoc.exists()) {
-        throw new Error("Document today introuvable");
-      }
-
-      const commandes = todayDoc.data().liste || [];
-      const filtered = commandes.filter((c) => {
-        const shouldDelete = commandeIds.includes(c.id);
-        if (shouldDelete) deletedCount++;
-        return !shouldDelete;
-      });
-
-      transaction.set(todayRef, { liste: filtered });
-
-      // Supprimer des ventes en attente
-      const attenteRef = doc(db, VENTES_PATH, VENTES_EN_ATTENTE_DOC);
-      const attenteDoc = await transaction.get(attenteRef);
-      if (attenteDoc.exists()) {
-        const attentes = attenteDoc.data().liste || [];
-        const filteredAttentes = attentes.filter(
-          (a) => !commandeIds.includes(a.id)
-        );
-        transaction.set(attenteRef, { liste: filteredAttentes });
-      }
-    });
-
-    // Supprimer les opérations comptables pour chaque commande
-    for (const commandeId of commandeIds) {
-      await deleteComptabiliteOperationsForCommande(commandeId, userId);
-    }
-
-    // Mettre à jour les statistiques
-    await MakeCommandeStatistiques();
-
-    // Invalider le cache
-    clearCache("today");
-    clearCache("attente");
-
-    // Notification
-    await createRTDBNotification(
-      "Commandes supprimées",
-      `${deletedCount} commande(s) supprimée(s) en batch`,
-      "warning"
+    // Ajouter l'opération à la queue
+    const operation = await enqueueCommandeOperation(
+      OPERATION_TYPES.DELETE_BATCH,
+      { commandeIds },
+      userId
     );
 
-    console.log(`✅ ${deletedCount} commande(s) supprimée(s) en batch`);
-    return deletedCount;
+    console.log(`✅ Opération DELETE_BATCH ajoutée à la queue:`, operation.id);
+
+    // Déclencher l'exécution des opérations en attente
+    executeCommandeOperations().catch((err) => {
+      console.error(
+        "❌ Erreur lors de l'exécution automatique des opérations:",
+        err
+      );
+    });
+
+    return operation;
   } catch (error) {
     console.error("❌ Erreur DeleteCommandeBatch:", error);
     throw error;
@@ -1041,6 +1375,153 @@ export function useCommandeStatistiques() {
   return { statistiques, loading, error, refetch: fetchStatistiques };
 }
 
+/**
+ * Hook pour surveiller la queue d'opérations commandes
+ * @param {Object} filter - Filtre optionnel { status?, type? }
+ * @returns {Object} { operations, stats, loading, error, refetch, executeAll, cleanQueue }
+ */
+export function useCommandeQueue(filter = {}) {
+  const [operations, setOperations] = useState([]);
+  const [stats, setStats] = useState({
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    failed: 0,
+    total: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Extraire les valeurs primitives du filtre
+  const filterStatus = filter.status;
+  const filterType = filter.type;
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const queueRef = doc(db, COMMANDES_OPERATIONS_QUEUE_PATH);
+      const queueDoc = await getDoc(queueRef);
+
+      if (!queueDoc.exists()) {
+        setOperations([]);
+        setStats({
+          pending: 0,
+          processing: 0,
+          completed: 0,
+          failed: 0,
+          total: 0,
+        });
+        return;
+      }
+
+      let allOperations = queueDoc.data().operations || [];
+
+      // Appliquer les filtres
+      let filtered = allOperations;
+
+      if (filterStatus) {
+        filtered = filtered.filter((op) => op.status === filterStatus);
+      }
+
+      if (filterType) {
+        filtered = filtered.filter((op) => op.type === filterType);
+      }
+
+      // Trier par timestamp (plus récent en premier)
+      filtered.sort((a, b) => b.timestamp - a.timestamp);
+
+      setOperations(filtered);
+
+      // Calculer les statistiques
+      const newStats = {
+        pending: allOperations.filter(
+          (op) => op.status === OPERATION_STATUS.PENDING
+        ).length,
+        processing: allOperations.filter(
+          (op) => op.status === OPERATION_STATUS.PROCESSING
+        ).length,
+        completed: allOperations.filter(
+          (op) => op.status === OPERATION_STATUS.COMPLETED
+        ).length,
+        failed: allOperations.filter(
+          (op) => op.status === OPERATION_STATUS.FAILED
+        ).length,
+        total: allOperations.length,
+      };
+
+      setStats(newStats);
+    } catch (err) {
+      console.error("❌ Erreur useCommandeQueue:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus, filterType]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Écouter les mises à jour en temps réel via RTDB
+  useEffect(() => {
+    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+
+    const handleNotification = (snapshot) => {
+      const notification = snapshot.val();
+      if (
+        notification &&
+        (notification.title?.toLowerCase().includes("opération") ||
+          notification.title?.toLowerCase().includes("queue"))
+      ) {
+        console.log("🔔 Notification RTDB reçue - Rechargement de la queue");
+        fetchData();
+      }
+    };
+
+    onChildAdded(notificationsRef, handleNotification);
+
+    return () => {
+      off(notificationsRef, "child_added", handleNotification);
+    };
+  }, [fetchData]);
+
+  // Fonction pour exécuter toutes les opérations en attente
+  const executeAll = useCallback(async () => {
+    try {
+      const results = await executeCommandeOperations();
+      await fetchData(); // Rafraîchir après l'exécution
+      return results;
+    } catch (err) {
+      console.error("❌ Erreur executeAll:", err);
+      throw err;
+    }
+  }, [fetchData]);
+
+  // Fonction pour nettoyer la queue
+  const cleanQueueCallback = useCallback(async () => {
+    try {
+      const removedCount = await cleanCommandeQueue();
+      await fetchData(); // Rafraîchir après le nettoyage
+      return removedCount;
+    } catch (err) {
+      console.error("❌ Erreur cleanQueue:", err);
+      throw err;
+    }
+  }, [fetchData]);
+
+  return {
+    operations,
+    stats,
+    loading,
+    error,
+    refetch: fetchData,
+    executeAll,
+    cleanQueue: cleanQueueCallback,
+  };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -1052,4 +1533,5 @@ export {
   VENTES_EN_ATTENTE_DOC,
   STATISTIQUES_DOC,
   RTDB_COMMANDES_NOTIFICATIONS,
+  COMMANDES_OPERATIONS_QUEUE_PATH,
 };
