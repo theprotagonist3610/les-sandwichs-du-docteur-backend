@@ -936,9 +936,10 @@ export function useEmplacements(filter = {}) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les notifications en temps réel - utiliser onChildAdded au lieu de onValue
+  // Écouter les notifications en temps réel avec debounce
   useEffect(() => {
     const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    let timeoutId = null;
 
     const handleNotification = (snapshot) => {
       const notification = snapshot.val();
@@ -947,16 +948,22 @@ export function useEmplacements(filter = {}) {
         (notification.title?.toLowerCase().includes("emplacement") ||
           notification.message?.toLowerCase().includes("emplacement"))
       ) {
-        console.log("🔔 Notification RTDB reçue, rechargement de la liste...");
-        fetchData();
+        console.log("🔔 Notification RTDB reçue");
+
+        // Debounce: attendre 500ms avant de recharger pour éviter les rechargements multiples
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          console.log("🔄 Rechargement de la liste des emplacements...");
+          fetchData();
+        }, 500);
       }
     };
 
-    // Utiliser onChildAdded pour éviter les déclenchements multiples
-    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+    onChildAdded(notificationsRef, handleNotification);
 
     return () => {
-      unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+      off(notificationsRef, "child_added", handleNotification);
     };
   }, [fetchData]);
 

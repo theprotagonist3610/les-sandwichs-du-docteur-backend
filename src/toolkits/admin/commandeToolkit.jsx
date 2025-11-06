@@ -28,11 +28,38 @@ import {
   getDoc,
   setDoc,
   runTransaction,
-  serverTimestamp,
 } from "firebase/firestore";
 import { ref, push, onChildAdded, off } from "firebase/database";
 import { db, rtdb } from "@/firebase";
-import { createOperation, getDateKey } from "./comptabiliteToolkit";
+
+// Import du nouveau système de comptabilité modulaire
+import {
+  createOperationWithQueue,
+  creerOperation,
+  formatDayKey,
+  getAllComptesTresorerie,
+  findCompteByCodeOhada,
+} from "./comptabiliteToolkit";
+
+// ============================================================================
+// CONSTANTES (définies avant les schémas qui les utilisent)
+// ============================================================================
+
+// Statuts des opérations dans la queue
+export const OPERATION_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  FAILED: "failed",
+};
+
+// Types d'opérations de commandes
+export const OPERATION_TYPES = {
+  CREATE: "create",
+  UPDATE: "update",
+  DELETE: "delete",
+  DELETE_BATCH: "delete_batch",
+};
 
 // ============================================================================
 // SCHÉMAS ZOD
@@ -60,12 +87,29 @@ const PersonneALivrerSchema = z.object({
 
 const PaiementSchema = z.object({
   total: z.number().nonnegative("Total doit être positif ou zéro"),
-  livraison: z.number().nonnegative("Frais de livraison doivent être positifs ou zéro").default(0),
-  montant_total_recu: z.number().nonnegative("Montant reçu doit être positif ou zéro"),
-  monnaie_rendue: z.number().nonnegative("Monnaie rendue doit être positive ou zéro").default(0),
-  montant_momo_recu: z.number().nonnegative("Montant Mobile Money doit être positif ou zéro").default(0),
-  montant_espece_recu: z.number().nonnegative("Montant espèces doit être positif ou zéro").default(0),
-  reduction: z.number().nonnegative("Réduction doit être positive ou zéro").default(0),
+  livraison: z
+    .number()
+    .nonnegative("Frais de livraison doivent être positifs ou zéro")
+    .default(0),
+  montant_total_recu: z
+    .number()
+    .nonnegative("Montant reçu doit être positif ou zéro"),
+  monnaie_rendue: z
+    .number()
+    .nonnegative("Monnaie rendue doit être positive ou zéro")
+    .default(0),
+  montant_momo_recu: z
+    .number()
+    .nonnegative("Montant Mobile Money doit être positif ou zéro")
+    .default(0),
+  montant_espece_recu: z
+    .number()
+    .nonnegative("Montant espèces doit être positif ou zéro")
+    .default(0),
+  reduction: z
+    .number()
+    .nonnegative("Réduction doit être positive ou zéro")
+    .default(0),
   dette: z.number().nonnegative("Dette doit être positive ou zéro").default(0),
 });
 
@@ -79,7 +123,13 @@ const DateHeureLivraisonSchema = z.object({
   heure: z.string().regex(/^\d{2}:\d{2}$/, "Format heure: HH:MM"),
 });
 
-const StatutSchema = z.enum(["livree", "non livree", "servi", "non servi"]);
+const StatutSchema = z.enum([
+  "livree",
+  "non livree",
+  "servi",
+  "non servi",
+  "annulee",
+]);
 const TypeSchema = z.enum(["a livrer", "sur place"]);
 
 export const CommandeSchema = z.object({
@@ -101,6 +151,7 @@ export const CommandeSchema = z.object({
 });
 
 const StatistiquesJourSchema = z.object({
+  date: z.string().optional(),
   total_ventes: z.number().default(0),
   total_ventes_sur_place: z.number().default(0),
   total_ventes_a_livrer: z.number().default(0),
@@ -113,7 +164,27 @@ const StatistiquesJourSchema = z.object({
       })
     )
     .default([]),
+  total_ventes_par_vendeur: z
+    .array(
+      z.object({
+        userId: z.string(),
+        nom: z.string(),
+        total_commandes: z.number(),
+        total_ventes: z.number(),
+      })
+    )
+    .default([])
+    .optional(),
+  encaissements: z
+    .object({
+      especes: z.number().default(0),
+      momo: z.number().default(0),
+      total: z.number().default(0),
+    })
+    .optional(),
+  nombre_commandes: z.number().default(0).optional(),
   tendance: z.enum(["hausse", "baisse", "stable"]).default("stable"),
+  tendance_pourcentage: z.number().default(0).optional(),
 });
 
 /**
@@ -162,22 +233,6 @@ const RTDB_COMMANDES_NOTIFICATIONS = "notifications/commandes";
 const CACHE_KEY_PREFIX = "commandes_cache_";
 const CACHE_TIMESTAMP_KEY = "commandes_cache_timestamp_";
 const LOCAL_LAST_CLEANUP_KEY = "lsd_commandes_last_cleanup";
-
-// Statuts des opérations dans la queue
-export const OPERATION_STATUS = {
-  PENDING: "pending",
-  PROCESSING: "processing",
-  COMPLETED: "completed",
-  FAILED: "failed",
-};
-
-// Types d'opérations de commandes
-export const OPERATION_TYPES = {
-  CREATE: "create",
-  UPDATE: "update",
-  DELETE: "delete",
-  DELETE_BATCH: "delete_batch",
-};
 
 // Codes OHADA pour les ventes (automatiquement détectés)
 const CODE_VENTE_PRODUITS_FINIS = "701"; // Vente de produits finis (sandwichs, yaourts)
@@ -241,7 +296,7 @@ function clearCache(key) {
  */
 function isNewDay() {
   const lastDateKey = localStorage.getItem("last_commandes_date");
-  const currentDateKey = getDateKey();
+  const currentDateKey = formatDayKey();
 
   if (lastDateKey !== currentDateKey) {
     localStorage.setItem("last_commandes_date", currentDateKey);
@@ -249,6 +304,13 @@ function isNewDay() {
   }
 
   return false;
+}
+
+/**
+ * Génère une clé de date au format DDMMYYYY (alias pour compatibilité)
+ */
+function getDateKey(date = new Date()) {
+  return formatDayKey(date);
 }
 
 /**
@@ -262,7 +324,8 @@ function generateCommandeId() {
  * Calcule la tendance des ventes (hausse, baisse, stable)
  */
 function calculateTendance(totalToday, totalYesterday) {
-  const variation = ((totalToday - totalYesterday) / (totalYesterday || 1)) * 100;
+  const variation =
+    ((totalToday - totalYesterday) / (totalYesterday || 1)) * 100;
 
   if (variation > 5) return "hausse";
   if (variation < -5) return "baisse";
@@ -275,7 +338,7 @@ function calculateTendance(totalToday, totalYesterday) {
 
 /**
  * Crée automatiquement les opérations comptables pour une commande
- * Détecte automatiquement le code OHADA selon le type de vente
+ * Utilise le nouveau système modulaire avec queue anti-collision
  * @param {Object} commande - La commande créée
  * @param {string} userId - ID de l'utilisateur
  */
@@ -283,60 +346,119 @@ async function createComptabiliteOperationsForCommande(commande, userId) {
   try {
     const { paiement } = commande;
 
-    // Déterminer le code OHADA (701 pour produits finis, 707 pour marchandises)
-    // Par défaut: 701 (ventes de sandwichs/yaourts = produits finis)
-    const codeOhada = CODE_VENTE_PRODUITS_FINIS;
+    // Vérifier si le module comptabilité est disponible
+    if (!createOperationWithQueue || typeof createOperationWithQueue !== 'function') {
+      console.log(
+        `ℹ️ Module comptabilité non disponible - Opérations comptables ignorées pour commande ${commande.id}`
+      );
+      return;
+    }
+
+    // Récupérer les comptes de trésorerie pour obtenir les IDs réels
+    let comptesTreesorerie = [];
+    try {
+      const result = await getAllComptesTresorerie();
+      comptesTreesorerie = result.comptes || [];
+    } catch (error) {
+      console.warn("⚠️ Impossible de récupérer les comptes de trésorerie:", error.message);
+    }
+
+    // Trouver le compte OHADA pour les ventes (701 - Vente de produits finis)
+    let compteVenteId = null;
+    try {
+      const compteVente = await findCompteByCodeOhada(CODE_VENTE_PRODUITS_FINIS);
+      compteVenteId = compteVente?.id;
+    } catch (error) {
+      console.warn("⚠️ Compte vente 701 non trouvé:", error.message);
+      return; // Arrêter si le compte de vente n'existe pas
+    }
+
+    if (!compteVenteId) {
+      console.warn("⚠️ Impossible de créer les opérations comptables: compte de vente introuvable");
+      return;
+    }
+
+    // Trouver les comptes de trésorerie par code OHADA
+    const compteCaisse = comptesTreesorerie.find(c => c.code_ohada === "531");
+    const compteMomo = comptesTreesorerie.find(c => c.code_ohada === "5121");
 
     const operations = [];
 
     // 1. Enregistrer les recettes en espèces (Caisse - 531)
-    if (paiement.montant_espece_recu > 0) {
+    if (paiement.montant_espece_recu > 0 && compteCaisse) {
       operations.push({
-        type: "recette",
-        compte_code: codeOhada,
-        compte_denomination: "Vente de produits finis",
+        compte_id: compteVenteId,
         montant: paiement.montant_espece_recu,
-        tresorerie_id: "caisse", // À adapter selon votre système de trésorerie
-        observation: `Vente commande ${commande.id} - Espèces`,
+        motif: `Vente commande ${commande.id} - ${commande.client.nom} - Espèces`,
+        type_operation: "entree",
       });
     }
 
     // 2. Enregistrer les recettes Mobile Money (5121)
-    if (paiement.montant_momo_recu > 0) {
+    if (paiement.montant_momo_recu > 0 && compteMomo) {
       operations.push({
-        type: "recette",
-        compte_code: codeOhada,
-        compte_denomination: "Vente de produits finis",
+        compte_id: compteVenteId,
         montant: paiement.montant_momo_recu,
-        tresorerie_id: "mobile_money", // À adapter selon votre système de trésorerie
-        observation: `Vente commande ${commande.id} - Mobile Money`,
+        motif: `Vente commande ${commande.id} - ${commande.client.nom} - Mobile Money`,
+        type_operation: "entree",
       });
     }
 
     // 3. Enregistrer la dette si présente (Compte Client - 411)
     if (paiement.dette > 0) {
-      operations.push({
-        type: "recette",
-        compte_code: CODE_COMPTE_CLIENT,
-        compte_denomination: "Clients (créance)",
-        montant: paiement.dette,
-        tresorerie_id: "compte_client", // Compte clients
-        observation: `Dette commande ${commande.id} - Client: ${commande.client.nom}`,
+      try {
+        const compteClient = await findCompteByCodeOhada(CODE_COMPTE_CLIENT);
+        if (compteClient) {
+          operations.push({
+            compte_id: compteClient.id,
+            montant: paiement.dette,
+            motif: `Dette commande ${commande.id} - Client: ${commande.client.nom}`,
+            type_operation: "entree",
+          });
+        }
+      } catch (error) {
+        console.warn("⚠️ Compte client 411 non trouvé:", error.message);
+      }
+    }
+
+    // Si aucune opération à créer, sortir
+    if (operations.length === 0) {
+      console.log(`ℹ️ Aucune opération comptable à créer pour commande ${commande.id}`);
+      return;
+    }
+
+    // Créer toutes les opérations comptables avec le système de queue
+    const results = await Promise.allSettled(
+      operations.map((operationData) => createOperationWithQueue(operationData, userId))
+    );
+
+    // Compter les succès et échecs
+    const succeeded = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    if (succeeded > 0) {
+      console.log(
+        `✅ ${succeeded} opération(s) comptable(s) ajoutée(s) à la queue pour commande ${commande.id}`
+      );
+    }
+
+    if (failed > 0) {
+      console.warn(
+        `⚠️ ${failed} opération(s) comptable(s) échouée(s) pour commande ${commande.id}`
+      );
+      // Afficher les erreurs en détail
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.warn(
+            `  - Opération ${index + 1}: ${result.reason?.message || result.reason}`
+          );
+        }
       });
     }
-
-    // Créer toutes les opérations comptables
-    for (const operationData of operations) {
-      await createOperation(operationData, userId);
-    }
-
-    console.log(
-      `✅ ${operations.length} opération(s) comptable(s) créée(s) pour commande ${commande.id}`
-    );
   } catch (error) {
     console.error(
       "❌ Erreur création opérations comptables pour commande:",
-      error
+      error.message || error
     );
     // Ne pas bloquer la création de commande si la comptabilité échoue
   }
@@ -409,7 +531,11 @@ function shouldCleanCommandeQueue() {
  * @param {string} userId - ID de l'utilisateur
  * @returns {Promise<Object>} L'opération créée
  */
-export async function enqueueCommandeOperation(type, payload, userId = "system") {
+export async function enqueueCommandeOperation(
+  type,
+  payload,
+  userId = "system"
+) {
   try {
     const now = Date.now();
     const operationId = `CMD-OP-${nanoid(10)}`;
@@ -556,9 +682,9 @@ export async function executeCommandeOperations() {
               attentes.push(validatedCommande);
             }
 
-            // Créer opérations comptables (en dehors de la transaction)
-            operationInQueue._pendingComptaOps = validatedCommande;
-
+            // NE PAS créer les opérations comptables lors de la création
+            // Elles seront créées uniquement lors de la clôture de la commande
+            // (voir UPDATE ci-dessous)
           } else if (type === OPERATION_TYPES.UPDATE) {
             // UPDATE: Modifier une commande existante
             const { commandeId, updates } = payload;
@@ -567,6 +693,11 @@ export async function executeCommandeOperations() {
             if (index === -1) {
               throw new Error(`Commande ${commandeId} non trouvée`);
             }
+
+            const oldCommande = commandes[index];
+            const wasNotClosed =
+              oldCommande.statut === "non livree" ||
+              oldCommande.statut === "non servi";
 
             commandes[index] = {
               ...commandes[index],
@@ -578,6 +709,16 @@ export async function executeCommandeOperations() {
             // Mettre à jour dans attentes
             const attenteIndex = attentes.findIndex((a) => a.id === commandeId);
             const updatedCommande = commandes[index];
+
+            const isNowClosed =
+              updatedCommande.statut === "livree" ||
+              updatedCommande.statut === "servi" ||
+              updatedCommande.statut === "annulee";
+
+            // Si la commande vient d'être clôturée, créer les opérations comptables
+            if (wasNotClosed && isNowClosed) {
+              operationInQueue._pendingComptaOps = updatedCommande;
+            }
 
             if (
               updatedCommande.statut === "livree" ||
@@ -593,7 +734,6 @@ export async function executeCommandeOperations() {
                 attentes.push(updatedCommande);
               }
             }
-
           } else if (type === OPERATION_TYPES.DELETE) {
             // DELETE: Supprimer une commande
             const { commandeId } = payload;
@@ -608,7 +748,6 @@ export async function executeCommandeOperations() {
 
             // Marquer pour suppression comptable (en dehors de la transaction)
             operationInQueue._pendingComptaDelete = commandeId;
-
           } else if (type === OPERATION_TYPES.DELETE_BATCH) {
             // DELETE_BATCH: Supprimer plusieurs commandes
             const { commandeIds } = payload;
@@ -631,7 +770,8 @@ export async function executeCommandeOperations() {
           if (operationInQueue) {
             operationInQueue.status = OPERATION_STATUS.FAILED;
             operationInQueue.error = error.message;
-            operationInQueue.retryCount = (operationInQueue.retryCount || 0) + 1;
+            operationInQueue.retryCount =
+              (operationInQueue.retryCount || 0) + 1;
           }
 
           results.failed++;
@@ -670,7 +810,10 @@ export async function executeCommandeOperations() {
         }
         if (operation._pendingComptaDeleteBatch) {
           for (const cmdId of operation._pendingComptaDeleteBatch) {
-            await deleteComptabiliteOperationsForCommande(cmdId, operation.userId);
+            await deleteComptabiliteOperationsForCommande(
+              cmdId,
+              operation.userId
+            );
           }
         }
       }
@@ -731,11 +874,13 @@ export async function cleanCommandeQueue() {
 
       const queue = queueDoc.data().operations || [];
 
-      // Garder UNIQUEMENT les opérations pending et processing
+      // Garder UNIQUEMENT les opérations pending, processing et failed (pour analyse)
+      // Supprimer seulement les opérations completed
       const filteredQueue = queue.filter((op) => {
         const shouldKeep =
           op.status === OPERATION_STATUS.PENDING ||
-          op.status === OPERATION_STATUS.PROCESSING;
+          op.status === OPERATION_STATUS.PROCESSING ||
+          op.status === OPERATION_STATUS.FAILED;
 
         if (!shouldKeep) removedCount++;
         return shouldKeep;
@@ -940,7 +1085,7 @@ export async function CreateCommandeBatch(commandesData, userId = "system") {
       CommandeSchema.parse({
         id: generateCommandeId(),
         createdBy: userId,
-        createdAt: serverTimestamp(),
+        createdAt: Date.now(),
         ...data,
       })
     );
@@ -1038,6 +1183,12 @@ export async function DeleteCommandeBatch(commandeIds, userId = "system") {
 /**
  * Archive automatiquement les commandes de la veille
  * Détecte le changement de jour et effectue l'archivage
+ *
+ * COMPORTEMENT:
+ * - Les commandes CLÔTURÉES (livree/servi/annulee) sont archivées
+ * - Les commandes NON CLÔTURÉES (non livree/non servi) sont REPORTÉES dans le nouveau "today"
+ * - Les commandes avec dette restent aussi dans ventes_en_attente
+ *
  * @returns {Promise<Object>} Résultat de l'archivage
  */
 export async function ArchiverYesterdayCommandes() {
@@ -1049,24 +1200,44 @@ export async function ArchiverYesterdayCommandes() {
 
     if (!todayDoc.exists() || !todayDoc.data().liste?.length) {
       console.log("📭 Aucune commande à archiver");
-      return { archived: 0 };
+      return { archived: 0, carried: 0 };
     }
 
-    const commandesToArchive = todayDoc.data().liste;
+    const allCommandes = todayDoc.data().liste;
+
+    // Séparer les commandes clôturées et non clôturées
+    const commandesCloturees = allCommandes.filter(
+      (cmd) =>
+        cmd.statut === "livree" ||
+        cmd.statut === "servi" ||
+        cmd.statut === "annulee"
+    );
+
+    const commandesNonCloturees = allCommandes.filter(
+      (cmd) => cmd.statut === "non livree" || cmd.statut === "non servi"
+    );
 
     // Déterminer la date d'hier
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayKey = getDateKey(yesterday);
 
-    // Archiver les commandes
-    const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, yesterdayKey);
-    await setDoc(archiveRef, { liste: commandesToArchive });
+    // 1. Archiver UNIQUEMENT les commandes clôturées
+    if (commandesCloturees.length > 0) {
+      const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, yesterdayKey);
+      await setDoc(archiveRef, { liste: commandesCloturees });
+      console.log(`📦 ${commandesCloturees.length} commande(s) clôturée(s) archivée(s)`);
+    }
 
-    // Vider today
-    await setDoc(todayRef, { liste: [] });
+    // 2. Reporter les commandes non clôturées dans le nouveau "today"
+    await setDoc(todayRef, { liste: commandesNonCloturees });
+    if (commandesNonCloturees.length > 0) {
+      console.log(
+        `📋 ${commandesNonCloturees.length} commande(s) non clôturée(s) reportée(s) au nouveau jour`
+      );
+    }
 
-    // Nettoyer les ventes en attente (garder seulement celles non soldées)
+    // 3. Nettoyer les ventes en attente (garder seulement celles non clôturées ou avec dette)
     const attenteRef = doc(db, VENTES_PATH, VENTES_EN_ATTENTE_DOC);
     const attenteDoc = await getDoc(attenteRef);
     if (attenteDoc.exists()) {
@@ -1078,6 +1249,7 @@ export async function ArchiverYesterdayCommandes() {
           a.paiement.dette > 0
       );
       await setDoc(attenteRef, { liste: stillPending });
+      console.log(`⏳ ${stillPending.length} commande(s) toujours en attente`);
     }
 
     // Invalider le cache
@@ -1086,18 +1258,20 @@ export async function ArchiverYesterdayCommandes() {
     clearCache(`archives_${yesterdayKey}`);
 
     // Notification
-    await createRTDBNotification(
-      "Archivage effectué",
-      `${commandesToArchive.length} commande(s) archivée(s) pour ${yesterdayKey}`,
-      "info"
-    );
+    const message =
+      commandesNonCloturees.length > 0
+        ? `${commandesCloturees.length} archivée(s), ${commandesNonCloturees.length} reportée(s)`
+        : `${commandesCloturees.length} commande(s) archivée(s)`;
+
+    await createRTDBNotification("Archivage effectué", message, "info");
 
     console.log(
-      `✅ ${commandesToArchive.length} commande(s) archivée(s) pour ${yesterdayKey}`
+      `✅ Archivage terminé pour ${yesterdayKey}: ${commandesCloturees.length} archivée(s), ${commandesNonCloturees.length} reportée(s)`
     );
 
     return {
-      archived: commandesToArchive.length,
+      archived: commandesCloturees.length,
+      carried: commandesNonCloturees.length,
       date: yesterdayKey,
     };
   } catch (error) {
@@ -1133,7 +1307,7 @@ export async function MakeCommandeStatistiques() {
       .filter((cmd) => cmd.type === "a livrer")
       .reduce((sum, cmd) => sum + cmd.paiement.total, 0);
 
-    // Calculer les totaux par article
+    // Calculer les totaux par article (en nombre d'articles vendus, pas en valeur)
     const articlesMap = new Map();
 
     commandes.forEach((cmd) => {
@@ -1147,11 +1321,44 @@ export async function MakeCommandeStatistiques() {
         }
 
         const article = articlesMap.get(detail.id);
-        article.total += detail.prix * detail.quantite;
+        article.total += detail.quantite; // ✅ Nombre d'articles vendus (pas prix × quantité)
       });
     });
 
     const total_ventes_par_articles = Array.from(articlesMap.values());
+
+    // Calculer les encaissements
+    const encaissements = commandes.reduce(
+      (acc, cmd) => {
+        acc.especes += cmd.paiement.montant_espece_recu || 0;
+        acc.momo += cmd.paiement.montant_momo_recu || 0;
+        return acc;
+      },
+      { especes: 0, momo: 0, total: 0 }
+    );
+    encaissements.total = encaissements.especes + encaissements.momo;
+
+    // Calculer le nombre de commandes
+    const nombre_commandes = commandes.length;
+
+    // Calculer les ventes par vendeur
+    const vendeursMap = new Map();
+    commandes.forEach((cmd) => {
+      if (!vendeursMap.has(cmd.createdBy)) {
+        vendeursMap.set(cmd.createdBy, {
+          userId: cmd.createdBy,
+          nom: cmd.createdBy, // Sera enrichi avec le nom réel côté frontend
+          total_commandes: 0,
+          total_ventes: 0,
+        });
+      }
+
+      const vendeur = vendeursMap.get(cmd.createdBy);
+      vendeur.total_commandes += 1;
+      vendeur.total_ventes += cmd.paiement.total;
+    });
+
+    const total_ventes_par_vendeur = Array.from(vendeursMap.values());
 
     // Calculer la tendance (comparer avec hier)
     const yesterday = new Date();
@@ -1162,15 +1369,35 @@ export async function MakeCommandeStatistiques() {
     const archiveDoc = await getDoc(archiveRef);
 
     let total_ventes_hier = 0;
+    let encaissements_hier = { especes: 0, momo: 0, total: 0 };
     if (archiveDoc.exists()) {
       const commandesHier = archiveDoc.data().liste || [];
       total_ventes_hier = commandesHier.reduce(
         (sum, cmd) => sum + cmd.paiement.total,
         0
       );
+
+      // Calculer les encaissements d'hier
+      encaissements_hier = commandesHier.reduce(
+        (acc, cmd) => {
+          acc.especes += cmd.paiement.montant_espece_recu || 0;
+          acc.momo += cmd.paiement.montant_momo_recu || 0;
+          return acc;
+        },
+        { especes: 0, momo: 0, total: 0 }
+      );
+      encaissements_hier.total = encaissements_hier.especes + encaissements_hier.momo;
     }
 
     const tendance = calculateTendance(total_ventes, total_ventes_hier);
+
+    // Calculer le pourcentage de tendance
+    let tendance_pourcentage = 0;
+    if (total_ventes_hier > 0) {
+      tendance_pourcentage = ((total_ventes - total_ventes_hier) / total_ventes_hier) * 100;
+    } else if (total_ventes > 0) {
+      tendance_pourcentage = 100; // 100% d'augmentation si hier était 0
+    }
 
     // Statistiques finales
     const statistiques = StatistiquesJourSchema.parse({
@@ -1178,7 +1405,11 @@ export async function MakeCommandeStatistiques() {
       total_ventes_sur_place,
       total_ventes_a_livrer,
       total_ventes_par_articles,
+      total_ventes_par_vendeur,
+      encaissements,
+      nombre_commandes,
       tendance,
+      tendance_pourcentage: Math.round(tendance_pourcentage * 10) / 10, // Arrondir à 1 décimale
     });
 
     // Enregistrer dans Firestore
@@ -1315,12 +1546,15 @@ export function useCommandes(options = {}) {
 
 /**
  * Hook pour récupérer les statistiques des commandes
- * @returns {Object} { statistiques, loading, error, refetch }
+ * Détecte automatiquement le changement de jour et archive les commandes clôturées
+ * @returns {Object} { statistiques, loading, error, refetch, isArchiving }
  */
 export function useCommandeStatistiques() {
   const [statistiques, setStatistiques] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [lastCheckedDay, setLastCheckedDay] = useState(getDateKey());
 
   const fetchStatistiques = useCallback(async () => {
     setLoading(true);
@@ -1347,9 +1581,60 @@ export function useCommandeStatistiques() {
     }
   }, []);
 
+  // Vérifier le changement de jour et archiver si nécessaire
+  const checkAndArchiveIfNewDay = useCallback(async () => {
+    const currentDay = getDateKey();
+
+    if (currentDay !== lastCheckedDay) {
+      console.log(`🔔 Détection d'un nouveau jour: ${lastCheckedDay} → ${currentDay}`);
+      setIsArchiving(true);
+
+      try {
+        // Archiver les commandes de la veille
+        const result = await ArchiverYesterdayCommandes();
+        console.log(
+          `✅ Archivage automatique: ${result.archived} commande(s) archivée(s), ${result.carried} reportée(s)`
+        );
+
+        // Nettoyage automatique de la queue
+        await autoCleanCommandeQueue();
+
+        // Mettre à jour les statistiques
+        await MakeCommandeStatistiques();
+
+        // Mettre à jour la date de dernière vérification
+        setLastCheckedDay(currentDay);
+
+        // Rafraîchir les statistiques
+        await fetchStatistiques();
+      } catch (err) {
+        console.error("❌ Erreur lors de l'archivage automatique:", err);
+        // Ne pas bloquer l'application si l'archivage échoue
+      } finally {
+        setIsArchiving(false);
+      }
+    }
+  }, [lastCheckedDay, fetchStatistiques]);
+
+  // Fetch initial
   useEffect(() => {
     fetchStatistiques();
   }, [fetchStatistiques]);
+
+  // Vérifier le changement de jour toutes les minutes
+  useEffect(() => {
+    // Vérification initiale
+    checkAndArchiveIfNewDay();
+
+    // Vérifier toutes les minutes (60000 ms)
+    const intervalId = setInterval(() => {
+      checkAndArchiveIfNewDay();
+    }, 60000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [checkAndArchiveIfNewDay]);
 
   // Écouter les notifications RTDB
   useEffect(() => {
@@ -1359,7 +1644,8 @@ export function useCommandeStatistiques() {
       const notification = snapshot.val();
       if (
         notification &&
-        notification.title.toLowerCase().includes("statistiques")
+        (notification.title.toLowerCase().includes("statistiques") ||
+          notification.title.toLowerCase().includes("archivage"))
       ) {
         fetchStatistiques();
       }
@@ -1372,7 +1658,75 @@ export function useCommandeStatistiques() {
     };
   }, [fetchStatistiques]);
 
-  return { statistiques, loading, error, refetch: fetchStatistiques };
+  return {
+    statistiques,
+    loading,
+    error,
+    isArchiving,
+    refetch: fetchStatistiques
+  };
+}
+
+/**
+ * Hook pour récupérer les statistiques de la semaine (7 derniers jours)
+ * @returns {Object} { statistiquesWeek, loading, error }
+ */
+export function useCommandeStatistiquesWeek() {
+  const [statistiquesWeek, setStatistiquesWeek] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchStatistiquesWeek = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const statsRef = doc(db, VENTES_PATH, STATISTIQUES_DOC);
+      const statsDoc = await getDoc(statsRef);
+
+      if (statsDoc.exists()) {
+        const allStats = statsDoc.data().liste || [];
+
+        // Récupérer les 7 derniers jours
+        const last7Days = allStats.slice(-7);
+        setStatistiquesWeek(last7Days);
+      } else {
+        setStatistiquesWeek([]);
+      }
+    } catch (err) {
+      console.error("❌ Erreur useCommandeStatistiquesWeek:", err);
+      setError(err.message);
+      setStatistiquesWeek([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStatistiquesWeek();
+  }, [fetchStatistiquesWeek]);
+
+  // Écouter les notifications RTDB
+  useEffect(() => {
+    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+
+    const handleNotification = (snapshot) => {
+      const notification = snapshot.val();
+      if (
+        notification &&
+        notification.title.toLowerCase().includes("statistiques")
+      ) {
+        fetchStatistiquesWeek();
+      }
+    };
+
+    onChildAdded(notificationsRef, handleNotification);
+
+    return () => {
+      off(notificationsRef, "child_added", handleNotification);
+    };
+  }, [fetchStatistiquesWeek]);
+
+  return { statistiquesWeek, loading, error, refetch: fetchStatistiquesWeek };
 }
 
 /**

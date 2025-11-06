@@ -1,328 +1,379 @@
 import { motion } from "framer-motion";
 import {
-  Save,
-  Loader2,
   FileText,
+  Wallet,
+  Plus,
+  Loader2,
+  ArrowLeft,
+  Building2,
   Hash,
   Type,
   AlignLeft,
   TrendingUp,
   TrendingDown,
-  ArrowLeftRight,
-  AlertCircle,
-  CheckCircle,
+  Banknote,
 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupText,
-  InputGroupInput,
-  InputGroupTextarea,
-} from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import useCreateCompteStore, {
+  selectTypeCompte,
   selectCodeOhada,
   selectDenomination,
   selectDescription,
-  selectType,
+  selectCategorie,
+  selectNumero,
   selectIsSubmitting,
-  selectError,
+  selectSetTypeCompte,
   selectSetCodeOhada,
   selectSetDenomination,
   selectSetDescription,
-  selectSetType,
+  selectSetCategorie,
+  selectSetNumero,
   selectSetIsSubmitting,
-  selectSetError,
   selectReset,
 } from "@/stores/admin/useCreateCompteStore";
-import { createCompte } from "@/toolkits/admin/comptabiliteToolkit";
-import { toast } from "sonner";
-import { useState } from "react";
+import { creerCompte, creerCompteTresorerie } from "@/toolkits/admin/comptabiliteToolkit";
 
 const MobileCreateCompte = () => {
+  const navigate = useNavigate();
+
+  // Store state
+  const typeCompte = useCreateCompteStore(selectTypeCompte);
   const code_ohada = useCreateCompteStore(selectCodeOhada);
   const denomination = useCreateCompteStore(selectDenomination);
   const description = useCreateCompteStore(selectDescription);
-  const type = useCreateCompteStore(selectType);
+  const categorie = useCreateCompteStore(selectCategorie);
+  const numero = useCreateCompteStore(selectNumero);
   const isSubmitting = useCreateCompteStore(selectIsSubmitting);
-  const error = useCreateCompteStore(selectError);
 
+  // Store actions
+  const setTypeCompte = useCreateCompteStore(selectSetTypeCompte);
   const setCodeOhada = useCreateCompteStore(selectSetCodeOhada);
   const setDenomination = useCreateCompteStore(selectSetDenomination);
   const setDescription = useCreateCompteStore(selectSetDescription);
-  const setType = useCreateCompteStore(selectSetType);
+  const setCategorie = useCreateCompteStore(selectSetCategorie);
+  const setNumero = useCreateCompteStore(selectSetNumero);
   const setIsSubmitting = useCreateCompteStore(selectSetIsSubmitting);
-  const setError = useCreateCompteStore(selectSetError);
   const reset = useCreateCompteStore(selectReset);
-
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
 
     // Validation
     if (!code_ohada.trim()) {
-      setError("Le code OHADA est requis");
+      toast.error("Le code OHADA est requis");
       return;
     }
+
     if (!denomination.trim()) {
-      setError("La dénomination est requise");
+      toast.error("La dénomination est requise");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await createCompte({
+
+      const compteData = {
         code_ohada: code_ohada.trim(),
         denomination: denomination.trim(),
-        description: description.trim() || undefined,
-        type,
-      });
+        description: description.trim(),
+      };
 
-      setSuccess(true);
-      toast.success("Compte créé avec succès", {
-        description: `${code_ohada} - ${denomination}`,
-      });
+      if (typeCompte === "comptable") {
+        // Créer un compte comptable
+        compteData.categorie = categorie;
+        await creerCompte(compteData);
+        toast.success("Compte créé!");
+      } else {
+        // Créer un compte de trésorerie
+        compteData.numero = numero.trim();
+        await creerCompteTresorerie(compteData);
+        toast.success("Compte créé!");
+      }
 
-      // Réinitialiser après un court délai
+      // Reset et redirection
+      reset();
       setTimeout(() => {
-        reset();
-        setSuccess(false);
-      }, 2000);
-    } catch (err) {
-      console.error("Erreur création compte:", err);
-      const errorMessage = err.message || "Une erreur s'est produite";
-      setError(errorMessage);
-      toast.error("Erreur lors de la création", {
-        description: errorMessage,
-      });
+        navigate("/admin/settings/comptabilite/gerer");
+      }, 1500);
+    } catch (error) {
+      console.error("Erreur création compte:", error);
+      toast.error("Erreur lors de la création");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getTypeIcon = (typeValue) => {
-    switch (typeValue) {
-      case "entree":
-        return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case "sortie":
-        return <TrendingDown className="h-4 w-4 text-red-500" />;
-      case "entree/sortie":
-        return <ArrowLeftRight className="h-4 w-4 text-blue-500" />;
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="p-4 space-y-4 pb-20">
-      {/* En-tête */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-2"
-      >
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          Créer un Compte
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Ajouter un nouveau compte comptable au plan OHADA
-        </p>
-      </motion.div>
+    <div className="container mx-auto p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Créer un Compte</h1>
+          <p className="text-sm text-muted-foreground">Nouveau compte</p>
+        </div>
+      </div>
+
+      <Separator />
 
       {/* Formulaire */}
-      <motion.form
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        onSubmit={handleSubmit}
-        className="space-y-4"
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Informations du compte</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Code OHADA */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Code OHADA <span className="text-destructive">*</span>
-              </label>
-              <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>
-                    <Hash className="h-4 w-4" />
-                  </InputGroupText>
-                </InputGroupAddon>
-                <InputGroupInput
-                  type="text"
-                  placeholder="Ex: 701"
-                  value={code_ohada}
-                  onChange={(e) => setCodeOhada(e.target.value)}
-                  disabled={isSubmitting}
-                  required
-                />
-              </InputGroup>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Tabs value={typeCompte} onValueChange={setTypeCompte}>
+          {/* Type de compte */}
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="comptable" className="text-xs">
+              <FileText className="h-3 w-3 mr-1" />
+              Comptable
+            </TabsTrigger>
+            <TabsTrigger value="tresorerie" className="text-xs">
+              <Wallet className="h-3 w-3 mr-1" />
+              Trésorerie
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Dénomination */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Dénomination <span className="text-destructive">*</span>
-              </label>
-              <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>
-                    <Type className="h-4 w-4" />
-                  </InputGroupText>
-                </InputGroupAddon>
-                <InputGroupInput
-                  type="text"
-                  placeholder="Ex: Ventes de marchandises"
-                  value={denomination}
-                  onChange={(e) => setDenomination(e.target.value)}
-                  disabled={isSubmitting}
-                  required
-                />
-              </InputGroup>
-            </div>
-
-            {/* Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Type de compte <span className="text-destructive">*</span>
-              </label>
-              <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>{getTypeIcon(type)}</InputGroupText>
-                </InputGroupAddon>
-                <Select value={type} onValueChange={setType} disabled={isSubmitting}>
-                  <SelectTrigger className="flex-1 border-0 shadow-none focus:ring-0 bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="entree">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                        <span>Entrée</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="sortie">
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                        <span>Sortie</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="entree/sortie">
-                      <div className="flex items-center gap-2">
-                        <ArrowLeftRight className="h-4 w-4 text-blue-500" />
-                        <span>Mixte (Entrée/Sortie)</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </InputGroup>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description (optionnel)</label>
-              <InputGroup>
-                <InputGroupAddon align="block-start">
-                  <InputGroupText>
-                    <AlignLeft className="h-4 w-4" />
-                  </InputGroupText>
-                </InputGroupAddon>
-                <InputGroupTextarea
-                  placeholder="Description détaillée du compte..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={isSubmitting}
-                  rows={3}
-                />
-              </InputGroup>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Message d'erreur */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <Card className="border-destructive bg-destructive/5">
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-destructive">Erreur</p>
-                    <p className="text-sm text-destructive/80">{error}</p>
+          {/* Compte Comptable */}
+          <TabsContent value="comptable" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-blue-50">
+                    <Building2 className="h-4 w-4 text-blue-600" />
                   </div>
+                  <div>
+                    <CardTitle className="text-base">Compte Comptable</CardTitle>
+                    <CardDescription className="text-xs">
+                      Charges ou produits
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Code OHADA */}
+                <div className="space-y-2">
+                  <Label htmlFor="code_ohada" className="text-sm flex items-center gap-1.5">
+                    <Hash className="h-3 w-3" />
+                    Code OHADA *
+                  </Label>
+                  <Input
+                    id="code_ohada"
+                    placeholder="Ex: 601, 701..."
+                    value={code_ohada}
+                    onChange={(e) => setCodeOhada(e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                    className="text-sm"
+                  />
+                </div>
+
+                {/* Dénomination */}
+                <div className="space-y-2">
+                  <Label htmlFor="denomination" className="text-sm flex items-center gap-1.5">
+                    <Type className="h-3 w-3" />
+                    Dénomination *
+                  </Label>
+                  <Input
+                    id="denomination"
+                    placeholder="Ex: Achats matières premières"
+                    value={denomination}
+                    onChange={(e) => setDenomination(e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                    className="text-sm"
+                  />
+                </div>
+
+                {/* Catégorie */}
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <Banknote className="h-3 w-3" />
+                    Catégorie *
+                  </Label>
+                  <RadioGroup
+                    value={categorie}
+                    onValueChange={setCategorie}
+                    disabled={isSubmitting}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 p-3 border rounded-lg">
+                        <RadioGroupItem value="entree" id="entree-mobile" />
+                        <Label htmlFor="entree-mobile" className="flex items-center gap-2 flex-1 cursor-pointer">
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold">Entrée</div>
+                            <div className="text-xs text-muted-foreground">
+                              Produits, ventes
+                            </div>
+                          </div>
+                        </Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2 p-3 border rounded-lg">
+                        <RadioGroupItem value="sortie" id="sortie-mobile" />
+                        <Label htmlFor="sortie-mobile" className="flex items-center gap-2 flex-1 cursor-pointer">
+                          <TrendingDown className="h-3 w-3 text-red-600" />
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold">Sortie</div>
+                            <div className="text-xs text-muted-foreground">
+                              Charges, achats
+                            </div>
+                          </div>
+                        </Label>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm flex items-center gap-1.5">
+                    <AlignLeft className="h-3 w-3" />
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Description du compte..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={isSubmitting}
+                    rows={3}
+                    className="text-sm"
+                  />
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        )}
+          </TabsContent>
 
-        {/* Message de succès */}
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-green-900">Succès</p>
-                    <p className="text-sm text-green-700">
-                      Le compte a été créé avec succès
-                    </p>
+          {/* Compte de Trésorerie */}
+          <TabsContent value="tresorerie" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-50">
+                    <Wallet className="h-4 w-4 text-emerald-600" />
                   </div>
+                  <div>
+                    <CardTitle className="text-base">Trésorerie</CardTitle>
+                    <CardDescription className="text-xs">
+                      Caisse, banque, mobile money
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Code OHADA */}
+                <div className="space-y-2">
+                  <Label htmlFor="code_ohada_treso" className="text-sm flex items-center gap-1.5">
+                    <Hash className="h-3 w-3" />
+                    Code OHADA *
+                  </Label>
+                  <Input
+                    id="code_ohada_treso"
+                    placeholder="Ex: 531, 5121..."
+                    value={code_ohada}
+                    onChange={(e) => setCodeOhada(e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    531: Caisse, 5121: Mobile Money, 511: Banque
+                  </p>
+                </div>
+
+                {/* Dénomination */}
+                <div className="space-y-2">
+                  <Label htmlFor="denomination_treso" className="text-sm flex items-center gap-1.5">
+                    <Type className="h-3 w-3" />
+                    Dénomination *
+                  </Label>
+                  <Input
+                    id="denomination_treso"
+                    placeholder="Ex: Mobile Money MTN"
+                    value={denomination}
+                    onChange={(e) => setDenomination(e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                    className="text-sm"
+                  />
+                </div>
+
+                {/* Numéro */}
+                <div className="space-y-2">
+                  <Label htmlFor="numero" className="text-sm flex items-center gap-1.5">
+                    <Hash className="h-3 w-3" />
+                    Numéro
+                  </Label>
+                  <Input
+                    id="numero"
+                    placeholder="Ex: 0123456789"
+                    value={numero}
+                    onChange={(e) => setNumero(e.target.value)}
+                    disabled={isSubmitting}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Numéro Mobile Money ou compte bancaire
+                  </p>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="description_treso" className="text-sm flex items-center gap-1.5">
+                    <AlignLeft className="h-3 w-3" />
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description_treso"
+                    placeholder="Description du compte..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={isSubmitting}
+                    rows={3}
+                    className="text-sm"
+                  />
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        )}
+          </TabsContent>
+        </Tabs>
 
-        {/* Bouton de soumission */}
-        <Button
-          type="submit"
-          disabled={isSubmitting || success}
-          className="w-full h-12"
-          size="lg"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Création en cours...
-            </>
-          ) : success ? (
-            <>
-              <CheckCircle className="mr-2 h-5 w-5" />
-              Compte créé
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-5 w-5" />
-              Créer le compte
-            </>
-          )}
-        </Button>
-      </motion.form>
+        {/* Actions */}
+        <div className="flex flex-col gap-2 pt-2">
+          <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Création...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Créer le compte
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(-1)}
+            disabled={isSubmitting}
+            className="w-full"
+          >
+            Annuler
+          </Button>
+        </div>
+      </form>
     </div>
   );
 };

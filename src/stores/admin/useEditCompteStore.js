@@ -1,16 +1,18 @@
 import { create } from "zustand";
 
 /**
- * Store Zustand pour l'édition de compte comptable
+ * Store Zustand pour l'édition de compte comptable ou de trésorerie
  * Chaque champ est séparé pour éviter les re-renders inutiles
  */
 const useEditCompteStore = create((set) => ({
-  // Champs du formulaire (basés sur CompteSchema)
+  // Champs du formulaire (basés sur CompteSchema et CompteTresorerieSchema)
   id: "",
+  typeCompte: "comptable", // "comptable" | "tresorerie"
   code_ohada: "",
   denomination: "",
   description: "",
-  type: "entree", // "entree" | "sortie" | "entree/sortie"
+  categorie: "entree", // "entree" | "sortie" (pour comptable uniquement)
+  numero: "", // Pour trésorerie uniquement
 
   // État du formulaire
   isSubmitting: false,
@@ -20,10 +22,12 @@ const useEditCompteStore = create((set) => ({
 
   // Actions pour chaque champ
   setId: (id) => set({ id }),
+  setTypeCompte: (typeCompte) => set({ typeCompte }),
   setCodeOhada: (code_ohada) => set({ code_ohada }),
   setDenomination: (denomination) => set({ denomination }),
   setDescription: (description) => set({ description }),
-  setType: (type) => set({ type }),
+  setCategorie: (categorie) => set({ categorie }),
+  setNumero: (numero) => set({ numero }),
 
   // Actions globales
   setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
@@ -35,10 +39,12 @@ const useEditCompteStore = create((set) => ({
   reset: () =>
     set({
       id: "",
+      typeCompte: "comptable",
       code_ohada: "",
       denomination: "",
       description: "",
-      type: "entree",
+      categorie: "entree",
+      numero: "",
       isSubmitting: false,
       isDeleting: false,
       error: null,
@@ -49,30 +55,36 @@ const useEditCompteStore = create((set) => ({
   setFormData: (data) =>
     set({
       id: data.id || "",
+      typeCompte: data.typeCompte || "comptable",
       code_ohada: data.code_ohada || "",
       denomination: data.denomination || "",
       description: data.description || "",
-      type: data.type || "entree",
+      categorie: data.categorie || "entree",
+      numero: data.numero || "",
       isLoaded: true,
     }),
 }));
 
 // Sélecteurs optimisés pour éviter les re-renders
 export const selectId = (state) => state.id;
+export const selectTypeCompte = (state) => state.typeCompte;
 export const selectCodeOhada = (state) => state.code_ohada;
 export const selectDenomination = (state) => state.denomination;
 export const selectDescription = (state) => state.description;
-export const selectType = (state) => state.type;
+export const selectCategorie = (state) => state.categorie;
+export const selectNumero = (state) => state.numero;
 export const selectIsSubmitting = (state) => state.isSubmitting;
 export const selectIsDeleting = (state) => state.isDeleting;
 export const selectError = (state) => state.error;
 export const selectIsLoaded = (state) => state.isLoaded;
 
 export const selectSetId = (state) => state.setId;
+export const selectSetTypeCompte = (state) => state.setTypeCompte;
 export const selectSetCodeOhada = (state) => state.setCodeOhada;
 export const selectSetDenomination = (state) => state.setDenomination;
 export const selectSetDescription = (state) => state.setDescription;
-export const selectSetType = (state) => state.setType;
+export const selectSetCategorie = (state) => state.setCategorie;
+export const selectSetNumero = (state) => state.setNumero;
 export const selectSetIsSubmitting = (state) => state.setIsSubmitting;
 export const selectSetIsDeleting = (state) => state.setIsDeleting;
 export const selectSetError = (state) => state.setError;

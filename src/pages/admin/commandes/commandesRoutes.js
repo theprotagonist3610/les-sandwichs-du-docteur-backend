@@ -18,6 +18,8 @@ import Ventes from "@/pages/admin/commandes/Ventes";
 import PanneauDeVente from "@/pages/admin/commandes/PanneauDeVente";
 import GererUneVente from "@/pages/admin/commandes/GererUneVente";
 import GererLesVentes from "@/pages/admin/commandes/GererLesVentes";
+import ALivrer from "@/pages/admin/commandes/ALivrer";
+import SurPlace from "@/pages/admin/commandes/SurPlace";
 export const commandeSubRoutes = [
   {
     path: "dashboard",
@@ -25,6 +27,25 @@ export const commandeSubRoutes = [
     description: "Monitoring des ventes",
     url: "/users.svg",
     component: Dashboard, // ✅ Composant activé
+  },
+  {
+    path: "panneau_de_ventes",
+    nom: "Panneau de ventes",
+    description: "Prendre les commandes",
+    url: "/users.svg",
+    component: PanneauDeVente, // ✅ Composant activé
+    children: [
+      {
+        path: "a_livrer",
+        nom: "Prendre les commandes",
+        component: ALivrer, // ✅ Composant activé
+      },
+      {
+        path: "sur_place",
+        nom: "Prendre les commandes",
+        component: SurPlace, // ✅ Composant activé
+      },
+    ],
   },
   {
     path: "ventes",
@@ -35,17 +56,12 @@ export const commandeSubRoutes = [
     // Sous-routes de presence
     children: [
       {
-        path: "panneau_de_ventes",
-        nom: "Prendre les commandes",
-        component: PanneauDeVente, // ✅ Composant activé
-      },
-      {
         path: "ventes",
         nom: "Gestion des commandes",
         component: GererLesVentes, // ✅ Composant activé
       },
       {
-        path: "ventes/:id",
+        path: ":id",
         nom: "Gerer une commande",
         component: GererUneVente, // ✅ Composant activé
       },

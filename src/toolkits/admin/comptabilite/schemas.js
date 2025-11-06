@@ -1,0 +1,168 @@
+/**
+ * schemas.js
+ * Schémas Zod pour la comptabilité OHADA
+ */
+
+import { z } from "zod";
+
+// ============================================================================
+// SCHEMAS ZOD
+// ============================================================================
+
+/**
+ * Schema pour un compte comptable simple (entrée ou sortie)
+ */
+export const compteSchema = z.object({
+  id: z.string().min(1, "L'ID est requis"), // cmpte_nano(10)
+  code_ohada: z.string().min(1, "Le code OHADA est requis"),
+  denomination: z.string().min(1, "La dénomination est requise"),
+  description: z.string().optional().default(""),
+  categorie: z.enum(["entree", "sortie"], {
+    errorMap: () => ({ message: "La catégorie doit être 'entree' ou 'sortie'" }),
+  }),
+  createdBy: z.string().min(1, "createdBy est requis"),
+  updatedBy: z.string().optional(),
+  createdAt: z.number().positive("createdAt doit être positif"),
+  updatedAt: z.number().positive("updatedAt doit être positif"),
+});
+
+/**
+ * Schema pour un compte de trésorerie (toujours entree/sortie)
+ */
+export const compteTresorerieSchema = z.object({
+  id: z.string().min(1, "L'ID est requis"), // tresor_nano(10)
+  code_ohada: z.string().min(1, "Le code OHADA est requis"),
+  denomination: z.string().min(1, "La dénomination est requise"),
+  description: z.string().optional().default(""),
+  numero: z.string().optional().default(""), // Numéro de compte bancaire ou Mobile Money
+  categorie: z.literal("entree/sortie"),
+  createdBy: z.string().min(1, "createdBy est requis"),
+  updatedBy: z.string().optional(),
+  createdAt: z.number().positive("createdAt doit être positif"),
+  updatedAt: z.number().positive("updatedAt doit être positif"),
+});
+
+/**
+ * Schema pour une opération comptable
+ */
+export const operationSchema = z.object({
+  id: z.string().min(1, "L'ID est requis"), // op_nano(12)
+  compte_id: z.string().min(1, "Le compte_id est requis"), // ID du compte (cmpte_xxx ou tresor_xxx)
+  compte_ohada: z.string().min(1, "Le code OHADA est requis"),
+  compte_denomination: z.string().min(1, "La dénomination du compte est requise"),
+  montant: z.number().positive("Le montant doit être positif"),
+  motif: z.string().min(1, "Le motif est requis"),
+  type_operation: z.enum(["entree", "sortie"], {
+    errorMap: () => ({ message: "Le type doit être 'entree' ou 'sortie'" }),
+  }),
+  date: z.number().positive("La date doit être positive"),
+  createdBy: z.string().min(1, "createdBy est requis"),
+  updatedBy: z.string().optional(),
+  createdAt: z.number().positive("createdAt doit être positif"),
+  updatedAt: z.number().optional(),
+});
+
+/**
+ * Schema pour les statistiques d'un compte dans une journée
+ */
+export const compteStatistiqueSchema = z.object({
+  compte_id: z.string(),
+  code_ohada: z.string(),
+  denomination: z.string(),
+  categorie: z.enum(["entree", "sortie", "entree/sortie"]),
+  nombre_operations: z.number().default(0),
+  montant_total: z.number().default(0),
+});
+
+/**
+ * Schema pour les statistiques d'une journée
+ */
+export const dayStatisticSchema = z.object({
+  id: z.string().regex(/^\d{8}$/, "L'ID doit être au format DDMMYYYY"),
+  comptes: z.array(compteStatistiqueSchema).default([]),
+  tresorerie: z.array(compteStatistiqueSchema).default([]),
+  total_entrees: z.number().default(0),
+  total_sorties: z.number().default(0),
+  solde_journalier: z.number().default(0), // entrees - sorties
+  nombre_operations: z.number().default(0),
+  createdAt: z.number().positive(),
+  updatedAt: z.number().positive(),
+});
+
+/**
+ * Schema pour les statistiques d'une semaine (agrégation de jours)
+ */
+export const weekStatisticSchema = z.object({
+  id: z.string(), // Format: DDMMYYYY-DDMMYYYY
+  debut: z.string().regex(/^\d{8}$/),
+  fin: z.string().regex(/^\d{8}$/),
+  jours: z.array(dayStatisticSchema).default([]),
+  comptes: z.array(compteStatistiqueSchema).default([]),
+  tresorerie: z.array(compteStatistiqueSchema).default([]),
+  total_entrees: z.number().default(0),
+  total_sorties: z.number().default(0),
+  solde_hebdomadaire: z.number().default(0),
+  nombre_operations: z.number().default(0),
+  createdAt: z.number().positive(),
+  updatedAt: z.number().positive(),
+});
+
+/**
+ * Schema pour le bilan d'une journée
+ */
+export const dayBilanSchema = z.object({
+  id: z.string().regex(/^\d{8}$/),
+  total_entrees: z.number().default(0),
+  total_sorties: z.number().default(0),
+  resultat: z.number().default(0), // entrees - sorties
+  statut: z.enum(["positif", "negatif", "equilibre"]),
+  tresorerie_entrees: z.number().default(0),
+  tresorerie_sorties: z.number().default(0),
+  solde_tresorerie: z.number().default(0),
+  createdAt: z.number().positive(),
+  updatedAt: z.number().positive(),
+});
+
+/**
+ * Schema pour le bilan d'une semaine
+ */
+export const weekBilanSchema = z.object({
+  id: z.string(), // Format: DDMMYYYY-DDMMYYYY
+  debut: z.string().regex(/^\d{8}$/),
+  fin: z.string().regex(/^\d{8}$/),
+  comptes_statistiques: z.array(compteStatistiqueSchema).default([]),
+  tresorerie_statistiques: z.array(compteStatistiqueSchema).default([]),
+  total_entrees: z.number().default(0),
+  total_sorties: z.number().default(0),
+  resultat: z.number().default(0), // Différence entre encaissements trésorerie et autres opérations
+  statut: z.enum(["positif", "negatif", "equilibre"]),
+  tresorerie_entrees: z.number().default(0),
+  tresorerie_sorties: z.number().default(0),
+  solde_tresorerie: z.number().default(0),
+  createdAt: z.number().positive(),
+  updatedAt: z.number().positive(),
+});
+
+/**
+ * Schema pour un document de compte (array de comptes)
+ */
+export const comptesListeSchema = z.object({
+  comptes: z.array(compteSchema).default([]),
+  lastUpdated: z.number().positive(),
+});
+
+/**
+ * Schema pour un document de comptes trésorerie (array)
+ */
+export const comptesTresorerieListeSchema = z.object({
+  comptes: z.array(compteTresorerieSchema).default([]),
+  lastUpdated: z.number().positive(),
+});
+
+/**
+ * Schema pour un document d'opérations (today ou historique)
+ */
+export const operationsListeSchema = z.object({
+  operations: z.array(operationSchema).default([]),
+  lastUpdated: z.number().positive(),
+});

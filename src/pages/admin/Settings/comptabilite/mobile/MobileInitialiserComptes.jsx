@@ -1,244 +1,406 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Check,
-  Database,
-  Loader2,
+  PlayCircle,
+  CheckCircle2,
   AlertCircle,
-  Coins,
+  Wallet,
+  Building2,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+  Package,
   TrendingUp,
-  TrendingDown,
-  ArrowLeftRight,
+  Users,
+  DollarSign,
+  FileText,
 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  COMPTES_OHADA_DEFAULT,
-  initializeComptesOHADA,
-  useComptes,
-} from "@/toolkits/admin/comptabiliteToolkit";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import {
+  initialiserComptesDefault,
+  initialiserTresorerieDefault,
+  getAllComptes,
+  getAllComptesTresorerie,
+  COMPTES_OHADA_DEFAULT,
+  COMPTES_TRESORERIE_DEFAULT,
+} from "@/toolkits/admin/comptabiliteToolkit";
 
 const MobileInitialiserComptes = () => {
-  const { comptes, loading: loadingComptes } = useComptes();
-  const [initializing, setInitializing] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initProgress, setInitProgress] = useState(0);
+  const [comptesInitialises, setComptesInitialises] = useState(false);
+  const [tresorerieInitialisee, setTresorerieInitialisee] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+  const [expandedCategorie, setExpandedCategorie] = useState(null);
 
-  const isAlreadyInitialized = comptes && comptes.length > 0;
+  // Vérifier au chargement si les comptes sont déjà initialisés
+  useState(() => {
+    const checkStatus = async () => {
+      try {
+        const [comptesData, tresoData] = await Promise.all([
+          getAllComptes().catch(() => null),
+          getAllComptesTresorerie().catch(() => null),
+        ]);
 
-  const handleInitialize = async () => {
+        setComptesInitialises(comptesData?.comptes?.length > 0);
+        setTresorerieInitialisee(tresoData?.comptes?.length > 0);
+      } catch (error) {
+        console.error("Erreur vérification statut:", error);
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    };
+
+    checkStatus();
+  }, []);
+
+  // Regroupement des comptes par catégorie
+  const comptesByCategorie = {
+    capital: COMPTES_OHADA_DEFAULT.filter((c) => c.code_ohada.startsWith("10")),
+    immobilisations: COMPTES_OHADA_DEFAULT.filter((c) => c.code_ohada.startsWith("2")),
+    stocks: COMPTES_OHADA_DEFAULT.filter((c) => c.code_ohada.startsWith("3")),
+    tiers: COMPTES_OHADA_DEFAULT.filter((c) => c.code_ohada.startsWith("4")),
+    charges: COMPTES_OHADA_DEFAULT.filter((c) => c.code_ohada.startsWith("6")),
+    produits: COMPTES_OHADA_DEFAULT.filter((c) => c.code_ohada.startsWith("7")),
+  };
+
+  const categoriesInfo = [
+    {
+      key: "capital",
+      nom: "Capital",
+      icon: Building2,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      key: "immobilisations",
+      nom: "Immobilisations",
+      icon: Package,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+    },
+    {
+      key: "stocks",
+      nom: "Stocks",
+      icon: FileText,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+    {
+      key: "tiers",
+      nom: "Tiers",
+      icon: Users,
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
+    },
+    {
+      key: "charges",
+      nom: "Charges",
+      icon: TrendingUp,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+    },
+    {
+      key: "produits",
+      nom: "Produits",
+      icon: DollarSign,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+  ];
+
+  const handleInitialiserTout = async () => {
     try {
-      setInitializing(true);
-      await initializeComptesOHADA();
-      setInitialized(true);
-      toast.success("Comptes OHADA initialisés avec succès", {
-        description: `${COMPTES_OHADA_DEFAULT.length} comptes ont été créés`,
-      });
+      setIsInitializing(true);
+      setInitProgress(0);
+
+      toast.info("Initialisation en cours...");
+
+      // Étape 1: Comptes OHADA
+      setInitProgress(10);
+      await initialiserComptesDefault();
+      setInitProgress(50);
+      setComptesInitialises(true);
+      toast.success(`${COMPTES_OHADA_DEFAULT.length} comptes OHADA créés`);
+
+      // Étape 2: Comptes de trésorerie
+      setInitProgress(75);
+      await initialiserTresorerieDefault();
+      setInitProgress(100);
+      setTresorerieInitialisee(true);
+      toast.success(`${COMPTES_TRESORERIE_DEFAULT.length} comptes de trésorerie créés`);
+
+      toast.success("Initialisation terminée! 🎉");
     } catch (error) {
-      console.error("Erreur lors de l'initialisation:", error);
-      toast.error("Erreur lors de l'initialisation", {
-        description: error.message || "Une erreur s'est produite",
-      });
+      console.error("Erreur initialisation:", error);
+      toast.error("Erreur lors de l'initialisation");
     } finally {
-      setInitializing(false);
+      setIsInitializing(false);
+      setTimeout(() => setInitProgress(0), 1000);
     }
   };
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case "entree":
-        return <TrendingUp className="h-5 w-5 text-green-500" />;
-      case "sortie":
-        return <TrendingDown className="h-5 w-5 text-red-500" />;
-      case "entree/sortie":
-        return <ArrowLeftRight className="h-5 w-5 text-blue-500" />;
-      default:
-        return <Coins className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
-  const getTypeBadgeColor = (type) => {
-    switch (type) {
-      case "entree":
-        return "bg-green-100 text-green-700";
-      case "sortie":
-        return "bg-red-100 text-red-700";
-      case "entree/sortie":
-        return "bg-blue-100 text-blue-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  if (loadingComptes) {
+  if (isCheckingStatus) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Chargement des comptes...
-          </p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
+  const toutInitialise = comptesInitialises && tresorerieInitialisee;
+
   return (
-    <div className="p-4 space-y-4 pb-20">
-      {/* En-tête */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-2"
-      >
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Database className="h-6 w-6" />
-          Initialiser les Comptes OHADA
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {COMPTES_OHADA_DEFAULT.length} comptes comptables disponibles selon le
-          plan OHADA
-        </p>
-      </motion.div>
-
-      {/* Alerte si déjà initialisé */}
-      <AnimatePresence>
-        {(isAlreadyInitialized || initialized) && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-          >
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-green-900">
-                      Comptes déjà initialisés
-                    </p>
-                    <p className="text-sm text-green-700">
-                      {comptes.length} comptes sont actuellement disponibles dans
-                      le système
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Bouton d'initialisation */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <Button
-          onClick={handleInitialize}
-          disabled={initializing || isAlreadyInitialized}
-          className="w-full h-12"
-          size="lg"
-        >
-          {initializing ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Initialisation en cours...
-            </>
-          ) : isAlreadyInitialized ? (
-            <>
-              <Check className="mr-2 h-5 w-5" />
-              Comptes déjà initialisés
-            </>
-          ) : (
-            <>
-              <Database className="mr-2 h-5 w-5" />
-              Initialiser tous les comptes
-            </>
+    <div className="container mx-auto p-4 space-y-4">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Initialisation</h1>
+          {toutInitialise && (
+            <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              OK
+            </Badge>
           )}
-        </Button>
-      </motion.div>
-
-      {/* Liste des comptes */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">
-          Comptes disponibles ({COMPTES_OHADA_DEFAULT.length})
-        </h2>
-
-        <AnimatePresence>
-          {COMPTES_OHADA_DEFAULT.map((compte, index) => (
-            <motion.div
-              key={compte.code_ohada}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: index * 0.02 }}
-            >
-              <Card className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-3 flex-1">
-                      {getTypeIcon(compte.type)}
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base leading-tight">
-                          {compte.denomination}
-                        </CardTitle>
-                        <p className="text-sm font-mono text-muted-foreground mt-1">
-                          Code: {compte.code_ohada}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${getTypeBadgeColor(
-                        compte.type
-                      )}`}
-                    >
-                      {compte.type === "entree/sortie"
-                        ? "Mixte"
-                        : compte.type === "entree"
-                        ? "Entrée"
-                        : "Sortie"}
-                    </span>
-                  </div>
-                </CardHeader>
-                {compte.description && (
-                  <CardContent className="pt-0">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {compte.description}
-                    </p>
-                  </CardContent>
-                )}
-              </Card>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Configurez le plan comptable OHADA
+        </p>
       </div>
 
-      {/* Message d'information */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-      >
-        <Card className="border-blue-200 bg-blue-50">
+      <Separator />
+
+      {/* Bouton d'initialisation */}
+      <Card className="border-2 border-dashed">
+        <CardContent className="pt-4 space-y-3">
+          <div className="space-y-2">
+            <h3 className="font-semibold">
+              {toutInitialise ? "Déjà initialisé" : "Initialiser tout"}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {toutInitialise
+                ? "Système opérationnel"
+                : `${COMPTES_OHADA_DEFAULT.length} comptes OHADA + ${COMPTES_TRESORERIE_DEFAULT.length} comptes trésorerie`}
+            </p>
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={handleInitialiserTout}
+            disabled={isInitializing || toutInitialise}
+          >
+            {isInitializing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Initialisation...
+              </>
+            ) : toutInitialise ? (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Initialisé
+              </>
+            ) : (
+              <>
+                <PlayCircle className="mr-2 h-4 w-4" />
+                Initialiser
+              </>
+            )}
+          </Button>
+
+          {/* Progress */}
+          <AnimatePresence>
+            {isInitializing && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-1"
+              >
+                <Progress value={initProgress} className="h-1.5" />
+                <p className="text-xs text-muted-foreground text-center">
+                  {initProgress}%
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
+
+      {/* Résumé */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className={comptesInitialises ? "border-green-200" : ""}>
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              {comptesInitialises && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+            </div>
+            <div>
+              <p className="text-xl font-bold">{COMPTES_OHADA_DEFAULT.length}</p>
+              <p className="text-xs text-muted-foreground">Comptes OHADA</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={tresorerieInitialisee ? "border-green-200" : ""}>
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <Wallet className="h-5 w-5 text-muted-foreground" />
+              {tresorerieInitialisee && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+            </div>
+            <div>
+              <p className="text-xl font-bold">{COMPTES_TRESORERIE_DEFAULT.length}</p>
+              <p className="text-xs text-muted-foreground">Trésorerie</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Catégories - Version collapsible pour mobile */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Catégories de comptes</h2>
+
+        <div className="space-y-2">
+          {categoriesInfo.map((categorie, index) => {
+            const Icon = categorie.icon;
+            const comptes = comptesByCategorie[categorie.key];
+            const isExpanded = expandedCategorie === categorie.key;
+
+            return (
+              <motion.div
+                key={categorie.key}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Collapsible
+                  open={isExpanded}
+                  onOpenChange={() =>
+                    setExpandedCategorie(isExpanded ? null : categorie.key)
+                  }
+                >
+                  <Card>
+                    <CollapsibleTrigger className="w-full">
+                      <CardHeader className="py-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1.5 rounded-lg ${categorie.bgColor}`}>
+                              <Icon className={`h-4 w-4 ${categorie.color}`} />
+                            </div>
+                            <div className="text-left">
+                              <CardTitle className="text-sm">{categorie.nom}</CardTitle>
+                              <CardDescription className="text-xs">
+                                {comptes.length} compte{comptes.length > 1 ? "s" : ""}
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          </motion.div>
+                        </div>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                      <CardContent className="pt-0 pb-3">
+                        <Separator className="mb-3" />
+                        <div className="space-y-2">
+                          {comptes.map((compte) => (
+                            <div
+                              key={compte.code_ohada}
+                              className="flex items-start gap-2 text-sm"
+                            >
+                              <ChevronRight className="h-3 w-3 mt-1 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <Badge variant="secondary" className="font-mono text-xs px-1 py-0">
+                                    {compte.code_ohada}
+                                  </Badge>
+                                  <span className="text-xs font-medium truncate">
+                                    {compte.denomination}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                  {compte.description}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Comptes de trésorerie */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-emerald-50">
+              <Wallet className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Trésorerie</CardTitle>
+              <CardDescription className="text-xs">
+                Liquidités et paiements
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {COMPTES_TRESORERIE_DEFAULT.map((compte, index) => (
+            <motion.div
+              key={compte.code_ohada}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="p-3 rounded-lg border bg-card"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {compte.code_ohada}
+                  </Badge>
+                </div>
+                <h4 className="font-semibold text-sm">{compte.denomination}</h4>
+                <p className="text-xs text-muted-foreground">{compte.description}</p>
+              </div>
+            </motion.div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Info */}
+      {!toutInitialise && (
+        <Card className="border-blue-200 bg-blue-50/50">
           <CardContent className="pt-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-900 space-y-1">
-                <p className="font-medium">À propos du plan OHADA</p>
-                <p className="text-blue-700">
-                  Le plan comptable OHADA (Organisation pour l'Harmonisation en
-                  Afrique du Droit des Affaires) est utilisé dans 17 pays
-                  d'Afrique de l'Ouest et Centrale. Cette initialisation créera
-                  les comptes les plus couramment utilisés pour une entreprise de
-                  restauration rapide.
+            <div className="flex gap-2">
+              <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="font-semibold text-sm text-blue-900">
+                  Prérequis nécessaire
+                </h4>
+                <p className="text-xs text-blue-800">
+                  Initialisez d'abord les comptes pour pouvoir créer des opérations comptables.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      )}
     </div>
   );
 };

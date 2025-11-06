@@ -1,26 +1,31 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import {
-  FileText,
   Search,
+  FileText,
+  Wallet,
   Filter,
   TrendingUp,
   TrendingDown,
-  ArrowLeftRight,
-  ChevronRight,
   Loader2,
-  AlertCircle,
-  X,
+  ChevronRight,
+  Plus,
+  SlidersHorizontal,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupText,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -28,323 +33,321 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useComptes } from "@/toolkits/admin/comptabiliteToolkit";
+import { Label } from "@/components/ui/label";
+import { useNavigate } from "react-router-dom";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  useComptesListe,
+  useComptesTresorerieListe,
+} from "@/toolkits/admin/comptabiliteToolkit";
 
 const MobileGererLesComptes = () => {
   const navigate = useNavigate();
-  const { comptes, loading, error } = useComptes();
 
-  // États des filtres
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // Hooks pour récupérer les comptes
+  const { comptes: comptesComptables, loading: loadingComptables } = useComptesListe();
+  const { comptes: comptesTresorerie, loading: loadingTresorerie } = useComptesTresorerieListe();
 
-  // Filtrage des comptes
-  const filteredComptes = useMemo(() => {
-    if (!comptes) return [];
+  // États pour les filtres
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categorieFilter, setCategorieFilter] = useState("tous");
+  const [sortBy, setSortBy] = useState("code");
 
-    return comptes.filter((compte) => {
-      // Filtre par recherche (code ou dénomination)
-      const matchesSearch =
-        searchQuery === "" ||
-        compte.code_ohada.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        compte.denomination.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filtrage et tri des comptes comptables
+  const comptesComptablesFiltres = useMemo(() => {
+    let filtered = comptesComptables || [];
 
-      // Filtre par type
-      const matchesType = typeFilter === "all" || compte.type === typeFilter;
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (compte) =>
+          compte.code_ohada.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          compte.denomination.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          compte.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-      return matchesSearch && matchesType;
+    if (categorieFilter !== "tous") {
+      filtered = filtered.filter((compte) => compte.categorie === categorieFilter);
+    }
+
+    filtered.sort((a, b) => {
+      if (sortBy === "code") {
+        return a.code_ohada.localeCompare(b.code_ohada);
+      } else {
+        return a.denomination.localeCompare(b.denomination);
+      }
     });
-  }, [comptes, searchQuery, typeFilter]);
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case "entree":
-        return <TrendingUp className="h-5 w-5 text-green-500" />;
-      case "sortie":
-        return <TrendingDown className="h-5 w-5 text-red-500" />;
-      case "entree/sortie":
-        return <ArrowLeftRight className="h-5 w-5 text-blue-500" />;
-      default:
-        return null;
-    }
-  };
+    return filtered;
+  }, [comptesComptables, searchTerm, categorieFilter, sortBy]);
 
-  const getTypeBadgeColor = (type) => {
-    switch (type) {
-      case "entree":
-        return "bg-green-100 text-green-700";
-      case "sortie":
-        return "bg-red-100 text-red-700";
-      case "entree/sortie":
-        return "bg-blue-100 text-blue-700";
-      default:
-        return "bg-gray-100 text-gray-700";
+  // Filtrage et tri des comptes de trésorerie
+  const comptesTresorerieFiltres = useMemo(() => {
+    let filtered = comptesTresorerie || [];
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (compte) =>
+          compte.code_ohada.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          compte.denomination.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          compte.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          compte.numero?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  };
+
+    filtered.sort((a, b) => {
+      if (sortBy === "code") {
+        return a.code_ohada.localeCompare(b.code_ohada);
+      } else {
+        return a.denomination.localeCompare(b.denomination);
+      }
+    });
+
+    return filtered;
+  }, [comptesTresorerie, searchTerm, sortBy]);
 
   const handleCompteClick = (compteId) => {
     navigate(`/admin/settings/comptabilite/gerer/${compteId}`);
   };
 
-  const clearFilters = () => {
-    setSearchQuery("");
-    setTypeFilter("all");
-  };
-
-  const activeFiltersCount = (searchQuery ? 1 : 0) + (typeFilter !== "all" ? 1 : 0);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Chargement des comptes...
-          </p>
+  return (
+    <div className="container mx-auto p-4 space-y-4">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Gérer les Comptes</h1>
+          <Button size="sm" onClick={() => navigate("/admin/settings/comptabilite/create")}>
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
+        <p className="text-sm text-muted-foreground">
+          Vos comptes comptables et de trésorerie
+        </p>
       </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="p-4">
-        <Card className="border-destructive bg-destructive/5">
-          <CardContent className="pt-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-              <div>
-                <p className="font-medium text-destructive">Erreur</p>
-                <p className="text-sm text-destructive/80">{error}</p>
+      <Separator />
+
+      {/* Recherche et Filtres */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un compte..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 text-sm"
+          />
+        </div>
+
+        {/* Sheet pour les filtres */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full">
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filtres & Tri
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[300px]">
+            <SheetHeader>
+              <SheetTitle>Filtres & Tri</SheetTitle>
+              <SheetDescription>
+                Filtrez et triez vos comptes
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Trier par</Label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="code">Code OHADA</SelectItem>
+                    <SelectItem value="denomination">Dénomination</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Catégorie (Comptables)</Label>
+                <Select value={categorieFilter} onValueChange={setCategorieFilter}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tous">Toutes</SelectItem>
+                    <SelectItem value="entree">Entrées</SelectItem>
+                    <SelectItem value="sortie">Sorties</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </SheetContent>
+        </Sheet>
       </div>
-    );
-  }
 
-  return (
-    <div className="p-4 space-y-4 pb-20">
-      {/* En-tête */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-2"
-      >
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          Gérer les Comptes
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {comptes?.length || 0} compte(s) disponible(s)
-        </p>
-      </motion.div>
+      {/* Tabs */}
+      <Tabs defaultValue="comptables" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="comptables" className="text-xs">
+            <FileText className="h-3 w-3 mr-1" />
+            Comptables
+            {!loadingComptables && (
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {comptesComptablesFiltres.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="tresorerie" className="text-xs">
+            <Wallet className="h-3 w-3 mr-1" />
+            Trésorerie
+            {!loadingTresorerie && (
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {comptesTresorerieFiltres.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Barre de recherche et filtres */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="space-y-3"
-      >
-        {/* Recherche */}
-        <InputGroup>
-          <InputGroupAddon>
-            <InputGroupText>
-              <Search className="h-4 w-4" />
-            </InputGroupText>
-          </InputGroupAddon>
-          <InputGroupInput
-            type="text"
-            placeholder="Rechercher par code ou nom..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <InputGroupAddon align="inline-end">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </InputGroupAddon>
-          )}
-        </InputGroup>
-
-        {/* Bouton filtres avec Sheet */}
-        <div className="flex items-center gap-2">
-          <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="flex-1 relative">
-                <Filter className="mr-2 h-4 w-4" />
-                Filtres
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="h-[300px]">
-              <SheetHeader>
-                <SheetTitle>Filtres</SheetTitle>
-              </SheetHeader>
-              <div className="space-y-4 mt-4">
-                {/* Filtre par type */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Type de compte</label>
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les types</SelectItem>
-                      <SelectItem value="entree">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-green-500" />
-                          <span>Entrée</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="sortie">
-                        <div className="flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4 text-red-500" />
-                          <span>Sortie</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="entree/sortie">
-                        <div className="flex items-center gap-2">
-                          <ArrowLeftRight className="h-4 w-4 text-blue-500" />
-                          <span>Mixte</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Boutons d'action */}
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={clearFilters}
-                  >
-                    Réinitialiser
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    onClick={() => setIsFilterOpen(false)}
-                  >
-                    Appliquer
-                  </Button>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {activeFiltersCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Compteur de résultats */}
-      {filteredComptes.length !== comptes?.length && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-sm text-muted-foreground"
-        >
-          {filteredComptes.length} résultat(s) sur {comptes?.length || 0}
-        </motion.p>
-      )}
-
-      {/* Liste des comptes */}
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {filteredComptes.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <Card className="border-dashed">
-                <CardContent className="pt-6 text-center">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Aucun compte trouvé
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
+        {/* Comptes Comptables */}
+        <TabsContent value="comptables" className="space-y-3">
+          {loadingComptables ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : comptesComptablesFiltres.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Aucun compte trouvé
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            filteredComptes.map((compte, index) => (
-              <motion.div
-                key={compte.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.03 }}
-                layout
-              >
-                <Card
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleCompteClick(compte.id)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        {getTypeIcon(compte.type)}
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base leading-tight line-clamp-2">
-                            {compte.denomination}
-                          </CardTitle>
-                          <p className="text-sm font-mono text-muted-foreground mt-1">
-                            Code: {compte.code_ohada}
-                          </p>
+            <div className="space-y-2">
+              <AnimatePresence mode="popLayout">
+                {comptesComptablesFiltres.map((compte, index) => (
+                  <motion.div
+                    key={compte.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    <Card
+                      className="hover:bg-accent transition-colors cursor-pointer"
+                      onClick={() => handleCompteClick(compte.id)}
+                    >
+                      <CardHeader className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div
+                              className={`p-1.5 rounded-lg flex-shrink-0 ${
+                                compte.categorie === "entree"
+                                  ? "bg-green-50"
+                                  : "bg-red-50"
+                              }`}
+                            >
+                              {compte.categorie === "entree" ? (
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <TrendingDown className="h-4 w-4 text-red-600" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <Badge variant="outline" className="font-mono text-xs mb-1">
+                                {compte.code_ohada}
+                              </Badge>
+                              <CardTitle className="text-sm truncate">
+                                {compte.denomination}
+                              </CardTitle>
+                              {compte.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                                  {compte.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${getTypeBadgeColor(
-                            compte.type
-                          )}`}
-                        >
-                          {compte.type === "entree/sortie"
-                            ? "Mixte"
-                            : compte.type === "entree"
-                            ? "Entrée"
-                            : "Sortie"}
-                        </span>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  {compte.description && (
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                        {compte.description}
-                      </p>
-                    </CardContent>
-                  )}
-                </Card>
-              </motion.div>
-            ))
+                      </CardHeader>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
           )}
-        </AnimatePresence>
-      </div>
+        </TabsContent>
+
+        {/* Comptes de Trésorerie */}
+        <TabsContent value="tresorerie" className="space-y-3">
+          {loadingTresorerie ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : comptesTresorerieFiltres.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Wallet className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Aucun compte trouvé
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              <AnimatePresence mode="popLayout">
+                {comptesTresorerieFiltres.map((compte, index) => (
+                  <motion.div
+                    key={compte.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    <Card
+                      className="hover:bg-accent transition-colors cursor-pointer border-emerald-200"
+                      onClick={() => handleCompteClick(compte.id)}
+                    >
+                      <CardHeader className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="p-1.5 rounded-lg bg-emerald-50 flex-shrink-0">
+                              <Wallet className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <Badge
+                                variant="outline"
+                                className="font-mono text-xs mb-1 border-emerald-600 text-emerald-600"
+                              >
+                                {compte.code_ohada}
+                              </Badge>
+                              <CardTitle className="text-sm truncate">
+                                {compte.denomination}
+                              </CardTitle>
+                              {compte.numero && (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">
+                                  {compte.numero}
+                                </p>
+                              )}
+                              {compte.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                                  {compte.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -2,22 +2,33 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  ArrowLeft,
   Save,
+  Trash2,
   Loader2,
-  FileText,
-  Hash,
-  Type,
-  AlignLeft,
+  Building2,
+  Wallet,
   TrendingUp,
   TrendingDown,
-  ArrowLeftRight,
   AlertCircle,
-  CheckCircle,
-  Trash2,
-  ArrowLeft,
 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import {
   InputGroup,
   InputGroupAddon,
@@ -25,27 +36,14 @@ import {
   InputGroupInput,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import useEditCompteStore, {
   selectId,
+  selectTypeCompte,
   selectCodeOhada,
   selectDenomination,
   selectDescription,
-  selectType,
+  selectCategorie,
+  selectNumero,
   selectIsSubmitting,
   selectIsDeleting,
   selectError,
@@ -53,114 +51,147 @@ import useEditCompteStore, {
   selectSetCodeOhada,
   selectSetDenomination,
   selectSetDescription,
-  selectSetType,
+  selectSetCategorie,
+  selectSetNumero,
   selectSetIsSubmitting,
   selectSetIsDeleting,
   selectSetError,
-  selectReset,
   selectSetFormData,
+  selectReset,
 } from "@/stores/admin/useEditCompteStore";
 import {
-  getCompteById,
+  findCompteById,
+  findCompteTresorerieById,
   updateCompte,
-  deleteCompte,
+  updateCompteTresorerie,
+  supprimerCompte,
+  supprimerCompteTresorerie,
 } from "@/toolkits/admin/comptabiliteToolkit";
-import { toast } from "sonner";
 
 const DesktopGererUnCompte = () => {
-  const { id: compteId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  const id = useEditCompteStore(selectId);
+  // Store state
+  const compteId = useEditCompteStore(selectId);
+  const typeCompte = useEditCompteStore(selectTypeCompte);
   const code_ohada = useEditCompteStore(selectCodeOhada);
   const denomination = useEditCompteStore(selectDenomination);
   const description = useEditCompteStore(selectDescription);
-  const type = useEditCompteStore(selectType);
+  const categorie = useEditCompteStore(selectCategorie);
+  const numero = useEditCompteStore(selectNumero);
   const isSubmitting = useEditCompteStore(selectIsSubmitting);
   const isDeleting = useEditCompteStore(selectIsDeleting);
   const error = useEditCompteStore(selectError);
   const isLoaded = useEditCompteStore(selectIsLoaded);
 
+  // Store actions
   const setCodeOhada = useEditCompteStore(selectSetCodeOhada);
   const setDenomination = useEditCompteStore(selectSetDenomination);
   const setDescription = useEditCompteStore(selectSetDescription);
-  const setType = useEditCompteStore(selectSetType);
+  const setCategorie = useEditCompteStore(selectSetCategorie);
+  const setNumero = useEditCompteStore(selectSetNumero);
   const setIsSubmitting = useEditCompteStore(selectSetIsSubmitting);
   const setIsDeleting = useEditCompteStore(selectSetIsDeleting);
   const setError = useEditCompteStore(selectSetError);
-  const reset = useEditCompteStore(selectReset);
   const setFormData = useEditCompteStore(selectSetFormData);
+  const reset = useEditCompteStore(selectReset);
 
-  const [loading, setLoading] = useState(true);
-  const [success, setSuccess] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Charger les données du compte
   useEffect(() => {
     const loadCompte = async () => {
       try {
-        setLoading(true);
-        const compte = await getCompteById(compteId);
+        setIsLoadingData(true);
+        setError(null);
+
+        // Essayer de charger comme compte comptable
+        let compte = await findCompteById(id);
         if (compte) {
-          setFormData(compte);
+          setFormData({
+            id: compte.id,
+            typeCompte: "comptable",
+            code_ohada: compte.code_ohada,
+            denomination: compte.denomination,
+            description: compte.description || "",
+            categorie: compte.categorie,
+          });
         } else {
-          setError("Compte non trouvé");
+          // Essayer comme compte de trésorerie
+          compte = await findCompteTresorerieById(id);
+          if (compte) {
+            setFormData({
+              id: compte.id,
+              typeCompte: "tresorerie",
+              code_ohada: compte.code_ohada,
+              denomination: compte.denomination,
+              description: compte.description || "",
+              numero: compte.numero || "",
+            });
+          } else {
+            setError("Compte introuvable");
+            toast.error("Compte introuvable");
+          }
         }
       } catch (err) {
         console.error("Erreur chargement compte:", err);
-        setError(err.message || "Erreur lors du chargement");
+        setError(err.message);
+        toast.error("Erreur lors du chargement du compte");
       } finally {
-        setLoading(false);
+        setIsLoadingData(false);
       }
     };
 
-    if (compteId) {
+    if (id) {
       loadCompte();
     }
 
     return () => {
       reset();
     };
-  }, [compteId]);
+  }, [id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
 
     // Validation
     if (!code_ohada.trim()) {
-      setError("Le code OHADA est requis");
+      toast.error("Le code OHADA est requis");
       return;
     }
     if (!denomination.trim()) {
-      setError("La dénomination est requise");
+      toast.error("La dénomination est requise");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await updateCompte(id, {
+      setError(null);
+
+      const compteData = {
         code_ohada: code_ohada.trim(),
         denomination: denomination.trim(),
-        description: description.trim() || undefined,
-        type,
-      });
+        description: description.trim(),
+      };
 
-      setSuccess(true);
-      toast.success("Compte mis à jour avec succès", {
-        description: `${code_ohada} - ${denomination}`,
-      });
+      if (typeCompte === "comptable") {
+        compteData.categorie = categorie;
+        await updateCompte(compteId, compteData);
+        toast.success("Compte comptable mis à jour avec succès");
+      } else {
+        compteData.numero = numero.trim();
+        await updateCompteTresorerie(compteId, compteData);
+        toast.success("Compte de trésorerie mis à jour avec succès");
+      }
 
-      setTimeout(() => {
-        setSuccess(false);
-      }, 2000);
+      navigate("/admin/settings/comptabilite/gerer");
     } catch (err) {
-      console.error("Erreur mise à jour compte:", err);
-      const errorMessage = err.message || "Une erreur s'est produite";
-      setError(errorMessage);
-      toast.error("Erreur lors de la mise à jour", {
-        description: errorMessage,
+      console.error("Erreur modification:", err);
+      setError(err.message);
+      toast.error("Erreur lors de la modification", {
+        description: err.message,
       });
     } finally {
       setIsSubmitting(false);
@@ -170,360 +201,343 @@ const DesktopGererUnCompte = () => {
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      await deleteCompte(id);
+      setError(null);
 
-      toast.success("Compte supprimé avec succès");
+      if (typeCompte === "comptable") {
+        await supprimerCompte(compteId);
+        toast.success("Compte comptable supprimé");
+      } else {
+        await supprimerCompteTresorerie(compteId);
+        toast.success("Compte de trésorerie supprimé");
+      }
+
       navigate("/admin/settings/comptabilite/gerer");
     } catch (err) {
-      console.error("Erreur suppression compte:", err);
-      const errorMessage = err.message || "Erreur lors de la suppression";
-      setError(errorMessage);
+      console.error("Erreur suppression:", err);
+      setError(err.message);
       toast.error("Erreur lors de la suppression", {
-        description: errorMessage,
+        description: err.message,
       });
-      setShowDeleteDialog(false);
     } finally {
       setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   };
 
-  const getTypeIcon = (typeValue) => {
-    switch (typeValue) {
-      case "entree":
-        return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case "sortie":
-        return <TrendingDown className="h-4 w-4 text-red-500" />;
-      case "entree/sortie":
-        return <ArrowLeftRight className="h-4 w-4 text-blue-500" />;
-      default:
-        return null;
-    }
-  };
-
-  if (loading) {
+  if (isLoadingData) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Chargement du compte...
-          </p>
+      <div className="container mx-auto p-8 max-w-4xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
     );
   }
 
-  if (!isLoaded && !loading) {
+  if (error && !isLoaded) {
     return (
-      <div className="p-4">
-        <Card className="border-destructive bg-destructive/5">
-          <CardContent className="pt-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-              <div>
-                <p className="font-medium text-destructive">Compte introuvable</p>
-                <p className="text-sm text-destructive/80">
-                  Le compte demandé n'existe pas.
-                </p>
-              </div>
+      <div className="container mx-auto p-8 max-w-4xl">
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              <p>{error}</p>
             </div>
           </CardContent>
         </Card>
-        <Button
-          variant="outline"
-          className="mt-4 w-full"
-          onClick={() => navigate("/admin/settings/comptabilite/gerer")}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour à la liste
-        </Button>
       </div>
     );
   }
 
+  const isComptable = typeCompte === "comptable";
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl space-y-6">
-      {/* En-tête avec bouton retour */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-2"
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/admin/settings/comptabilite/gerer")}
-          className="mb-2"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
-        </Button>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <FileText className="h-8 w-8" />
-          Modifier le Compte
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Code: {code_ohada}
-        </p>
-      </motion.div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="container mx-auto p-8 max-w-4xl space-y-6"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/admin/settings/comptabilite/gerer")}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
+            <h1 className="text-3xl font-bold">Modifier le compte</h1>
+          </div>
+          <div className="flex items-center gap-2 ml-[120px]">
+            <Badge variant="outline" className="font-mono">
+              {code_ohada}
+            </Badge>
+            {isComptable ? (
+              <Badge variant="secondary" className="gap-1">
+                <Building2 className="h-3 w-3" />
+                Comptable
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1">
+                <Wallet className="h-3 w-3" />
+                Trésorerie
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Separator />
 
       {/* Formulaire */}
-      <motion.form
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        onSubmit={handleSubmit}
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Informations du compte</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              {isComptable ? (
+                <>
+                  <Building2 className="h-5 w-5" />
+                  Compte Comptable
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-5 w-5" />
+                  Compte de Trésorerie
+                </>
+              )}
+            </CardTitle>
+            <CardDescription>
+              Modifiez les informations du compte{" "}
+              {isComptable ? "comptable" : "de trésorerie"}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {/* Code OHADA */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <Label htmlFor="code_ohada">
                 Code OHADA <span className="text-destructive">*</span>
-              </label>
+              </Label>
               <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>
-                    <Hash className="h-4 w-4" />
-                  </InputGroupText>
-                </InputGroupAddon>
                 <InputGroupInput
-                  type="text"
-                  placeholder="Ex: 701"
+                  id="code_ohada"
+                  placeholder="Ex: 701, 411, 531..."
                   value={code_ohada}
                   onChange={(e) => setCodeOhada(e.target.value)}
-                  disabled={isSubmitting || isDeleting}
-                  required
+                  className="font-mono"
                 />
               </InputGroup>
+              <p className="text-xs text-muted-foreground">
+                Code du plan comptable OHADA
+              </p>
             </div>
 
             {/* Dénomination */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <Label htmlFor="denomination">
                 Dénomination <span className="text-destructive">*</span>
-              </label>
+              </Label>
               <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>
-                    <Type className="h-4 w-4" />
-                  </InputGroupText>
-                </InputGroupAddon>
                 <InputGroupInput
-                  type="text"
-                  placeholder="Ex: Ventes de marchandises"
+                  id="denomination"
+                  placeholder="Ex: Ventes de marchandises, Capital social..."
                   value={denomination}
                   onChange={(e) => setDenomination(e.target.value)}
-                  disabled={isSubmitting || isDeleting}
-                  required
                 />
               </InputGroup>
-            </div>
-
-            {/* Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Type de compte <span className="text-destructive">*</span>
-              </label>
-              <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>{getTypeIcon(type)}</InputGroupText>
-                </InputGroupAddon>
-                <Select
-                  value={type}
-                  onValueChange={setType}
-                  disabled={isSubmitting || isDeleting}
-                >
-                  <SelectTrigger className="flex-1 border-0 shadow-none focus:ring-0 bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="entree">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                        <span>Entrée</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="sortie">
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                        <span>Sortie</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="entree/sortie">
-                      <div className="flex items-center gap-2">
-                        <ArrowLeftRight className="h-4 w-4 text-blue-500" />
-                        <span>Mixte (Entrée/Sortie)</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </InputGroup>
+              <p className="text-xs text-muted-foreground">
+                Nom du compte
+              </p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description (optionnel)</label>
+              <Label htmlFor="description">Description</Label>
               <InputGroup>
-                <InputGroupAddon align="block-start">
-                  <InputGroupText>
-                    <AlignLeft className="h-4 w-4" />
-                  </InputGroupText>
-                </InputGroupAddon>
                 <InputGroupTextarea
-                  placeholder="Description détaillée du compte..."
+                  id="description"
+                  placeholder="Description détaillée..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  disabled={isSubmitting || isDeleting}
                   rows={3}
                 />
               </InputGroup>
+              <p className="text-xs text-muted-foreground">
+                Description détaillée du compte (optionnelle)
+              </p>
             </div>
+
+            {/* Catégorie (uniquement pour comptable) */}
+            {isComptable && (
+              <div className="space-y-2">
+                <Label>
+                  Catégorie <span className="text-destructive">*</span>
+                </Label>
+                <RadioGroup
+                  value={categorie}
+                  onValueChange={setCategorie}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Label
+                      htmlFor="entree"
+                      className={`flex items-center justify-center gap-3 rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                        categorie === "entree"
+                          ? "border-green-500 bg-green-50"
+                          : "border-border hover:border-green-300"
+                      }`}
+                    >
+                      <RadioGroupItem value="entree" id="entree" />
+                      <TrendingUp
+                        className={`h-5 w-5 ${
+                          categorie === "entree" ? "text-green-600" : "text-muted-foreground"
+                        }`}
+                      />
+                      <div className="text-left flex-1">
+                        <p className="font-semibold">Entrée</p>
+                        <p className="text-xs text-muted-foreground">
+                          Produits, ventes
+                        </p>
+                      </div>
+                    </Label>
+                  </motion.div>
+
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Label
+                      htmlFor="sortie"
+                      className={`flex items-center justify-center gap-3 rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                        categorie === "sortie"
+                          ? "border-red-500 bg-red-50"
+                          : "border-border hover:border-red-300"
+                      }`}
+                    >
+                      <RadioGroupItem value="sortie" id="sortie" />
+                      <TrendingDown
+                        className={`h-5 w-5 ${
+                          categorie === "sortie" ? "text-red-600" : "text-muted-foreground"
+                        }`}
+                      />
+                      <div className="text-left flex-1">
+                        <p className="font-semibold">Sortie</p>
+                        <p className="text-xs text-muted-foreground">
+                          Charges, dépenses
+                        </p>
+                      </div>
+                    </Label>
+                  </motion.div>
+                </RadioGroup>
+                <p className="text-xs text-muted-foreground">
+                  Type d'opération pour ce compte
+                </p>
+              </div>
+            )}
+
+            {/* Numéro (uniquement pour trésorerie) */}
+            {!isComptable && (
+              <div className="space-y-2">
+                <Label htmlFor="numero">Numéro de compte</Label>
+                <InputGroup>
+                  <InputGroupInput
+                    id="numero"
+                    placeholder="Ex: 0123456789, +237 6 XX XX XX XX..."
+                    value={numero}
+                    onChange={(e) => setNumero(e.target.value)}
+                  />
+                </InputGroup>
+                <p className="text-xs text-muted-foreground">
+                  Numéro du compte bancaire ou mobile money (optionnel)
+                </p>
+              </div>
+            )}
+
+            {/* Message d'erreur */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <p className="text-sm">{error}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardContent>
         </Card>
 
-        {/* Message d'erreur */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <Card className="border-destructive bg-destructive/5">
-                <CardContent className="pt-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-medium text-destructive">Erreur</p>
-                      <p className="text-sm text-destructive/80">{error}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Message de succès */}
-        <AnimatePresence>
-          {success && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <Card className="border-green-200 bg-green-50">
-                <CardContent className="pt-4">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-medium text-green-900">Succès</p>
-                      <p className="text-sm text-green-700">
-                        Le compte a été mis à jour avec succès
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Boutons d'action */}
-        <div className="space-y-2">
-          <Button
-            type="submit"
-            disabled={isSubmitting || isDeleting || success}
-            className="w-full h-11"
-            size="lg"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Mise à jour en cours...
-              </>
-            ) : success ? (
-              <>
-                <CheckCircle className="mr-2 h-5 w-5" />
-                Compte mis à jour
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-5 w-5" />
-                Enregistrer les modifications
-              </>
-            )}
-          </Button>
-
+        {/* Actions */}
+        <div className="flex items-center justify-between mt-6">
           <Button
             type="button"
             variant="destructive"
-            className="w-full h-11"
-            size="lg"
-            disabled={isSubmitting || isDeleting}
             onClick={() => setShowDeleteDialog(true)}
+            disabled={isSubmitting || isDeleting}
           >
             {isDeleting ? (
               <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Suppression...
               </>
             ) : (
               <>
-                <Trash2 className="mr-2 h-5 w-5" />
-                Supprimer le compte
+                <Trash2 className="mr-2 h-4 w-4" />
+                Supprimer
               </>
             )}
           </Button>
-        </div>
-      </motion.form>
 
-      {/* Dialog de confirmation de suppression */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer le compte "{denomination}" (
-              {code_ohada}) ? Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex items-center gap-3">
             <Button
+              type="button"
               variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
-              className="w-full sm:w-auto"
+              onClick={() => navigate("/admin/settings/comptabilite/gerer")}
+              disabled={isSubmitting || isDeleting}
             >
               Annuler
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="w-full sm:w-auto"
-            >
-              {isDeleting ? (
+            <Button type="submit" disabled={isSubmitting || isDeleting}>
+              {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Suppression...
+                  Enregistrement...
                 </>
               ) : (
                 <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Supprimer
+                  <Save className="mr-2 h-4 w-4" />
+                  Enregistrer
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </div>
+        </div>
+      </form>
+
+      {/* Dialog de confirmation de suppression */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer le compte <strong>{denomination}</strong> (
+              {code_ohada}) ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </motion.div>
   );
 };
 
