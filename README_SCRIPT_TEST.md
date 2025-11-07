@@ -69,10 +69,18 @@ node scripts/testOperationsComptables.js
 Le script va :
 1. Charger les comptes comptables et de trésorerie depuis Firestore
 2. Générer des opérations cohérentes pour chaque jour
-3. Sauvegarder les opérations dans `comptabilite/historique/days/{YYYY-MM-DD}`
+3. Sauvegarder les opérations dans `comptabilite/historique/days/{DDMMYYYY}`
 4. Déclencher les triggers RTDB pour les mises à jour
 
 ## Détails techniques
+
+### Format des clés de jour
+
+Le script utilise le format **DDMMYYYY** comme défini dans le toolkit comptable :
+- `01072025` = 1er juillet 2025
+- `07112025` = 7 novembre 2025
+
+Les opérations sont sauvegardées dans `comptabilite/historique/days/{DDMMYYYY}`
 
 ### Structure des opérations
 
@@ -152,10 +160,10 @@ Le script inclut des pauses automatiques toutes les 10 jours pour éviter de sur
 ✅ 33 comptes comptables chargés
 ✅ 3 comptes de trésorerie chargés
 
-✅ 2025-07-01: 62 opérations sauvegardées
-✅ 2025-07-02: 65 opérations sauvegardées
+✅ 01072025: 62 opérations sauvegardées
+✅ 02072025: 65 opérations sauvegardées
 ...
-✅ 2025-11-07: 58 opérations sauvegardées
+✅ 07112025: 58 opérations sauvegardées
 
 🎉 Génération terminée avec succès!
 📊 Statistiques:
