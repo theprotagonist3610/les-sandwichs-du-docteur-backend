@@ -193,8 +193,11 @@ service cloud.firestore {
     //
     // IMPORTANT: Compatible avec système de queue anti-collision
     // - comptabilite/comptes: Plan comptable OHADA
-    // - comptabilite/operations/liste/{DDMMYYYY}: Opérations par jour
     // - comptabilite/tresorerie: Situation de trésorerie
+    // - comptabilite/today: Opérations du jour courant
+    // - comptabilite/historique/days/{DDMMYYYY}: Opérations par jour (historique)
+    // - comptabilite/statistiques/weeks/{weekKey}: Statistiques hebdomadaires
+    // - comptabilite/bilan/weeks/{weekKey}: Bilans hebdomadaires
     // - comptabilite/operationsQueue: Queue d'opérations anti-collision
     // ========================================
 
@@ -206,15 +209,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 6.2 Documents d'opérations par jour
-    match /comptabilite/operations/liste/{dayKey} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // 6.3 Document trésorerie
+    // 6.2 Document trésorerie
     match /comptabilite/tresorerie {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -222,7 +217,39 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 6.4 Queue d'opérations comptabilité
+    // 6.3 Document today (opérations du jour)
+    match /comptabilite/today {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.4 Documents d'opérations par jour (historique)
+    match /comptabilite/historique/days/{dayKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.5 Statistiques hebdomadaires
+    match /comptabilite/statistiques/weeks/{weekKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.6 Bilans hebdomadaires
+    match /comptabilite/bilan/weeks/{weekKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.7 Queue d'opérations comptabilité
     match /comptabilite/operationsQueue {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -230,7 +257,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 6.5 Autres sous-collections de comptabilite (pour extensions futures)
+    // 6.8 Autres sous-collections de comptabilite (pour extensions futures)
     match /comptabilite/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
@@ -418,8 +445,11 @@ B. Stock (stockToolkit.jsx) - AVEC QUEUE ANTI-COLLISION:
 
 C. Comptabilité (comptabiliteToolkit.jsx) - AVEC QUEUE ANTI-COLLISION:
    - comptabilite/comptes: { comptes: [...] } - Plan comptable OHADA
-   - comptabilite/operations/liste/{DDMMYYYY}: { operations: [...] } - Opérations du jour
-   - comptabilite/tresorerie: { caisses: [...] } - Situation de trésorerie
+   - comptabilite/tresorerie: { comptes: [...] } - Comptes de trésorerie
+   - comptabilite/today: { operations: [...] } - Opérations du jour courant
+   - comptabilite/historique/days/{DDMMYYYY}: { operations: [...] } - Opérations par jour
+   - comptabilite/statistiques/weeks/{weekKey}: { ... } - Statistiques hebdomadaires
+   - comptabilite/bilan/weeks/{weekKey}: { ... } - Bilans hebdomadaires
    - comptabilite/operationsQueue: { operations: [...] } - Queue d'opérations
 
 D. Ventes/Commandes (commandeToolkit.jsx) - AVEC QUEUE ANTI-COLLISION:
