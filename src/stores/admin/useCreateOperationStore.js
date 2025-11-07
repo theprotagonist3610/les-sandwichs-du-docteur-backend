@@ -17,8 +17,13 @@ const useCreateOperationStore = create((set, get) => ({
   compte_denomination: "",
   montant: "",
   motif: "",
-  type_operation: "entree", // ou "sortie"
+  type_operation: "entree", // "entree", "sortie" ou "transfert"
   date: Date.now(),
+
+  // Pour les transferts (type_operation === "transfert")
+  compte_destination_id: "",
+  compte_destination_ohada: "",
+  compte_destination_denomination: "",
 
   // Listes pour les selects
   comptesDisponibles: [], // Tous les comptes (comptables + trésorerie)
@@ -40,8 +45,16 @@ const useCreateOperationStore = create((set, get) => ({
   setCompteDenomination: (value) => set({ compte_denomination: value }),
   setMontant: (value) => set({ montant: value }),
   setMotif: (value) => set({ motif: value }),
-  setTypeOperation: (value) => set({ type_operation: value }),
+  setTypeOperation: (value) => {
+    console.log("🔵 [STORE] setTypeOperation appelé avec:", value);
+    set({ type_operation: value });
+    console.log("🔵 [STORE] type_operation après set:", get().type_operation);
+  },
   setDate: (value) => set({ date: value }),
+
+  setCompteDestinationId: (value) => set({ compte_destination_id: value }),
+  setCompteDestinationOhada: (value) => set({ compte_destination_ohada: value }),
+  setCompteDestinationDenomination: (value) => set({ compte_destination_denomination: value }),
 
   setComptesDisponibles: (value) => set({ comptesDisponibles: value }),
   setComptesComptables: (value) => set({ comptesComptables: value }),
@@ -60,22 +73,60 @@ const useCreateOperationStore = create((set, get) => ({
    * Sélectionne un compte et remplit automatiquement les champs associés
    */
   selectCompte: (compte) => {
+    console.log("🟢 [STORE] selectCompte appelé avec:", compte);
+
     if (!compte) {
+      console.log("🟠 [STORE] Compte null, réinitialisation mais SANS changer type_operation");
       set({
         compte_id: "",
         compte_ohada: "",
         compte_denomination: "",
-        type_operation: "entree",
+        // NE PAS réinitialiser type_operation ici !
+      });
+      return;
+    }
+
+    const currentType = get().type_operation;
+    console.log("🟢 [STORE] Type actuel:", currentType);
+
+    // Pour les transferts, ne JAMAIS changer le type
+    if (currentType === "transfert") {
+      console.log("🔵 [STORE] Mode transfert, on garde le type transfert");
+      set({
+        compte_id: compte.id,
+        compte_ohada: compte.code_ohada,
+        compte_denomination: compte.denomination,
+      });
+    } else {
+      // Pour entree/sortie, on peut adapter selon la catégorie du compte
+      const newType = compte.categorie === "sortie" ? "sortie" : "entree";
+      console.log("🟢 [STORE] Mode entree/sortie, nouveau type:", newType);
+      set({
+        compte_id: compte.id,
+        compte_ohada: compte.code_ohada,
+        compte_denomination: compte.denomination,
+        type_operation: newType,
+      });
+    }
+  },
+
+  /**
+   * Sélectionne le compte de destination pour un transfert
+   */
+  selectCompteDestination: (compte) => {
+    if (!compte) {
+      set({
+        compte_destination_id: "",
+        compte_destination_ohada: "",
+        compte_destination_denomination: "",
       });
       return;
     }
 
     set({
-      compte_id: compte.id,
-      compte_ohada: compte.code_ohada,
-      compte_denomination: compte.denomination,
-      // Définir le type_operation selon la catégorie du compte
-      type_operation: compte.categorie === "sortie" ? "sortie" : "entree",
+      compte_destination_id: compte.id,
+      compte_destination_ohada: compte.code_ohada,
+      compte_destination_denomination: compte.denomination,
     });
   },
 
@@ -90,6 +141,9 @@ const useCreateOperationStore = create((set, get) => ({
     motif: "",
     type_operation: "entree",
     date: Date.now(),
+    compte_destination_id: "",
+    compte_destination_ohada: "",
+    compte_destination_denomination: "",
     isSubmitting: false,
     error: null,
     success: false,
@@ -106,6 +160,9 @@ const useCreateOperationStore = create((set, get) => ({
     motif: "",
     type_operation: "entree",
     date: Date.now(),
+    compte_destination_id: "",
+    compte_destination_ohada: "",
+    compte_destination_denomination: "",
     comptesDisponibles: [],
     comptesComptables: [],
     comptesTresorerie: [],
@@ -129,6 +186,10 @@ export const selectMotif = (state) => state.motif;
 export const selectTypeOperation = (state) => state.type_operation;
 export const selectDate = (state) => state.date;
 
+export const selectCompteDestinationId = (state) => state.compte_destination_id;
+export const selectCompteDestinationOhada = (state) => state.compte_destination_ohada;
+export const selectCompteDestinationDenomination = (state) => state.compte_destination_denomination;
+
 // Sélecteurs pour les listes
 export const selectComptesDisponibles = (state) => state.comptesDisponibles;
 export const selectComptesComptables = (state) => state.comptesComptables;
@@ -149,6 +210,10 @@ export const selectSetMotif = (state) => state.setMotif;
 export const selectSetTypeOperation = (state) => state.setTypeOperation;
 export const selectSetDate = (state) => state.setDate;
 
+export const selectSetCompteDestinationId = (state) => state.setCompteDestinationId;
+export const selectSetCompteDestinationOhada = (state) => state.setCompteDestinationOhada;
+export const selectSetCompteDestinationDenomination = (state) => state.setCompteDestinationDenomination;
+
 export const selectSetComptesDisponibles = (state) => state.setComptesDisponibles;
 export const selectSetComptesComptables = (state) => state.setComptesComptables;
 export const selectSetComptesTresorerie = (state) => state.setComptesTresorerie;
@@ -159,6 +224,7 @@ export const selectSetError = (state) => state.setError;
 export const selectSetSuccess = (state) => state.setSuccess;
 
 export const selectSelectCompte = (state) => state.selectCompte;
+export const selectSelectCompteDestination = (state) => state.selectCompteDestination;
 export const selectReset = (state) => state.reset;
 export const selectResetAll = (state) => state.resetAll;
 

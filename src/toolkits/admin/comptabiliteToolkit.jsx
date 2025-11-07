@@ -501,6 +501,102 @@ export async function createOperationWithQueue(operationData, userId = "system")
 }
 
 /**
+ * Créer un transfert entre deux comptes de trésorerie (avec queue)
+ * Un transfert génère 2 opérations :
+ * - Une sortie du compte source
+ * - Une entrée sur le compte destination
+ *
+ * @param {Object} transfertData - Données du transfert
+ * @param {string} transfertData.compte_source_id - ID du compte source
+ * @param {string} transfertData.compte_source_ohada - Code OHADA du compte source
+ * @param {string} transfertData.compte_source_denomination - Dénomination du compte source
+ * @param {string} transfertData.compte_destination_id - ID du compte destination
+ * @param {string} transfertData.compte_destination_ohada - Code OHADA du compte destination
+ * @param {string} transfertData.compte_destination_denomination - Dénomination du compte destination
+ * @param {number} transfertData.montant - Montant du transfert
+ * @param {number} transfertData.date - Date du transfert (timestamp)
+ * @param {string} userId - ID de l'utilisateur
+ * @returns {Promise<Object[]>} Les 2 opérations en queue
+ */
+export async function createTransfertWithQueue(transfertData, userId = "system") {
+  try {
+    const {
+      compte_source_id,
+      compte_source_ohada,
+      compte_source_denomination,
+      compte_destination_id,
+      compte_destination_ohada,
+      compte_destination_denomination,
+      montant,
+      date,
+    } = transfertData;
+
+    // Validation basique
+    if (!compte_source_id || !compte_destination_id) {
+      throw new Error("Les comptes source et destination sont requis");
+    }
+
+    if (compte_source_id === compte_destination_id) {
+      throw new Error("Le compte source et destination doivent être différents");
+    }
+
+    if (!montant || montant <= 0) {
+      throw new Error("Le montant doit être supérieur à 0");
+    }
+
+    // Créer l'opération de sortie du compte source
+    const operationSortie = {
+      compte_id: compte_source_id,
+      compte_ohada: compte_source_ohada,
+      compte_denomination: compte_source_denomination,
+      montant,
+      motif: `Transfert vers ${compte_destination_denomination} (${compte_destination_ohada})`,
+      type_operation: "sortie",
+      date: date || Date.now(),
+    };
+
+    // Créer l'opération d'entrée sur le compte destination
+    const operationEntree = {
+      compte_id: compte_destination_id,
+      compte_ohada: compte_destination_ohada,
+      compte_denomination: compte_destination_denomination,
+      montant,
+      motif: `Transfert depuis ${compte_source_denomination} (${compte_source_ohada})`,
+      type_operation: "entree",
+      date: date || Date.now(),
+    };
+
+    // Ajouter les 2 opérations à la queue
+    const [queuedOpSortie, queuedOpEntree] = await Promise.all([
+      enqueueComptaOperation("create", { operationData: operationSortie, userId }, userId),
+      enqueueComptaOperation("create", { operationData: operationEntree, userId }, userId),
+    ]);
+
+    console.log("✅ Transfert ajouté à la queue:", {
+      sortie: queuedOpSortie.id,
+      entree: queuedOpEntree.id,
+    });
+
+    // Notification immédiate
+    await createQueueNotification(
+      "Transfert en file d'attente",
+      `Transfert de ${montant} FCFA de ${compte_source_denomination} vers ${compte_destination_denomination}`,
+      "info"
+    );
+
+    // Déclencher l'exécution des opérations en attente (asynchrone)
+    executeComptaOperations().catch((err) => {
+      console.error("❌ Erreur lors de l'exécution automatique:", err);
+    });
+
+    return [queuedOpSortie, queuedOpEntree];
+  } catch (error) {
+    console.error("❌ Erreur createTransfertWithQueue:", error);
+    throw error;
+  }
+}
+
+/**
  * Mettre à jour une opération (avec queue)
  * @param {string} operationId - ID de l'opération
  * @param {Object} updates - Modifications à appliquer

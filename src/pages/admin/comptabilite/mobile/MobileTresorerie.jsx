@@ -13,7 +13,13 @@ import {
   ChevronRight,
   TrendingUpDown,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -73,7 +79,7 @@ const MobileTresorerie = () => {
   }, [navigate]);
 
   const naviguerVersTransfert = useCallback(() => {
-    navigate("/admin/comptabilite/transfert");
+    navigate("/admin/comptabilite/create?type=transfert");
     setActiveSheet(false);
   }, [navigate]);
 
@@ -108,8 +114,7 @@ const MobileTresorerie = () => {
               variant="outline"
               size="sm"
               className="mt-4 w-full"
-              onClick={() => window.location.reload()}
-            >
+              onClick={() => window.location.reload()}>
               Réessayer
             </Button>
           </AlertDescription>
@@ -129,13 +134,12 @@ const MobileTresorerie = () => {
               Trésorerie
             </h1>
           </div>
-          <Button
+          {/* <Button
             size="sm"
             onClick={ouvrirCreationCompte}
-            aria-label="Créer un nouveau compte"
-          >
+            aria-label="Créer un nouveau compte">
             <Plus className="h-4 w-4" aria-hidden="true" />
-          </Button>
+          </Button> */}
         </div>
 
         {/* Résumé compact */}
@@ -179,8 +183,7 @@ const MobileTresorerie = () => {
             <Button
               variant="outline"
               className="w-full justify-between"
-              size="lg"
-            >
+              size="lg">
               <span className="flex items-center gap-2">
                 <TrendingUpDown className="h-5 w-5" aria-hidden="true" />
                 Actions rapides
@@ -200,15 +203,19 @@ const MobileTresorerie = () => {
                 variant="outline"
                 size="lg"
                 className="h-auto py-4 flex items-center justify-between hover:border-green-500 hover:bg-green-50"
-                onClick={naviguerVersEntree}
-              >
+                onClick={naviguerVersEntree}>
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-green-50">
-                    <ArrowDownCircle className="h-5 w-5 text-green-600" aria-hidden="true" />
+                    <ArrowDownCircle
+                      className="h-5 w-5 text-green-600"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div className="text-left">
                     <p className="font-semibold">Ajouter une entrée</p>
-                    <p className="text-xs text-muted-foreground">Encaissement</p>
+                    <p className="text-xs text-muted-foreground">
+                      Encaissement
+                    </p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -218,11 +225,13 @@ const MobileTresorerie = () => {
                 variant="outline"
                 size="lg"
                 className="h-auto py-4 flex items-center justify-between hover:border-red-500 hover:bg-red-50"
-                onClick={naviguerVersSortie}
-              >
+                onClick={naviguerVersSortie}>
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-red-50">
-                    <ArrowUpCircle className="h-5 w-5 text-red-600" aria-hidden="true" />
+                    <ArrowUpCircle
+                      className="h-5 w-5 text-red-600"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div className="text-left">
                     <p className="font-semibold">Ajouter une sortie</p>
@@ -236,15 +245,19 @@ const MobileTresorerie = () => {
                 variant="outline"
                 size="lg"
                 className="h-auto py-4 flex items-center justify-between hover:border-blue-500 hover:bg-blue-50"
-                onClick={naviguerVersTransfert}
-              >
+                onClick={naviguerVersTransfert}>
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-blue-50">
-                    <ArrowLeftRight className="h-5 w-5 text-blue-600" aria-hidden="true" />
+                    <ArrowLeftRight
+                      className="h-5 w-5 text-blue-600"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div className="text-left">
                     <p className="font-semibold">Transférer</p>
-                    <p className="text-xs text-muted-foreground">Entre comptes</p>
+                    <p className="text-xs text-muted-foreground">
+                      Entre comptes
+                    </p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -269,19 +282,21 @@ const MobileTresorerie = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.2, delay: index * 0.05 }}
-                  whileTap={{ scale: 0.98 }}
-                >
+                  whileTap={{ scale: 0.98 }}>
                   <Card
                     className={`cursor-pointer active:shadow-lg border-2 ${config.borderColor}`}
                     onClick={() => naviguerVersCompte(compte.id)}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Compte ${compte.denomination}, solde ${formatMontant(compte.solde || 0)} francs CFA`}
-                  >
+                    aria-label={`Compte ${
+                      compte.denomination
+                    }, solde ${formatMontant(compte.solde || 0)} francs CFA`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${config.bgColor}`} aria-hidden="true">
+                          <div
+                            className={`p-2 rounded-lg ${config.bgColor}`}
+                            aria-hidden="true">
                             <Icon className={`h-5 w-5 ${config.textColor}`} />
                           </div>
                           <div className="flex-1">
@@ -290,13 +305,15 @@ const MobileTresorerie = () => {
                             </CardTitle>
                             <Badge
                               variant="outline"
-                              className="font-mono text-xs mt-1"
-                            >
+                              className="font-mono text-xs mt-1">
                               {compte.code_ohada}
                             </Badge>
                           </div>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                        <ChevronRight
+                          className="h-5 w-5 text-muted-foreground"
+                          aria-hidden="true"
+                        />
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -316,7 +333,8 @@ const MobileTresorerie = () => {
                           <span className="text-xs text-muted-foreground">
                             Solde actuel
                           </span>
-                          <span className={`text-lg font-bold ${config.textColor}`}>
+                          <span
+                            className={`text-lg font-bold ${config.textColor}`}>
                             {formatMontant(compte.solde || 0)} FCFA
                           </span>
                         </div>
@@ -328,22 +346,25 @@ const MobileTresorerie = () => {
             })}
 
             {/* Carte d'ajout */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2, delay: comptesTresorerie.length * 0.05 }}
-              whileTap={{ scale: 0.98 }}
-            >
+              transition={{
+                duration: 0.2,
+                delay: comptesTresorerie.length * 0.05,
+              }}
+              whileTap={{ scale: 0.98 }}>
               <Card
                 className="cursor-pointer border-2 border-dashed hover:border-primary/50 bg-muted/30"
                 onClick={ouvrirCreationCompte}
                 role="button"
                 tabIndex={0}
-                aria-label="Ajouter un nouveau compte de trésorerie"
-              >
+                aria-label="Ajouter un nouveau compte de trésorerie">
                 <CardContent className="py-8 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="p-3 rounded-full bg-primary/10" aria-hidden="true">
+                    <div
+                      className="p-3 rounded-full bg-primary/10"
+                      aria-hidden="true">
                       <Plus className="h-6 w-6 text-primary" />
                     </div>
                     <div>
@@ -355,14 +376,17 @@ const MobileTresorerie = () => {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </motion.div> */}
           </AnimatePresence>
 
           {/* Message si aucun compte */}
           {comptesTresorerie.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center">
-                <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" aria-hidden="true" />
+                <Wallet
+                  className="h-12 w-12 mx-auto mb-4 opacity-50"
+                  aria-hidden="true"
+                />
                 <p className="font-medium mb-1">Aucun compte</p>
                 <p className="text-sm text-muted-foreground mb-4">
                   Créez votre premier compte pour commencer

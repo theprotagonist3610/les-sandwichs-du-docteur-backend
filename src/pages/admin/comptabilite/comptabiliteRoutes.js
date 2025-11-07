@@ -19,6 +19,9 @@ import GererLesOperationsComptables from "@/pages/admin/comptabilite/GererLesOpe
 import GererUneOperationComptable from "@/pages/admin/comptabilite/GererUneOperationComptable";
 import Tresorerie from "@/pages/admin/comptabilite/Tresorerie";
 import CloturerJournee from "@/pages/admin/comptabilite/CloturerJournee";
+import Comptes from "@/pages/admin/comptabilite/Comptes";
+import HistoriqueCompte from "@/pages/admin/comptabilite/HistoriqueCompte";
+import HistoriqueCompteTresorerie from "@/pages/admin/comptabilite/HistoriqueCompteTresorerie";
 
 export const comptabiliteSubRoutes = [
   {
@@ -41,6 +44,27 @@ export const comptabiliteSubRoutes = [
     description: "Vue d'ensemble des comptes de trésorerie",
     url: "/users.svg",
     component: Tresorerie, // ✅ Composant activé
+    children: [
+      {
+        path: ":id",
+        nom: "Superviser les opérations de trésorerie",
+        component: HistoriqueCompteTresorerie,
+      },
+    ],
+  },
+  {
+    path: "comptes",
+    nom: "Gérer les comptes",
+    description: "Vue d'ensemble des comptes comptables",
+    url: "/users.svg",
+    component: Comptes, // ✅ Composant activé
+    children: [
+      {
+        path: ":id",
+        nom: "Superviser les opérations d'un compte",
+        component: HistoriqueCompte,
+      },
+    ],
   },
   {
     path: "cloture",

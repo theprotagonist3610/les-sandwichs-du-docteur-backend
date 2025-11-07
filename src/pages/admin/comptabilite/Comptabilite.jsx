@@ -5,6 +5,7 @@ import {
   ChartNoAxesGantt,
   Plus,
   Wallet,
+  Coins,
 } from "lucide-react";
 
 const Comptabilite = () => {
@@ -34,7 +35,13 @@ const Comptabilite = () => {
       icon: FolderLock,
     },
     {
-      nom: "Tresorerie",
+      nom: "Comptes",
+      description: "Surveillez les comptes comptables",
+      to: "/admin/comptabilite/comptes",
+      icon: Coins,
+    },
+    {
+      nom: "Trésorerie",
       description: "Surveillez la trésorerie",
       to: "/admin/comptabilite/tresorerie",
       icon: Wallet,

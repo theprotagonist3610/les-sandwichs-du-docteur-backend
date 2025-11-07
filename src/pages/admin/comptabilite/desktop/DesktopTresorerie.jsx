@@ -26,7 +26,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +78,7 @@ const DesktopTresorerie = () => {
   }, [navigate]);
 
   const naviguerVersTransfert = useCallback(() => {
-    navigate("/admin/comptabilite/transfert");
+    navigate("/admin/comptabilite/create?type=transfert");
   }, [navigate]);
 
   // Afficher le skeleton pendant le chargement
@@ -93,8 +99,7 @@ const DesktopTresorerie = () => {
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => window.location.reload()}
-            >
+              onClick={() => window.location.reload()}>
               Réessayer
             </Button>
           </AlertDescription>
@@ -116,10 +121,12 @@ const DesktopTresorerie = () => {
             Vue d'ensemble et gestion de vos comptes
           </p>
         </div>
-        <Button onClick={ouvrirCreationCompte} aria-label="Créer un nouveau compte de trésorerie">
+        {/* <Button
+          onClick={ouvrirCreationCompte}
+          aria-label="Créer un nouveau compte de trésorerie">
           <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
           Nouveau compte
-        </Button>
+        </Button> */}
       </div>
 
       <Separator />
@@ -130,18 +137,29 @@ const DesktopTresorerie = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Solde total</p>
-              <h2 className="text-4xl font-bold" aria-label={`Solde total de ${formatMontant(soldeTotal)} francs CFA`}>
-                {formatMontant(soldeTotal)} <span className="text-2xl">FCFA</span>
+              <h2
+                className="text-4xl font-bold"
+                aria-label={`Solde total de ${formatMontant(
+                  soldeTotal
+                )} francs CFA`}>
+                {formatMontant(soldeTotal)}{" "}
+                <span className="text-2xl">FCFA</span>
               </h2>
             </div>
             <div className="flex items-center gap-2">
               {variationPourcentage >= 0 ? (
                 <>
-                  <div className="p-3 rounded-full bg-green-50" aria-hidden="true">
+                  <div
+                    className="p-3 rounded-full bg-green-50"
+                    aria-hidden="true">
                     <TrendingUp className="h-6 w-6 text-green-600" />
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600" aria-label={`Variation positive de ${variationPourcentage.toFixed(1)} pourcent`}>
+                    <p
+                      className="text-2xl font-bold text-green-600"
+                      aria-label={`Variation positive de ${variationPourcentage.toFixed(
+                        1
+                      )} pourcent`}>
                       +{variationPourcentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">vs hier</p>
@@ -149,11 +167,17 @@ const DesktopTresorerie = () => {
                 </>
               ) : (
                 <>
-                  <div className="p-3 rounded-full bg-red-50" aria-hidden="true">
+                  <div
+                    className="p-3 rounded-full bg-red-50"
+                    aria-hidden="true">
                     <TrendingDown className="h-6 w-6 text-red-600" />
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-red-600" aria-label={`Variation négative de ${variationPourcentage.toFixed(1)} pourcent`}>
+                    <p
+                      className="text-2xl font-bold text-red-600"
+                      aria-label={`Variation négative de ${variationPourcentage.toFixed(
+                        1
+                      )} pourcent`}>
                       {variationPourcentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">vs hier</p>
@@ -177,14 +201,16 @@ const DesktopTresorerie = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3" role="group" aria-label="Actions de trésorerie">
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-3"
+            role="group"
+            aria-label="Actions de trésorerie">
             <Button
               variant="outline"
               size="lg"
               className="h-auto py-4 flex-col gap-2 hover:border-green-500 hover:bg-green-50"
               onClick={naviguerVersEntree}
-              aria-label="Ajouter une entrée d'encaissement"
-            >
+              aria-label="Ajouter une entrée d'encaissement">
               <div className="p-2 rounded-full bg-green-50" aria-hidden="true">
                 <ArrowDownCircle className="h-6 w-6 text-green-600" />
               </div>
@@ -199,8 +225,7 @@ const DesktopTresorerie = () => {
               size="lg"
               className="h-auto py-4 flex-col gap-2 hover:border-red-500 hover:bg-red-50"
               onClick={naviguerVersSortie}
-              aria-label="Ajouter une sortie de paiement"
-            >
+              aria-label="Ajouter une sortie de paiement">
               <div className="p-2 rounded-full bg-red-50" aria-hidden="true">
                 <ArrowUpCircle className="h-6 w-6 text-red-600" />
               </div>
@@ -215,8 +240,7 @@ const DesktopTresorerie = () => {
               size="lg"
               className="h-auto py-4 flex-col gap-2 hover:border-blue-500 hover:bg-blue-50"
               onClick={naviguerVersTransfert}
-              aria-label="Transférer entre comptes"
-            >
+              aria-label="Transférer entre comptes">
               <div className="p-2 rounded-full bg-blue-50" aria-hidden="true">
                 <ArrowLeftRight className="h-6 w-6 text-blue-600" />
               </div>
@@ -245,7 +269,9 @@ const DesktopTresorerie = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dataRepartition} aria-label="Graphique de répartition de la trésorerie">
+                <BarChart
+                  data={dataRepartition}
+                  aria-label="Graphique de répartition de la trésorerie">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="nom"
@@ -255,12 +281,18 @@ const DesktopTresorerie = () => {
                     tick={{ fontSize: 12 }}
                   />
                   <YAxis
-                    label={{ value: "Pourcentage (%)", angle: -90, position: "insideLeft" }}
+                    label={{
+                      value: "Pourcentage (%)",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
                   />
                   <Tooltip
                     formatter={(value, name) => {
-                      if (name === "pourcentage") return [`${value}%`, "Pourcentage"];
-                      if (name === "solde") return [`${formatMontant(value)} FCFA`, "Solde"];
+                      if (name === "pourcentage")
+                        return [`${value}%`, "Pourcentage"];
+                      if (name === "solde")
+                        return [`${formatMontant(value)} FCFA`, "Solde"];
                       return [value, name];
                     }}
                   />
@@ -289,11 +321,17 @@ const DesktopTresorerie = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dataEvolution} aria-label="Graphique d'évolution des comptes">
+                <LineChart
+                  data={dataEvolution}
+                  aria-label="Graphique d'évolution des comptes">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                   <YAxis
-                    label={{ value: "Solde (FCFA)", angle: -90, position: "insideLeft" }}
+                    label={{
+                      value: "Solde (FCFA)",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip
@@ -323,7 +361,10 @@ const DesktopTresorerie = () => {
       )}
 
       {/* Grille des comptes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Liste des comptes de trésorerie">
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        role="list"
+        aria-label="Liste des comptes de trésorerie">
         {comptesTresorerie.map((compte) => {
           const config = getCompteConfig(compte.code_ohada);
           const Icon = config.icon;
@@ -335,24 +376,26 @@ const DesktopTresorerie = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               whileHover={{ y: -4 }}
-              role="listitem"
-            >
+              role="listitem">
               <Card
                 className={`cursor-pointer transition-all hover:shadow-lg border-2 ${config.borderColor}`}
                 onClick={() => naviguerVersCompte(compte.id)}
                 role="button"
                 tabIndex={0}
-                aria-label={`Compte ${compte.denomination}, code ${compte.code_ohada}, solde ${formatMontant(compte.solde || 0)} francs CFA`}
+                aria-label={`Compte ${compte.denomination}, code ${
+                  compte.code_ohada
+                }, solde ${formatMontant(compte.solde || 0)} francs CFA`}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     naviguerVersCompte(compte.id);
                   }
-                }}
-              >
+                }}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <div className={`p-3 rounded-lg ${config.bgColor}`} aria-hidden="true">
+                    <div
+                      className={`p-3 rounded-lg ${config.bgColor}`}
+                      aria-hidden="true">
                       <Icon className={`h-6 w-6 ${config.textColor}`} />
                     </div>
                     <Badge variant="outline" className="font-mono">
@@ -368,14 +411,18 @@ const DesktopTresorerie = () => {
                   {/* Numéro de compte */}
                   {compte.numero && (
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Numéro de compte</p>
+                      <p className="text-xs text-muted-foreground">
+                        Numéro de compte
+                      </p>
                       <p className="font-mono text-sm">{compte.numero}</p>
                     </div>
                   )}
 
                   {/* Solde */}
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Solde actuel</p>
+                    <p className="text-xs text-muted-foreground">
+                      Solde actuel
+                    </p>
                     <p className={`text-2xl font-bold ${config.textColor}`}>
                       {formatMontant(compte.solde || 0)} FCFA
                     </p>
@@ -391,8 +438,7 @@ const DesktopTresorerie = () => {
                       e.stopPropagation();
                       naviguerVersCompte(compte.id);
                     }}
-                    aria-label={`Voir les détails du compte ${compte.denomination}`}
-                  >
+                    aria-label={`Voir les détails du compte ${compte.denomination}`}>
                     Voir détails
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -403,11 +449,10 @@ const DesktopTresorerie = () => {
         })}
 
         {/* Carte d'ajout rapide */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
+          transition={{ duration: 0.3, delay: 0.1 }}>
           <Card
             className="cursor-pointer transition-all hover:shadow-lg border-2 border-dashed hover:border-primary/50 bg-muted/30 h-full min-h-[300px] flex items-center justify-center"
             onClick={ouvrirCreationCompte}
@@ -419,10 +464,11 @@ const DesktopTresorerie = () => {
                 e.preventDefault();
                 ouvrirCreationCompte();
               }
-            }}
-          >
+            }}>
             <CardContent className="text-center space-y-3">
-              <div className="p-4 rounded-full bg-primary/10 inline-block" aria-hidden="true">
+              <div
+                className="p-4 rounded-full bg-primary/10 inline-block"
+                aria-hidden="true">
                 <Plus className="h-8 w-8 text-primary" />
               </div>
               <div>
@@ -433,7 +479,7 @@ const DesktopTresorerie = () => {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </motion.div> */}
       </div>
 
       {/* Message si aucun compte */}
@@ -441,12 +487,17 @@ const DesktopTresorerie = () => {
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
-              <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" aria-hidden="true" />
+              <Wallet
+                className="h-12 w-12 mx-auto mb-4 opacity-50"
+                aria-hidden="true"
+              />
               <p className="text-lg font-medium">Aucun compte de trésorerie</p>
               <p className="text-sm mb-4">
                 Créez votre premier compte pour commencer
               </p>
-              <Button onClick={ouvrirCreationCompte} aria-label="Créer votre premier compte de trésorerie">
+              <Button
+                onClick={ouvrirCreationCompte}
+                aria-label="Créer votre premier compte de trésorerie">
                 <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                 Créer un compte
               </Button>
