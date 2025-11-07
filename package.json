@@ -34,6 +34,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "firebase": "^12.3.0",
+    "firebase-admin": "^13.6.0",
     "framer-motion": "^12.23.22",
     "libphonenumber-js": "^1.12.23",
     "lodash": "^4.17.21",
