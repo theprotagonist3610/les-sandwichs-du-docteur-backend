@@ -26,6 +26,8 @@ dist-ssr
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+firebase-service-account-key.json
+*-service-account-key.json
 
 # Editor directories and files
 .vscode/*
