@@ -1,21 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Building2,
-  Smartphone,
   Wallet,
   Plus,
   TrendingUp,
   TrendingDown,
   ArrowRight,
-  Loader2,
-  CreditCard,
   ArrowDownCircle,
   ArrowUpCircle,
   ArrowLeftRight,
   PieChart as PieChartIcon,
   TrendingUpDown,
+  AlertCircle,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,172 +30,74 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import useTresorerieStore, {
-  selectComptesTresorerie,
-  selectSoldeTotal,
-  selectVariationPourcentage,
-  selectIsLoading,
-  selectError,
-  selectSetComptesTresorerie,
-  selectSetIsLoading,
-  selectSetError,
-  selectSetVariationPourcentage,
-  selectOuvrirCreationCompte,
-  selectReset,
-} from "@/stores/admin/useTresorerieStore";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import useTresorerieData from "@/hooks/useTresorerieData";
 import {
-  getAllComptesTresorerie,
-} from "@/toolkits/admin/comptabiliteToolkit";
-
-// Mapping des icônes et couleurs par code OHADA
-const COMPTE_CONFIG = {
-  "511": {
-    icon: Building2,
-    color: "blue",
-    bgColor: "bg-blue-50",
-    textColor: "text-blue-600",
-    borderColor: "border-blue-200",
-  },
-  "5121": {
-    icon: Smartphone,
-    color: "green",
-    bgColor: "bg-green-50",
-    textColor: "text-green-600",
-    borderColor: "border-green-200",
-  },
-  "531": {
-    icon: Wallet,
-    color: "orange",
-    bgColor: "bg-orange-50",
-    textColor: "text-orange-600",
-    borderColor: "border-orange-200",
-  },
-};
+  formatMontant,
+  getCompteConfig,
+} from "@/utils/comptabilite/tresorerieFormatters";
+import TresorerieSkeleton from "../components/TresorerieSkeleton";
 
 const DesktopTresorerie = () => {
   const navigate = useNavigate();
 
-  // Store state
-  const comptesTresorerie = useTresorerieStore(selectComptesTresorerie);
-  const soldeTotal = useTresorerieStore(selectSoldeTotal);
-  const variationPourcentage = useTresorerieStore(selectVariationPourcentage);
-  const isLoading = useTresorerieStore(selectIsLoading);
-  const error = useTresorerieStore(selectError);
+  // Utiliser le hook personnalisé qui gère toute la logique de données
+  const {
+    comptesTresorerie,
+    soldeTotal,
+    variationPourcentage,
+    isLoading,
+    error,
+    dataRepartition,
+    dataEvolution,
+    ouvrirCreationCompte,
+  } = useTresorerieData();
 
-  // Store actions
-  const setComptesTresorerie = useTresorerieStore(selectSetComptesTresorerie);
-  const setIsLoading = useTresorerieStore(selectSetIsLoading);
-  const setError = useTresorerieStore(selectSetError);
-  const setVariationPourcentage = useTresorerieStore(selectSetVariationPourcentage);
-  const ouvrirCreationCompte = useTresorerieStore(selectOuvrirCreationCompte);
-  const reset = useTresorerieStore(selectReset);
+  // Mémoriser la fonction de navigation vers un compte
+  const naviguerVersCompte = useCallback(
+    (compteId) => {
+      navigate(`/admin/comptabilite/tresorerie/${compteId}`);
+    },
+    [navigate]
+  );
 
-  // State local pour les charts
-  const [dataRepartition, setDataRepartition] = useState([]);
-  const [dataEvolution, setDataEvolution] = useState([]);
+  // Mémoriser les fonctions de navigation vers les actions
+  const naviguerVersEntree = useCallback(() => {
+    navigate("/admin/comptabilite/create?type=entree");
+  }, [navigate]);
 
-  // Charger les comptes de trésorerie
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  const naviguerVersSortie = useCallback(() => {
+    navigate("/admin/comptabilite/create?type=sortie");
+  }, [navigate]);
 
-        const { comptes } = await getAllComptesTresorerie();
+  const naviguerVersTransfert = useCallback(() => {
+    navigate("/admin/comptabilite/transfert");
+  }, [navigate]);
 
-        // Ajouter un solde fictif pour la démo (à remplacer par les vraies données)
-        const comptesAvecSolde = comptes.map(compte => ({
-          ...compte,
-          solde: 0, // TODO: Calculer le solde réel depuis les opérations
-        }));
-
-        setComptesTresorerie(comptesAvecSolde);
-
-        // TODO: Calculer la vraie variation
-        setVariationPourcentage(1.2);
-
-        console.log(`✅ ${comptes.length} comptes de trésorerie chargés`);
-      } catch (err) {
-        console.error("❌ Erreur chargement trésorerie:", err);
-        setError(err.message);
-        toast.error("Erreur lors du chargement");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-
-    return () => {
-      reset();
-    };
-  }, []);
-
-  // Calculer les données pour les charts quand les comptes changent
-  useEffect(() => {
-    if (comptesTresorerie.length > 0) {
-      // Données de répartition (BarChart)
-      const repartition = comptesTresorerie.map((compte) => {
-        const config = getCompteConfig(compte.code_ohada);
-        const pourcentage = soldeTotal > 0 ? ((compte.solde || 0) / soldeTotal) * 100 : 0;
-
-        return {
-          nom: compte.denomination,
-          solde: compte.solde || 0,
-          pourcentage: parseFloat(pourcentage.toFixed(1)),
-          color: config.color,
-        };
-      });
-      setDataRepartition(repartition);
-
-      // Données d'évolution (LineChart) - 7 derniers jours simulés
-      // TODO: Remplacer par les vraies données historiques
-      const today = new Date();
-      const evolutionData = [];
-
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-
-        const dataPoint = {
-          date: dateStr,
-        };
-
-        comptesTresorerie.forEach((compte) => {
-          // Simulation de variation aléatoire pour la démo
-          const variation = Math.random() * 0.2 - 0.1; // ±10%
-          dataPoint[compte.denomination] = Math.max(0, (compte.solde || 0) * (1 + variation * (6 - i) / 6));
-        });
-
-        evolutionData.push(dataPoint);
-      }
-
-      setDataEvolution(evolutionData);
-    }
-  }, [comptesTresorerie, soldeTotal]);
-
-  const formatMontant = (montant) => {
-    return new Intl.NumberFormat("fr-FR").format(montant);
-  };
-
-  const getCompteConfig = (codeOhada) => {
-    return COMPTE_CONFIG[codeOhada] || {
-      icon: CreditCard,
-      color: "gray",
-      bgColor: "bg-gray-50",
-      textColor: "text-gray-600",
-      borderColor: "border-gray-200",
-    };
-  };
-
+  // Afficher le skeleton pendant le chargement
   if (isLoading) {
+    return <TresorerieSkeleton />;
+  }
+
+  // Afficher l'erreur si elle existe
+  if (error) {
     return (
       <div className="container mx-auto p-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erreur de chargement</AlertTitle>
+          <AlertDescription>
+            {error}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Réessayer
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -209,15 +108,15 @@ const DesktopTresorerie = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Wallet className="h-8 w-8" />
+            <Wallet className="h-8 w-8" aria-hidden="true" />
             Comptes de Trésorerie
           </h1>
           <p className="text-muted-foreground mt-1">
             Vue d'ensemble et gestion de vos comptes
           </p>
         </div>
-        <Button onClick={ouvrirCreationCompte}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={ouvrirCreationCompte} aria-label="Créer un nouveau compte de trésorerie">
+          <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
           Nouveau compte
         </Button>
       </div>
@@ -230,18 +129,18 @@ const DesktopTresorerie = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Solde total</p>
-              <h2 className="text-4xl font-bold">
+              <h2 className="text-4xl font-bold" aria-label={`Solde total de ${formatMontant(soldeTotal)} francs CFA`}>
                 {formatMontant(soldeTotal)} <span className="text-2xl">FCFA</span>
               </h2>
             </div>
             <div className="flex items-center gap-2">
               {variationPourcentage >= 0 ? (
                 <>
-                  <div className="p-3 rounded-full bg-green-50">
+                  <div className="p-3 rounded-full bg-green-50" aria-hidden="true">
                     <TrendingUp className="h-6 w-6 text-green-600" />
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-green-600" aria-label={`Variation positive de ${variationPourcentage.toFixed(1)} pourcent`}>
                       +{variationPourcentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">vs hier</p>
@@ -249,11 +148,11 @@ const DesktopTresorerie = () => {
                 </>
               ) : (
                 <>
-                  <div className="p-3 rounded-full bg-red-50">
+                  <div className="p-3 rounded-full bg-red-50" aria-hidden="true">
                     <TrendingDown className="h-6 w-6 text-red-600" />
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-red-600">
+                    <p className="text-2xl font-bold text-red-600" aria-label={`Variation négative de ${variationPourcentage.toFixed(1)} pourcent`}>
                       {variationPourcentage.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">vs hier</p>
@@ -269,7 +168,7 @@ const DesktopTresorerie = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUpDown className="h-5 w-5" />
+            <TrendingUpDown className="h-5 w-5" aria-hidden="true" />
             Actions rapides
           </CardTitle>
           <CardDescription>
@@ -277,14 +176,15 @@ const DesktopTresorerie = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3" role="group" aria-label="Actions de trésorerie">
             <Button
               variant="outline"
               size="lg"
               className="h-auto py-4 flex-col gap-2 hover:border-green-500 hover:bg-green-50"
-              onClick={() => navigate("/admin/comptabilite/create?type=entree")}
+              onClick={naviguerVersEntree}
+              aria-label="Ajouter une entrée d'encaissement"
             >
-              <div className="p-2 rounded-full bg-green-50">
+              <div className="p-2 rounded-full bg-green-50" aria-hidden="true">
                 <ArrowDownCircle className="h-6 w-6 text-green-600" />
               </div>
               <div className="text-center">
@@ -297,9 +197,10 @@ const DesktopTresorerie = () => {
               variant="outline"
               size="lg"
               className="h-auto py-4 flex-col gap-2 hover:border-red-500 hover:bg-red-50"
-              onClick={() => navigate("/admin/comptabilite/create?type=sortie")}
+              onClick={naviguerVersSortie}
+              aria-label="Ajouter une sortie de paiement"
             >
-              <div className="p-2 rounded-full bg-red-50">
+              <div className="p-2 rounded-full bg-red-50" aria-hidden="true">
                 <ArrowUpCircle className="h-6 w-6 text-red-600" />
               </div>
               <div className="text-center">
@@ -312,9 +213,10 @@ const DesktopTresorerie = () => {
               variant="outline"
               size="lg"
               className="h-auto py-4 flex-col gap-2 hover:border-blue-500 hover:bg-blue-50"
-              onClick={() => navigate("/admin/comptabilite/transfert")}
+              onClick={naviguerVersTransfert}
+              aria-label="Transférer entre comptes"
             >
-              <div className="p-2 rounded-full bg-blue-50">
+              <div className="p-2 rounded-full bg-blue-50" aria-hidden="true">
                 <ArrowLeftRight className="h-6 w-6 text-blue-600" />
               </div>
               <div className="text-center">
@@ -333,7 +235,7 @@ const DesktopTresorerie = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <PieChartIcon className="h-5 w-5" />
+                <PieChartIcon className="h-5 w-5" aria-hidden="true" />
                 Répartition de la trésorerie
               </CardTitle>
               <CardDescription>
@@ -342,7 +244,7 @@ const DesktopTresorerie = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dataRepartition}>
+                <BarChart data={dataRepartition} aria-label="Graphique de répartition de la trésorerie">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="nom"
@@ -377,7 +279,7 @@ const DesktopTresorerie = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
+                <TrendingUp className="h-5 w-5" aria-hidden="true" />
                 Évolution des comptes
               </CardTitle>
               <CardDescription>
@@ -386,7 +288,7 @@ const DesktopTresorerie = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dataEvolution}>
+                <LineChart data={dataEvolution} aria-label="Graphique d'évolution des comptes">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                   <YAxis
@@ -399,19 +301,13 @@ const DesktopTresorerie = () => {
                   <Legend />
                   {comptesTresorerie.map((compte) => {
                     const config = getCompteConfig(compte.code_ohada);
-                    const strokeColor =
-                      config.color === "blue"
-                        ? "#3b82f6"
-                        : config.color === "green"
-                        ? "#10b981"
-                        : "#f97316";
 
                     return (
                       <Line
                         key={compte.id}
                         type="monotone"
                         dataKey={compte.denomination}
-                        stroke={strokeColor}
+                        stroke={config.strokeColor}
                         strokeWidth={2}
                         dot={{ r: 4 }}
                         activeDot={{ r: 6 }}
@@ -426,7 +322,7 @@ const DesktopTresorerie = () => {
       )}
 
       {/* Grille des comptes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Liste des comptes de trésorerie">
         {comptesTresorerie.map((compte) => {
           const config = getCompteConfig(compte.code_ohada);
           const Icon = config.icon;
@@ -438,14 +334,24 @@ const DesktopTresorerie = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               whileHover={{ y: -4 }}
+              role="listitem"
             >
               <Card
                 className={`cursor-pointer transition-all hover:shadow-lg border-2 ${config.borderColor}`}
-                onClick={() => navigate(`/admin/comptabilite/tresorerie/${compte.id}`)}
+                onClick={() => naviguerVersCompte(compte.id)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Compte ${compte.denomination}, code ${compte.code_ohada}, solde ${formatMontant(compte.solde || 0)} francs CFA`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    naviguerVersCompte(compte.id);
+                  }
+                }}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <div className={`p-3 rounded-lg ${config.bgColor}`}>
+                    <div className={`p-3 rounded-lg ${config.bgColor}`} aria-hidden="true">
                       <Icon className={`h-6 w-6 ${config.textColor}`} />
                     </div>
                     <Badge variant="outline" className="font-mono">
@@ -482,11 +388,12 @@ const DesktopTresorerie = () => {
                     className="w-full justify-between"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/admin/comptabilite/tresorerie/${compte.id}`);
+                      naviguerVersCompte(compte.id);
                     }}
+                    aria-label={`Voir les détails du compte ${compte.denomination}`}
                   >
                     Voir détails
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </CardContent>
               </Card>
@@ -503,9 +410,18 @@ const DesktopTresorerie = () => {
           <Card
             className="cursor-pointer transition-all hover:shadow-lg border-2 border-dashed hover:border-primary/50 bg-muted/30 h-full min-h-[300px] flex items-center justify-center"
             onClick={ouvrirCreationCompte}
+            role="button"
+            tabIndex={0}
+            aria-label="Ajouter un nouveau compte de trésorerie"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                ouvrirCreationCompte();
+              }
+            }}
           >
             <CardContent className="text-center space-y-3">
-              <div className="p-4 rounded-full bg-primary/10 inline-block">
+              <div className="p-4 rounded-full bg-primary/10 inline-block" aria-hidden="true">
                 <Plus className="h-8 w-8 text-primary" />
               </div>
               <div>
@@ -524,13 +440,13 @@ const DesktopTresorerie = () => {
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
-              <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" aria-hidden="true" />
               <p className="text-lg font-medium">Aucun compte de trésorerie</p>
               <p className="text-sm mb-4">
                 Créez votre premier compte pour commencer
               </p>
-              <Button onClick={ouvrirCreationCompte}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button onClick={ouvrirCreationCompte} aria-label="Créer votre premier compte de trésorerie">
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                 Créer un compte
               </Button>
             </div>
