@@ -4,10 +4,6 @@
  * Période : 1 Juillet 2025 - 7 Novembre 2025
  */
 
-// Charger les variables d'environnement
-import dotenv from "dotenv";
-dotenv.config();
-
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 import { getDatabase, ref, push } from "firebase/database";
@@ -16,6 +12,34 @@ import { nanoid } from "nanoid";
 // ============================================================================
 // CONFIGURATION FIREBASE
 // ============================================================================
+
+// Vérifier que toutes les variables d'environnement nécessaires sont présentes
+const requiredEnvVars = {
+  VITE_API_KEY: process.env.VITE_API_KEY,
+  VITE_AUTH_DOMAIN: process.env.VITE_AUTH_DOMAIN,
+  VITE_PROJECT_ID: process.env.VITE_PROJECT_ID,
+  VITE_STORAGE_BUCKET: process.env.VITE_STORAGE_BUCKET,
+  VITE_MESSAGING_SENDER_ID: process.env.VITE_MESSAGING_SENDER_ID,
+  VITE_APP_ID: process.env.VITE_APP_ID,
+  VITE_DATABASE_URL: process.env.VITE_DATABASE_URL,
+};
+
+// Vérifier les variables manquantes
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([key, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  console.error("❌ Variables d'environnement manquantes:");
+  missingVars.forEach(varName => console.error(`   - ${varName}`));
+  console.error("\n💡 Assurez-vous que:");
+  console.error("   1. Le fichier .env existe à la racine du projet");
+  console.error("   2. Toutes les variables VITE_* sont définies");
+  console.error("   3. Le script est lancé avec: npm run test:operations");
+  console.error("\n📝 Exemple de .env:");
+  console.error("   VITE_DATABASE_URL=https://votre-projet.firebaseio.com");
+  process.exit(1);
+}
 
 const firebaseConfig = {
   apiKey: process.env.VITE_API_KEY,
@@ -27,24 +51,14 @@ const firebaseConfig = {
   databaseURL: process.env.VITE_DATABASE_URL,
 };
 
-// Vérifier que les variables sont chargées
-console.log("🔍 Vérification de la configuration Firebase:");
-console.log("  - Project ID:", firebaseConfig.projectId || "❌ MANQUANT");
-console.log("  - Database URL:", firebaseConfig.databaseURL || "❌ MANQUANT");
-
-if (!firebaseConfig.projectId || !firebaseConfig.databaseURL) {
-  console.error("❌ ERREUR: Variables d'environnement manquantes!");
-  console.error("Vérifiez que le fichier .env existe et contient:");
-  console.error("  - VITE_PROJECT_ID");
-  console.error("  - VITE_DATABASE_URL");
-  process.exit(1);
-}
+console.log("🔧 Configuration Firebase:");
+console.log(`   - Project ID: ${firebaseConfig.projectId}`);
+console.log(`   - Database URL: ${firebaseConfig.databaseURL}`);
+console.log("");
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const rtdb = getDatabase(app);
-
-console.log("✅ Firebase initialisé avec succès");
 
 // ============================================================================
 // CONSTANTES
@@ -691,25 +705,6 @@ async function main() {
 // ============================================================================
 // EXÉCUTION
 // ============================================================================
-
-// Vérifier que les variables d'environnement sont définies
-const requiredEnvVars = [
-  "VITE_API_KEY",
-  "VITE_AUTH_DOMAIN",
-  "VITE_PROJECT_ID",
-  "VITE_STORAGE_BUCKET",
-  "VITE_MESSAGING_SENDER_ID",
-  "VITE_APP_ID",
-  "VITE_DATABASE_URL",
-];
-
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-if (missingEnvVars.length > 0) {
-  console.error("❌ Variables d'environnement manquantes:");
-  missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
-  console.error("\n💡 Astuce: Créez un fichier .env à la racine avec ces variables");
-  process.exit(1);
-}
 
 main()
   .then(() => {
