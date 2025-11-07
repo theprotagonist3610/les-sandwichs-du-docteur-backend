@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:operations": "node -r dotenv/config scripts/testOperationsComptables.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
