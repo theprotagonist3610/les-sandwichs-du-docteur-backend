@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:operations": "node -r dotenv/config scripts/testOperationsComptables.js"
+    "test:operations": "node -r dotenv/config scripts/testOperationsComptables.js",
+    "test:operations:admin": "node -r dotenv/config scripts/testOperationsComptables-admin.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
