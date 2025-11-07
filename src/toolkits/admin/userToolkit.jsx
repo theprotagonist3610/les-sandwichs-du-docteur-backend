@@ -1,12 +1,12 @@
 /*
 Gestion des acces firestore et rtdb pour un user simple
 user ={id: autogenere par firebase auth, role:[vide par defaut], nom :string, prenoms : [array de string], date_naissance :[timestamp], sexe :[f ou m], contact :[string numerique de 13 caracteres commencent par 22901], email:[string valide par une regex] }
-presence ={id, nom, prenoms, role, connectedAt :[timestamp], deconncetedAt :[timestamp]}
+presence ={userId, status:[online|offline|away], updatedAt:[timestamp], userName:[string optionnel]}
 1. un userSchema () (2 schemas user et presence) fonction zod pour creer un schema minimal et ou complet pour un nouvel utiliateur
 2. un createUser() fonction qui englobe 3 fonctionnalites (register un nouveau user avec firebase auth email+password, si succes, login user, si succes creer un document "users/{uid}" avec les champs valides par le userSchema)
 3. un updateUser() fonction qui permet de mettre a jour via un updateDoc() le document "users/{uid}"
 4. un getUser() fonction qui permet de recuperer uniquement "users/{uid}"
-5. un setUserPresence() fonction qui permet de update rtdb/presence/{uid}
+5. un setUserPresence() fonction qui permet de update rtdb/presence/{uid} (compatible avec database.rules.json)
 6. un getUserPresence() fonction qui permet de recuperer uniquement rtdb/presence/{uid}
 7. un loginUser() fonction qui permet de login un user, redirige le user vers une page grace a useNavigate et getUser
 8. un logoutUser() fonction qui logOut un user
@@ -78,18 +78,15 @@ export const userSchemaComplet = userSchemaMinimal.extend({
 });
 
 /**
- * Schema Zod pour la présence
+ * Schema Zod pour la présence (compatible avec database.rules.json)
  */
 export const presenceSchema = z.object({
-  id: z.string().min(1, "L'ID est requis"),
-  nom: z.string().min(1, "Le nom est requis"),
-  prenoms: z.array(z.string().min(1)).min(1, "Au moins un prénom est requis"),
-  role: z.enum(["admin", "user", ""]).default(""),
-  connectedAt: z.number().positive("Date de connexion invalide"),
-  disconnectedAt: z
-    .number()
-    .positive("Date de déconnexion invalide")
-    .optional(),
+  userId: z.string().min(1, "L'ID utilisateur est requis"),
+  status: z.enum(["online", "offline", "away"], {
+    errorMap: () => ({ message: "Le statut doit être 'online', 'offline' ou 'away'" }),
+  }),
+  updatedAt: z.number().positive("Date de mise à jour invalide"),
+  userName: z.string().optional(),
 });
 
 /**
@@ -169,11 +166,10 @@ export async function createUser(userData, options = { autoLogin: true }) {
 
     // Étape 5: Créer la présence initiale dans RTDB
     const presenceData = {
-      id: userId,
-      nom: validatedData.nom,
-      prenoms: validatedData.prenoms,
-      role: "",
-      connectedAt: now,
+      userId: userId,
+      status: "online",
+      updatedAt: now,
+      userName: `${validatedData.nom} ${validatedData.prenoms.join(" ")}`,
     };
 
     await set(ref(rtdb, `presence/${userId}`), presenceData);
@@ -309,31 +305,24 @@ export async function getUser(userId) {
  * Met à jour la présence d'un utilisateur dans RTDB
  * @param {string} userId - ID de l'utilisateur
  * @param {Object} presenceData - Données de présence à mettre à jour
- * @param {number} [presenceData.connectedAt] - Timestamp de connexion
- * @param {number} [presenceData.disconnectedAt] - Timestamp de déconnexion
+ * @param {('online'|'offline'|'away')} [presenceData.status] - Statut de présence
+ * @param {string} [presenceData.userName] - Nom complet de l'utilisateur
  * @returns {Promise<Object>} Résultat de la mise à jour
  */
 export async function setUserPresence(userId, presenceData = {}) {
   try {
     const presenceRef = ref(rtdb, `presence/${userId}`);
 
-    // Récupérer les données existantes
-    const snapshot = await get(presenceRef);
-    const existingData = snapshot.exists() ? snapshot.val() : {};
-
-    // Préparer les données à mettre à jour
+    // Préparer les données à mettre à jour (compatible avec database.rules.json)
     const updateData = {
-      ...existingData,
-      ...presenceData,
-      id: userId,
+      userId: userId,
+      status: presenceData.status || "online",
+      updatedAt: Date.now(),
     };
 
-    // Si on se connecte, mettre à jour connectedAt
-    if (
-      presenceData.connectedAt === undefined &&
-      !presenceData.disconnectedAt
-    ) {
-      updateData.connectedAt = Date.now();
+    // Ajouter userName si fourni
+    if (presenceData.userName) {
+      updateData.userName = presenceData.userName;
     }
 
     // Validation avec Zod
@@ -422,10 +411,8 @@ export async function loginUser(
 
     // Étape 3: Mettre à jour la présence (connexion)
     await setUserPresence(userId, {
-      nom: userData.nom,
-      prenoms: userData.prenoms,
-      role: userData.role,
-      connectedAt: Date.now(),
+      status: "online",
+      userName: `${userData.nom} ${userData.prenoms.join(" ")}`,
     });
 
     // Étape 4: Redirection
@@ -480,7 +467,7 @@ export async function logoutUser(navigate, redirectPath = "/login") {
 
     // Étape 1: Mettre à jour la présence (déconnexion)
     await setUserPresence(userId, {
-      disconnectedAt: Date.now(),
+      status: "offline",
     });
 
     // Étape 2: Déconnexion Firebase Auth

@@ -33,7 +33,7 @@ const UserResume = () => {
   }
 
   // Si utilisateur connecté
-  const userName = user.name || "Utilisateur";
+  const userName = user.nom || "Utilisateur";
   const userInitial = user.prenoms?.[0]?.toUpperCase() || "";
   const displayName = `${userName} ${userInitial}`;
 
@@ -42,7 +42,9 @@ const UserResume = () => {
       <Button variant="outline" size="sm" asChild className="w-full">
         <Link to="/profile" className="flex items-center justify-between gap-2">
           <span className="truncate">{displayName}</span>
-          <Badge variant="secondary" className="capitalize text-xs flex-shrink-0">
+          <Badge
+            variant="secondary"
+            className="capitalize text-xs flex-shrink-0">
             {user.role}
           </Badge>
         </Link>

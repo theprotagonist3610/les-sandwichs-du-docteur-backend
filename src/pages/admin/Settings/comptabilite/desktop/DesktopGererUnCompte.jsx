@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Save,
-  Trash2,
   Loader2,
   Building2,
   Wallet,
@@ -18,16 +17,6 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   InputGroup,
@@ -45,7 +34,6 @@ import useEditCompteStore, {
   selectCategorie,
   selectNumero,
   selectIsSubmitting,
-  selectIsDeleting,
   selectError,
   selectIsLoaded,
   selectSetCodeOhada,
@@ -54,7 +42,6 @@ import useEditCompteStore, {
   selectSetCategorie,
   selectSetNumero,
   selectSetIsSubmitting,
-  selectSetIsDeleting,
   selectSetError,
   selectSetFormData,
   selectReset,
@@ -64,8 +51,6 @@ import {
   findCompteTresorerieById,
   updateCompte,
   updateCompteTresorerie,
-  supprimerCompte,
-  supprimerCompteTresorerie,
 } from "@/toolkits/admin/comptabiliteToolkit";
 
 const DesktopGererUnCompte = () => {
@@ -81,7 +66,6 @@ const DesktopGererUnCompte = () => {
   const categorie = useEditCompteStore(selectCategorie);
   const numero = useEditCompteStore(selectNumero);
   const isSubmitting = useEditCompteStore(selectIsSubmitting);
-  const isDeleting = useEditCompteStore(selectIsDeleting);
   const error = useEditCompteStore(selectError);
   const isLoaded = useEditCompteStore(selectIsLoaded);
 
@@ -92,12 +76,10 @@ const DesktopGererUnCompte = () => {
   const setCategorie = useEditCompteStore(selectSetCategorie);
   const setNumero = useEditCompteStore(selectSetNumero);
   const setIsSubmitting = useEditCompteStore(selectSetIsSubmitting);
-  const setIsDeleting = useEditCompteStore(selectSetIsDeleting);
   const setError = useEditCompteStore(selectSetError);
   const setFormData = useEditCompteStore(selectSetFormData);
   const reset = useEditCompteStore(selectReset);
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Charger les données du compte
@@ -198,31 +180,6 @@ const DesktopGererUnCompte = () => {
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      setIsDeleting(true);
-      setError(null);
-
-      if (typeCompte === "comptable") {
-        await supprimerCompte(compteId);
-        toast.success("Compte comptable supprimé");
-      } else {
-        await supprimerCompteTresorerie(compteId);
-        toast.success("Compte de trésorerie supprimé");
-      }
-
-      navigate("/admin/settings/comptabilite/gerer");
-    } catch (err) {
-      console.error("Erreur suppression:", err);
-      setError(err.message);
-      toast.error("Erreur lors de la suppression", {
-        description: err.message,
-      });
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-    }
-  };
 
   if (isLoadingData) {
     return (
@@ -473,70 +430,30 @@ const DesktopGererUnCompte = () => {
         </Card>
 
         {/* Actions */}
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex items-center justify-end gap-3 mt-6">
           <Button
             type="button"
-            variant="destructive"
-            onClick={() => setShowDeleteDialog(true)}
-            disabled={isSubmitting || isDeleting}
+            variant="outline"
+            onClick={() => navigate("/admin/settings/comptabilite/gerer")}
+            disabled={isSubmitting}
           >
-            {isDeleting ? (
+            Annuler
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Suppression...
+                Enregistrement...
               </>
             ) : (
               <>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Supprimer
+                <Save className="mr-2 h-4 w-4" />
+                Enregistrer
               </>
             )}
           </Button>
-
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/admin/settings/comptabilite/gerer")}
-              disabled={isSubmitting || isDeleting}
-            >
-              Annuler
-            </Button>
-            <Button type="submit" disabled={isSubmitting || isDeleting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enregistrement...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Enregistrer
-                </>
-              )}
-            </Button>
-          </div>
         </div>
       </form>
-
-      {/* Dialog de confirmation de suppression */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer le compte <strong>{denomination}</strong> (
-              {code_ohada}) ? Cette action est irréversible.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </motion.div>
   );
 };

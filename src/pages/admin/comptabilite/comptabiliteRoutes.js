@@ -13,39 +13,56 @@
 
 // Import des composants pour chaque section
 // À décommenter et créer au fur et à mesure
-import Dashboard from "@/pages/admin/production/Dashboard";
-import GererLesProductions from "@/pages/admin/production/GererLesProductions";
-import GererUneProduction from "@/pages/admin/production/GererUneProduction";
-import CreateProduction from "@/pages/admin/production/CreateProduction";
-export const productionSubRoutes = [
+import Dashboard from "@/pages/admin/comptabilite/Dashboard";
+import CreateOperationComptable from "@/pages/admin/comptabilite/CreateOperationComptable";
+import GererLesOperationsComptables from "@/pages/admin/comptabilite/GererLesOperationsComptables";
+import GererUneOperationComptable from "@/pages/admin/comptabilite/GererUneOperationComptable";
+import Tresorerie from "@/pages/admin/comptabilite/Tresorerie";
+import CloturerJournee from "@/pages/admin/comptabilite/CloturerJournee";
+
+export const comptabiliteSubRoutes = [
   {
     path: "dashboard",
     nom: "Tableau de bord",
-    description: "Monitoring de la production",
+    description: "Monitoring de la comptabilite",
     url: "/users.svg",
     component: Dashboard, // ✅ Composant activé
   },
   {
     path: "create",
-    nom: "Creation d'une production",
-    description: "Creer une nouvelle production",
+    nom: "Création une opération comptable",
+    description: "Créer une nouvelle opération comptable",
     url: "/users.svg",
-    component: CreateProduction, // ✅ Composant activé
+    component: CreateOperationComptable, // ✅ Composant activé
+  },
+  {
+    path: "tresorerie",
+    nom: "Gérer la trésorerie",
+    description: "Vue d'ensemble des comptes de trésorerie",
+    url: "/users.svg",
+    component: Tresorerie, // ✅ Composant activé
+  },
+  {
+    path: "cloture",
+    nom: "Clôturer la journée",
+    description: "Validation des transactions journalières",
+    url: "/users.svg",
+    component: CloturerJournee, // ✅ Composant activé
   },
   {
     path: "gerer",
-    nom: "Tableau de bord",
-    description: "Monitoring de la production",
+    nom: "Gestion des opérations comptables",
+    description: "Gestion des opérations comptables",
     url: "/users.svg",
-    component: GererLesProductions, // ✅ Composant activé
+    component: GererLesOperationsComptables, // ✅ Composant activé
     children: [
       {
         path: ":id",
-        nom: "Gerer une production",
-        component: GererUneProduction,
+        nom: "Gérer une opération comptable",
+        component: GererUneOperationComptable,
       },
     ],
   },
 ];
 
-export default productionSubRoutes;
+export default comptabiliteSubRoutes;

@@ -15,6 +15,8 @@ import commandeSubRoutes from "@/pages/admin/commandes/commandesRoutes";
 import Commandes from "@/pages/admin/commandes/Commandes";
 import productionSubRoutes from "@/pages/admin/production/productionRoutes";
 import Production from "@/pages/admin/production/Production";
+import comptabiliteSubroutes from "@/pages/admin/comptabilite/comptabiliteRoutes";
+import Comptabilite from "@/pages/admin/comptabilite/Comptabilite";
 const adminRoutes = {
   path: "admin",
   element: <Layout />,
@@ -265,6 +267,71 @@ const adminRoutes = {
         route.children.forEach((child) => {
           routes.push({
             path: `production/${route.path}/${child.path}`,
+            element: (
+              <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+                {child.component ? (
+                  <child.component />
+                ) : (
+                  <div className="container mx-auto p-6">
+                    <h1 className="text-3xl font-bold text-foreground">
+                      {child.nom}
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                      Composant à créer pour cette route
+                    </p>
+                  </div>
+                )}
+              </ProtectedRoute>
+            ),
+          });
+        });
+      }
+
+      return routes;
+    }),
+    {
+      path: "comptabilite",
+      element: (
+        <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+          <Comptabilite />
+        </ProtectedRoute>
+      ),
+    },
+    // Générer dynamiquement les sous-routes de settings
+    ...comptabiliteSubroutes.flatMap((route) => {
+      const routes = [];
+
+      // Route principale
+      routes.push({
+        path: `comptabilite/${route.path}`,
+        element: (
+          <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+            {route.component ? (
+              <route.component />
+            ) : (
+              <div className="container mx-auto p-6">
+                <h1 className="text-3xl font-bold text-foreground">
+                  {route.nom}
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  {route.description}
+                </p>
+                <div className="mt-8 p-6 bg-muted/20 rounded-lg border border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Cette page est en cours de développement.
+                  </p>
+                </div>
+              </div>
+            )}
+          </ProtectedRoute>
+        ),
+      });
+
+      // Ajouter les routes enfants si elles existent
+      if (route.children && route.children.length > 0) {
+        route.children.forEach((child) => {
+          routes.push({
+            path: `comptabilite/${route.path}/${child.path}`,
             element: (
               <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
                 {child.component ? (
