@@ -3,8 +3,11 @@
  * Calculs dynamiques des soldes pour les comptes comptables
  */
 
-import { getOperationsToday, getOperationsByDay } from "../../../toolkits/admin/comptabilite/operations";
-import { formatDayKey } from "../../../toolkits/admin/comptabilite/utils";
+import {
+  getOperationsToday,
+  getOperationsByDay,
+} from "@/toolkits/admin/comptabilite/operations";
+import { formatDayKey } from "@/toolkits/admin/comptabilite/utils";
 
 // ============================================================================
 // CALCUL DES SOLDES

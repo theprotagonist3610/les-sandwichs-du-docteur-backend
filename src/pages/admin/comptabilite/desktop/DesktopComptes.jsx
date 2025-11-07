@@ -164,8 +164,16 @@ const DesktopComptes = () => {
   // ============================================================================
 
   const comptesAffichage = useMemo(() => {
-    return getComptesFiltered();
-  }, [getComptesFiltered]);
+    console.log("🔍 [DesktopComptes] Recalcul des comptes filtrés");
+    console.log("🔍 [DesktopComptes] Filtre catégorie:", filtreCategorie);
+    console.log("🔍 [DesktopComptes] Filtre recherche:", filtreRecherche);
+    console.log("🔍 [DesktopComptes] Comptes comptables total:", comptesComptables.length);
+
+    const filtered = getComptesFiltered();
+    console.log("🔍 [DesktopComptes] Comptes après filtrage:", filtered.length);
+
+    return filtered;
+  }, [getComptesFiltered, filtreCategorie, filtreRecherche, comptesComptables]);
 
   const statsCompteSelectionne = useMemo(() => {
     if (!compteSelectionne || operationsCompte.length === 0) {

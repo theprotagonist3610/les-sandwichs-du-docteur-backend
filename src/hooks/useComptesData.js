@@ -13,8 +13,8 @@ import { rtdb } from "../firebase";
 import useComptesStore from "../stores/admin/useComptesStore";
 
 // Fonctions Firestore
-import { getAllComptes } from "../toolkits/admin/comptabilite/comptes";
-import { getOperationsToday } from "../toolkits/admin/comptabilite/operations";
+import { getAllComptes } from "@/toolkits/admin/comptabilite/comptes";
+import { getOperationsToday } from "@/toolkits/admin/comptabilite/operations";
 
 // Utilitaires de calcul
 import {
@@ -84,26 +84,35 @@ export const useComptesData = () => {
       setIsLoading(true);
       setError(null);
 
+      console.log("🔵 [useComptesData] Début du chargement des comptes...");
+
       // Récupérer tous les comptes comptables
       const { comptes } = await getAllComptes();
+      console.log("🔵 [useComptesData] Comptes récupérés:", comptes?.length, "comptes");
+      console.log("🔵 [useComptesData] Détail des comptes:", comptes);
 
       // Calculer les soldes d'aujourd'hui
       const comptesAvecSoldes = await calculerSoldesAujourdhui(comptes);
+      console.log("🔵 [useComptesData] Comptes avec soldes calculés:", comptesAvecSoldes?.length);
 
       // Mettre à jour le store
       setComptesComptables(comptesAvecSoldes);
+      console.log("🔵 [useComptesData] Store mis à jour avec les comptes");
 
       // Calculer le solde total
       const total = calculerSoldeTotal(comptesAvecSoldes);
       setSoldeTotal(total);
+      console.log("🔵 [useComptesData] Solde total:", total);
 
       // Calculer la variation vs hier
       const variation = await calculerVariationComptes(comptes);
       setVariationPourcentage(variation);
+      console.log("🔵 [useComptesData] Variation:", variation, "%");
 
-      console.log("✅ Comptes comptables chargés avec succès");
+      console.log("✅ [useComptesData] Comptes comptables chargés avec succès");
     } catch (err) {
-      console.error("❌ Erreur chargement comptes:", err);
+      console.error("❌ [useComptesData] Erreur chargement comptes:", err);
+      console.error("❌ [useComptesData] Stack:", err.stack);
       setError(err.message || "Erreur lors du chargement des comptes");
     } finally {
       setIsLoading(false);

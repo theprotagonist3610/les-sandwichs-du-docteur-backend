@@ -166,8 +166,16 @@ const MobileComptes = () => {
   // ============================================================================
 
   const comptesAffichage = useMemo(() => {
-    return getComptesFiltered();
-  }, [getComptesFiltered]);
+    console.log("🔍 [MobileComptes] Recalcul des comptes filtrés");
+    console.log("🔍 [MobileComptes] Filtre catégorie:", filtreCategorie);
+    console.log("🔍 [MobileComptes] Filtre recherche:", filtreRecherche);
+    console.log("🔍 [MobileComptes] Comptes comptables total:", comptesComptables.length);
+
+    const filtered = getComptesFiltered();
+    console.log("🔍 [MobileComptes] Comptes après filtrage:", filtered.length);
+
+    return filtered;
+  }, [getComptesFiltered, filtreCategorie, filtreRecherche, comptesComptables]);
 
   const statsCompteSelectionne = useMemo(() => {
     if (!compteSelectionne || operationsCompte.length === 0) {
