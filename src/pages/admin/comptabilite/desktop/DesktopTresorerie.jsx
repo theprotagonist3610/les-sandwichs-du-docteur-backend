@@ -42,6 +42,7 @@ const DesktopTresorerie = () => {
   const navigate = useNavigate();
 
   // Utiliser le hook personnalisé qui gère toute la logique de données
+  // + écoute RTDB pour mises à jour temps réel
   const {
     comptesTresorerie,
     soldeTotal,

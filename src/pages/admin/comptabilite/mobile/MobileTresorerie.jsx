@@ -37,12 +37,14 @@ import {
 /**
  * Version mobile optimisée du composant Trésorerie
  * Interface tactile avec swipe cards et bottom sheet pour les actions
+ * + Écoute RTDB pour mises à jour temps réel
  */
 const MobileTresorerie = () => {
   const navigate = useNavigate();
   const [activeSheet, setActiveSheet] = useState(false);
 
   // Utiliser le hook personnalisé qui gère toute la logique de données
+  // + écoute RTDB pour mises à jour temps réel
   const {
     comptesTresorerie,
     soldeTotal,
