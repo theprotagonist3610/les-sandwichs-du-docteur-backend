@@ -19,7 +19,9 @@ import { getOperationsToday } from "../toolkits/admin/comptabilite/operations";
 // Utilitaires de calcul
 import {
   calculerSoldesAujourdhui,
+  calculerSoldesPeriode,
   calculerVariationComptes,
+  calculerVariationPeriode,
   calculerSoldeTotal,
 } from "../utils/comptabilite/calculerSoldesComptes";
 
@@ -78,6 +80,7 @@ export const useComptesData = () => {
 
   /**
    * Charge les comptes et calcule les soldes dynamiques
+   * Charge les 7 derniers jours par défaut pour inclure les données de test
    */
   const loadData = useCallback(async () => {
     try {
@@ -87,8 +90,9 @@ export const useComptesData = () => {
       // Récupérer tous les comptes comptables
       const { comptes } = await getAllComptes();
 
-      // Calculer les soldes d'aujourd'hui
-      const comptesAvecSoldes = await calculerSoldesAujourdhui(comptes);
+      // Calculer les soldes sur les 7 derniers jours
+      // Cela charge à la fois "today" et l'historique récent
+      const comptesAvecSoldes = await calculerSoldesPeriode(comptes, 7);
 
       // Mettre à jour le store
       setComptesComptables(comptesAvecSoldes);
@@ -97,11 +101,11 @@ export const useComptesData = () => {
       const total = calculerSoldeTotal(comptesAvecSoldes);
       setSoldeTotal(total);
 
-      // Calculer la variation vs hier
-      const variation = await calculerVariationComptes(comptes);
+      // Calculer la variation sur 7 jours (vs 7 jours précédents)
+      const variation = await calculerVariationPeriode(comptes, 7);
       setVariationPourcentage(variation);
 
-      console.log("✅ Comptes comptables chargés avec succès");
+      console.log("✅ Comptes comptables chargés avec succès (7 derniers jours)");
     } catch (err) {
       console.error("❌ Erreur chargement comptes:", err);
       setError(err.message || "Erreur lors du chargement des comptes");

@@ -22,7 +22,7 @@ import {
   CACHE_KEY_COMPTES,
   CACHE_KEY_TRESORERIE,
 } from "./constants";
-import { saveToCache, getFromCache } from "./utils";
+import { saveToCache, getFromCache, clearCache } from "./utils";
 
 // ============================================================================
 // FONCTIONS DE GESTION DES COMPTES COMPTABLES
@@ -117,18 +117,34 @@ export async function initialiserTresorerieDefault() {
 
 /**
  * Récupère tous les comptes comptables
+ * Utilise le cache en priorité pour optimiser les performances
  */
 export async function getAllComptes() {
   try {
+    // Essayer le cache d'abord
+    const cached = getFromCache(CACHE_KEY_COMPTES);
+    if (cached) {
+      console.log(`📦 Cache: ${cached.comptes.length} comptes comptables`);
+      return cached;
+    }
+
+    // Si pas de cache, récupérer depuis Firestore
     const comptesRef = doc(db, COMPTES_DOC);
     const comptesSnap = await getDoc(comptesRef);
 
     if (!comptesSnap.exists()) {
       // Initialiser si n'existe pas
-      return await initialiserComptesDefault();
+      const initialized = await initialiserComptesDefault();
+      saveToCache(CACHE_KEY_COMPTES, initialized);
+      return initialized;
     }
 
     const validated = comptesListeSchema.parse(comptesSnap.data());
+    console.log(`✅ ${validated.comptes.length} comptes comptables récupérés`);
+
+    // Sauvegarder dans le cache
+    saveToCache(CACHE_KEY_COMPTES, validated);
+
     return validated;
   } catch (error) {
     console.error("❌ Erreur récupération comptes:", error);
@@ -138,18 +154,34 @@ export async function getAllComptes() {
 
 /**
  * Récupère tous les comptes de trésorerie
+ * Utilise le cache en priorité pour optimiser les performances
  */
 export async function getAllComptesTresorerie() {
   try {
+    // Essayer le cache d'abord
+    const cached = getFromCache(CACHE_KEY_TRESORERIE);
+    if (cached) {
+      console.log(`📦 Cache: ${cached.comptes.length} comptes trésorerie`);
+      return cached;
+    }
+
+    // Si pas de cache, récupérer depuis Firestore
     const tresoRef = doc(db, TRESORERIE_DOC);
     const tresoSnap = await getDoc(tresoRef);
 
     if (!tresoSnap.exists()) {
       // Initialiser si n'existe pas
-      return await initialiserTresorerieDefault();
+      const initialized = await initialiserTresorerieDefault();
+      saveToCache(CACHE_KEY_TRESORERIE, initialized);
+      return initialized;
     }
 
     const validated = comptesTresorerieListeSchema.parse(tresoSnap.data());
+    console.log(`✅ ${validated.comptes.length} comptes trésorerie récupérés`);
+
+    // Sauvegarder dans le cache
+    saveToCache(CACHE_KEY_TRESORERIE, validated);
+
     return validated;
   } catch (error) {
     console.error("❌ Erreur récupération trésorerie:", error);
@@ -197,6 +229,9 @@ export async function creerCompte(compteData, userId = "system") {
       comptes,
       lastUpdated: now,
     });
+
+    // Invalider le cache
+    clearCache(CACHE_KEY_COMPTES);
 
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
@@ -255,6 +290,9 @@ export async function creerCompteTresorerie(compteData, userId = "system") {
       lastUpdated: now,
     });
 
+    // Invalider le cache
+    clearCache(CACHE_KEY_TRESORERIE);
+
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
       action: "create_compte_tresorerie",
@@ -310,6 +348,9 @@ export async function updateCompte(compteId, updates, userId = "system") {
       comptes,
       lastUpdated: now,
     });
+
+    // Invalider le cache
+    clearCache(CACHE_KEY_COMPTES);
 
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
@@ -367,6 +408,9 @@ export async function updateCompteTresorerie(compteId, updates, userId = "system
       comptes,
       lastUpdated: now,
     });
+
+    // Invalider le cache
+    clearCache(CACHE_KEY_TRESORERIE);
 
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
