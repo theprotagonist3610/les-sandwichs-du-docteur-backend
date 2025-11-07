@@ -4,6 +4,10 @@
  * Période : 1 Juillet 2025 - 7 Novembre 2025
  */
 
+// Charger les variables d'environnement
+import dotenv from "dotenv";
+dotenv.config();
+
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 import { getDatabase, ref, push } from "firebase/database";
@@ -23,9 +27,24 @@ const firebaseConfig = {
   databaseURL: process.env.VITE_DATABASE_URL,
 };
 
+// Vérifier que les variables sont chargées
+console.log("🔍 Vérification de la configuration Firebase:");
+console.log("  - Project ID:", firebaseConfig.projectId || "❌ MANQUANT");
+console.log("  - Database URL:", firebaseConfig.databaseURL || "❌ MANQUANT");
+
+if (!firebaseConfig.projectId || !firebaseConfig.databaseURL) {
+  console.error("❌ ERREUR: Variables d'environnement manquantes!");
+  console.error("Vérifiez que le fichier .env existe et contient:");
+  console.error("  - VITE_PROJECT_ID");
+  console.error("  - VITE_DATABASE_URL");
+  process.exit(1);
+}
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const rtdb = getDatabase(app);
+
+console.log("✅ Firebase initialisé avec succès");
 
 // ============================================================================
 // CONSTANTES
