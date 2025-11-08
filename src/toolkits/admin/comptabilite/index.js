@@ -102,6 +102,7 @@ export {
   // Get operations
   getOperationsToday,
   getOperationsByDay,
+  getOperationsForPeriod,
   // Create
   creerOperation,
   creerOperations,
