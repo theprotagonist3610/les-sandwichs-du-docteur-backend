@@ -6,8 +6,9 @@
 - le themeswicther
 - le userResume
  */
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@/toolkits/global/userToolkit";
+import { logoutUser } from "@/toolkits/admin/userToolkit";
 import {
   Sheet,
   SheetContent,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Menu } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import ThemeSwitcher from "./ThemeSwitcher";
 import UserResume from "./UserResume";
 
@@ -55,6 +56,15 @@ const routesByRoles = {
 const SideBar = () => {
   const { user } = useUser();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser(navigate, "/login");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+    }
+  };
 
   // Construire les routes avec le préfixe du rôle
   const routes = user?.role
@@ -113,9 +123,17 @@ const SideBar = () => {
 
           <Separator />
 
-          {/* Footer avec ThemeSwitcher et UserResume */}
+          {/* Footer avec ThemeSwitcher, Logout et UserResume */}
           <div className="p-4 space-y-2">
             <ThemeSwitcher />
+            <Button
+              variant="ghost"
+              className="w-full justify-start hover:bg-destructive/10 hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Déconnexion
+            </Button>
             <UserResume />
           </div>
         </div>
