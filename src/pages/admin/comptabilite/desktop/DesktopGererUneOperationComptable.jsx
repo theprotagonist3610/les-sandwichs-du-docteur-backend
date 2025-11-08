@@ -46,6 +46,7 @@ const DesktopGererUneOperationComptable = () => {
   // Champs éditables
   const [montant, setMontant] = useState("");
   const [motif, setMotif] = useState("");
+  // Date affichée uniquement (non éditable pour éviter problèmes de cohérence)
   const [date, setDate] = useState("");
 
   // Charger l'opération
@@ -87,7 +88,7 @@ const DesktopGererUneOperationComptable = () => {
       const updates = {
         montant: parseFloat(montant),
         motif: motif.trim(),
-        date: new Date(date).getTime(),
+        // Date non modifiable (cohérence comptable)
       };
 
       await updateOperation(id, updates);
@@ -127,8 +128,7 @@ const DesktopGererUneOperationComptable = () => {
   const hasChanges =
     operation &&
     (montant !== operation.montant.toString() ||
-      motif !== operation.motif ||
-      date !== new Date(operation.date).toISOString().split("T")[0]);
+      motif !== operation.motif);
 
   if (loading) {
     return (
@@ -271,18 +271,19 @@ const DesktopGererUneOperationComptable = () => {
 
             {/* Date */}
             <div className="space-y-2">
-              <Label htmlFor="date">Date de l'opération *</Label>
+              <Label htmlFor="date">Date de l'opération</Label>
               <InputGroup>
                 <InputGroupInput
                   id="date"
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
+                  disabled
+                  className="bg-muted cursor-not-allowed"
                 />
               </InputGroup>
               <p className="text-sm text-muted-foreground">
-                Date à laquelle l'opération a eu lieu
+                La date ne peut pas être modifiée pour garantir la cohérence comptable.
+                Pour changer la date, supprimez cette opération et créez-en une nouvelle.
               </p>
             </div>
 

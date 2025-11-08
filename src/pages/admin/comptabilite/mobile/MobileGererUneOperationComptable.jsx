@@ -43,6 +43,7 @@ const MobileGererUneOperationComptable = () => {
   // Champs éditables
   const [montant, setMontant] = useState("");
   const [motif, setMotif] = useState("");
+  // Date affichée uniquement (non éditable pour éviter problèmes de cohérence)
   const [date, setDate] = useState("");
 
   // Charger l'opération
@@ -84,7 +85,7 @@ const MobileGererUneOperationComptable = () => {
       const updates = {
         montant: parseFloat(montant),
         motif: motif.trim(),
-        date: new Date(date).getTime(),
+        // Date non modifiable (cohérence comptable)
       };
 
       await updateOperation(id, updates);
@@ -124,8 +125,7 @@ const MobileGererUneOperationComptable = () => {
   const hasChanges =
     operation &&
     (montant !== operation.montant.toString() ||
-      motif !== operation.motif ||
-      date !== new Date(operation.date).toISOString().split("T")[0]);
+      motif !== operation.motif);
 
   if (loading) {
     return (
@@ -277,17 +277,20 @@ const MobileGererUneOperationComptable = () => {
           {/* Date */}
           <div className="space-y-2">
             <Label htmlFor="date" className="text-sm">
-              Date *
+              Date
             </Label>
             <InputGroup>
               <InputGroupInput
                 id="date"
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
+                disabled
+                className="bg-muted cursor-not-allowed"
               />
             </InputGroup>
+            <p className="text-xs text-muted-foreground">
+              Non modifiable. Pour changer la date, supprimez et recréez l'opération.
+            </p>
           </div>
 
           {/* Motif */}
