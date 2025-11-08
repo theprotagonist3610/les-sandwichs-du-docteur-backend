@@ -17,6 +17,7 @@ import {
 } from "./constants";
 import { formatDayKey, saveToCache, getFromCache, clearCache } from "./utils";
 import { getAllComptes, getAllComptesTresorerie } from "./comptes";
+import { updateStatistiquesEnTempsReel } from "./statistiques";
 
 // ============================================================================
 // FONCTIONS DE GESTION DES OPÉRATIONS
@@ -259,6 +260,14 @@ export async function creerOperation(operationData, userId = "system") {
       timestamp: now,
     });
 
+    // Mettre à jour les statistiques en temps réel
+    try {
+      await updateStatistiquesEnTempsReel();
+    } catch (statsError) {
+      console.warn("⚠️ Erreur mise à jour statistiques:", statsError);
+      // Ne pas bloquer la création d'opération si stats échouent
+    }
+
     console.log(`✅ Opération créée: ${validated.motif} (${validated.montant} FCFA)`);
     return validated;
   } catch (error) {
@@ -346,6 +355,14 @@ export async function creerOperations(operationsArray, userId = "system") {
       isFirstOperation,
       timestamp: now,
     });
+
+    // Mettre à jour les statistiques en temps réel
+    try {
+      await updateStatistiquesEnTempsReel();
+    } catch (statsError) {
+      console.warn("⚠️ Erreur mise à jour statistiques:", statsError);
+      // Ne pas bloquer la création d'opérations si stats échouent
+    }
 
     console.log(`✅ ${nouvellesOperations.length} opérations créées en bulk`);
     return nouvellesOperations;
