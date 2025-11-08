@@ -7,8 +7,11 @@ C'est le composant de navigation desktop
 - ajoute ensuite le userResume [a creer consulter la description dans ./UserResume.jsx]
 - ajoute pour finir le composant ThemeSwicther [a creer consulter la description dans ./ThemeSwitcher]
 */
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@/toolkits/global/userToolkit";
+import { logoutUser } from "@/toolkits/admin/userToolkit";
+import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import ThemeSwitcher from "./ThemeSwitcher";
 import UserResume from "./UserResume";
 
@@ -46,6 +49,15 @@ const routesByRoles = {
 const NavBar = () => {
   const { user } = useUser();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser(navigate, "/login");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+    }
+  };
 
   // Construire les routes avec le préfixe du rôle
   const routes = user?.role
@@ -105,9 +117,18 @@ const NavBar = () => {
             })}
           </div>
 
-          {/* User Resume & Theme Switcher */}
+          {/* User Resume, Logout & Theme Switcher */}
           <div className="flex items-center gap-2">
             <UserResume />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              title="Déconnexion"
+              className="hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
             <ThemeSwitcher />
           </div>
         </div>

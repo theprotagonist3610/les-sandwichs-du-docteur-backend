@@ -71,7 +71,7 @@ const DesktopRegister = () => {
       resetForm();
 
       // Rediriger vers le dashboard basé sur le rôle
-      const role = result.role || "admin";
+      const role = result.user?.role || "admin";
       navigate(`/${role}/dashboard`);
     } catch (error) {
       setLocalError(error.message || "Erreur lors de l'inscription");
