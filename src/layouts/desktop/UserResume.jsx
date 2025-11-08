@@ -37,11 +37,10 @@ const UserResume = () => {
   const userName = user.nom || "Utilisateur";
   const userInitial = user.prenoms?.[0]?.toUpperCase() || "";
   const displayName = `${userName} ${userInitial}`;
-
   return (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="sm" asChild>
-        <Link to="/profile" className="flex items-center gap-2">
+        <Link to={`/users/profiles`} className="flex items-center gap-2">
           <User className="h-4 w-4 mr-2" />
           {displayName}
         </Link>

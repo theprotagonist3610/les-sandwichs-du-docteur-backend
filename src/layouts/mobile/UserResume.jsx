@@ -40,7 +40,9 @@ const UserResume = () => {
   return (
     <div className="flex flex-col gap-2 w-full">
       <Button variant="outline" size="sm" asChild className="w-full">
-        <Link to="/profile" className="flex items-center justify-between gap-2">
+        <Link
+          to={`${user?.role}/profiles`}
+          className="flex items-center justify-between gap-2">
           <span className="truncate">{displayName}</span>
           <Badge
             variant="secondary"

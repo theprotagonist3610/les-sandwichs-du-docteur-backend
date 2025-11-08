@@ -16,7 +16,7 @@ const routesByRoles = {
   admin: [
     { name: "Dashboard", path: "dashboard" },
     { name: "Utilisateurs", path: "users" },
-    { name: "Statistiques", path: "stats" },
+    { name: "Statistiques", path: "statistiques" },
     { name: "Comptabilité", path: "comptabilite" },
     { name: "Stock", path: "stock" },
     { name: "Production", path: "production" },
@@ -74,7 +74,9 @@ const NavBar = () => {
           <div className="flex items-center gap-1 flex-1 mx-4">
             {routes.map((route) => {
               // Vérifier si la route actuelle correspond ou commence par le lien
-              const isActive = location.pathname === route.link || location.pathname.startsWith(route.link + "/");
+              const isActive =
+                location.pathname === route.link ||
+                location.pathname.startsWith(route.link + "/");
               return (
                 <Link
                   key={route.link}

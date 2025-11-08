@@ -13,9 +13,10 @@
 
 // Import des composants pour chaque section
 // À décommenter et créer au fur et à mesure
-import Dashboard from "@/pages/admin/users/dashboard/Dashboard";
-import Presence from "@/pages/admin/users/presence/Presence";
-import Profil from "@/pages/admin/users/profile/Profil";
+import Dashboard from "@/pages/admin/users/Dashboard";
+import Presence from "@/pages/admin/users/Presence";
+import Profiles from "@/pages/admin/users/Profiles";
+import Profile from "@/pages/admin/users/Profile";
 export const userSubRoutes = [
   {
     path: "dashboard",
@@ -30,27 +31,19 @@ export const userSubRoutes = [
     description: "Presence des utilisateurs",
     url: "/users.svg",
     component: Presence, // ✅ Composant activé
-    // Sous-routes de presence
-    children: [
-      {
-        path: ":id",
-        nom: "Surveiller la presence des utilisateurs",
-        component: null, // ✅ Composant activé
-      },
-    ],
   },
   {
-    path: "profil",
-    nom: "Profils",
-    description: "Profil des utilisateurs",
+    path: "profiles",
+    nom: "Profiles",
+    description: "Profiles des utilisateurs",
     url: "/users.svg",
-    component: Profil, // ✅ Composant activé
+    component: Profiles, // ✅ Composant activé
     // Sous-routes de profils
     children: [
       {
         path: ":id",
         nom: "Surveiller la presence des utilisateurs",
-        component: null, // ✅ Composant activé
+        component: Profile, // ✅ Composant activé
       },
     ],
   },
