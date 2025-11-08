@@ -1,10 +1,15 @@
+/**
+ * StockElements.jsx
+ * Wrapper responsive pour la liste des éléments de stock
+ */
+
 import useBreakpoint from "@/hooks/useBreakpoint";
-import MobileStockElements from "./mobile/MobileStockElements";
 import DesktopStockElements from "./desktop/DesktopStockElements";
+import MobileStockElements from "./mobile/MobileStockElements";
 
 const StockElements = () => {
-  const { mobile } = useBreakpoint();
-  return mobile ? <MobileStockElements /> : <DesktopStockElements />;
+  const { isMobile } = useBreakpoint();
+  return isMobile ? <MobileStockElements /> : <DesktopStockElements />;
 };
 
 export default StockElements;

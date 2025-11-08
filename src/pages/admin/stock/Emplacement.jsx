@@ -1,10 +1,15 @@
+/**
+ * Emplacement.jsx
+ * Wrapper responsive pour le détail d'un emplacement
+ */
+
 import useBreakpoint from "@/hooks/useBreakpoint";
-import MobileEmplacement from "./mobile/MobileEmplacement";
 import DesktopEmplacement from "./desktop/DesktopEmplacement";
+import MobileEmplacement from "./mobile/MobileEmplacement";
 
 const Emplacement = () => {
-  const { mobile } = useBreakpoint();
-  return mobile ? <MobileEmplacement /> : <DesktopEmplacement />;
+  const { isMobile } = useBreakpoint();
+  return isMobile ? <MobileEmplacement /> : <DesktopEmplacement />;
 };
 
 export default Emplacement;

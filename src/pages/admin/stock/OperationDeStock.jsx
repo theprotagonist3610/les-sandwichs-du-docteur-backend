@@ -1,10 +1,15 @@
+/**
+ * OperationDeStock.jsx
+ * Wrapper responsive pour les opérations de stock
+ */
+
 import useBreakpoint from "@/hooks/useBreakpoint";
-import MobileOperationDeStock from "./mobile/MobileOperationDeStock";
 import DesktopOperationDeStock from "./desktop/DesktopOperationDeStock";
+import MobileOperationDeStock from "./mobile/MobileOperationDeStock";
 
 const OperationDeStock = () => {
-  const { mobile } = useBreakpoint();
-  return mobile ? <MobileOperationDeStock /> : <DesktopOperationDeStock />;
+  const { isMobile } = useBreakpoint();
+  return isMobile ? <MobileOperationDeStock /> : <DesktopOperationDeStock />;
 };
 
 export default OperationDeStock;
