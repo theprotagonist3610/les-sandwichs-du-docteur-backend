@@ -38,7 +38,7 @@ import {
   Search,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -56,7 +56,6 @@ const EMPLACEMENT_COLORS = {
 
 const MobileEmplacements = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [filtreType, setFiltreType] = useState("");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
@@ -111,16 +110,9 @@ const MobileEmplacements = () => {
   const handleRefresh = async () => {
     try {
       await refetch();
-      toast({
-        title: "✅ Actualisé",
-        description: "Données rechargées",
-      });
+      toast.success("Données rechargées");
     } catch (err) {
-      toast({
-        title: "❌ Erreur",
-        description: err.message,
-        variant: "destructive",
-      });
+      toast.error(`Erreur: ${err.message}`);
     }
   };
 
