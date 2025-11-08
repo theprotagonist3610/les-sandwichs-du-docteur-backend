@@ -18,10 +18,10 @@ import CreateOperationComptable from "@/pages/admin/comptabilite/CreateOperation
 import GererLesOperationsComptables from "@/pages/admin/comptabilite/GererLesOperationsComptables";
 import GererUneOperationComptable from "@/pages/admin/comptabilite/GererUneOperationComptable";
 import Tresorerie from "@/pages/admin/comptabilite/Tresorerie";
+import HistoriqueCompteTresorerie from "@/pages/admin/comptabilite/HistoriqueCompteTresorerie";
 import CloturerJournee from "@/pages/admin/comptabilite/CloturerJournee";
 import Comptes from "@/pages/admin/comptabilite/Comptes";
 import HistoriqueCompte from "@/pages/admin/comptabilite/HistoriqueCompte";
-import HistoriqueCompteTresorerie from "@/pages/admin/comptabilite/HistoriqueCompteTresorerie";
 
 export const comptabiliteSubRoutes = [
   {
@@ -47,7 +47,7 @@ export const comptabiliteSubRoutes = [
     children: [
       {
         path: ":id",
-        nom: "Superviser les opérations de trésorerie",
+        nom: "Historique compte de trésorerie",
         component: HistoriqueCompteTresorerie,
       },
     ],

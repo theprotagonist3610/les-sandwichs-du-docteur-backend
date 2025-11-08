@@ -66,12 +66,16 @@ import useGererOperationsStore, {
   selectResetFiltres,
   selectSetPeriodePredefined,
   selectReset,
+  selectNeedsReload,
+  selectSetNeedsReload,
+  selectSetCurrentPeriodDays,
 } from "@/stores/admin/useGererOperationsStore";
 import {
   getOperationsToday,
   getAllComptes,
   getAllComptesTresorerie,
 } from "@/toolkits/admin/comptabiliteToolkit";
+import { loadOperationsForDateRange } from "@/utils/comptabilite/loadOperationsForPeriod";
 
 const DesktopGererLesOperationsComptables = () => {
   const navigate = useNavigate();
@@ -89,6 +93,7 @@ const DesktopGererLesOperationsComptables = () => {
   const isLoading = useGererOperationsStore(selectIsLoading);
   const error = useGererOperationsStore(selectError);
   const showFilters = useGererOperationsStore(selectShowFilters);
+  const needsReload = useGererOperationsStore(selectNeedsReload);
 
   // Store actions
   const setFiltreCompte = useGererOperationsStore(selectSetFiltreCompte);
@@ -106,8 +111,10 @@ const DesktopGererLesOperationsComptables = () => {
   const resetFiltres = useGererOperationsStore(selectResetFiltres);
   const setPeriodePredefined = useGererOperationsStore(selectSetPeriodePredefined);
   const reset = useGererOperationsStore(selectReset);
+  const setNeedsReload = useGererOperationsStore(selectSetNeedsReload);
+  const setCurrentPeriodDays = useGererOperationsStore(selectSetCurrentPeriodDays);
 
-  // Charger les opérations et les comptes
+  // Charger les opérations et les comptes (initial)
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -115,8 +122,8 @@ const DesktopGererLesOperationsComptables = () => {
         setError(null);
 
         // Charger les opérations du jour et les comptes en parallèle
-        const [operationsData, comptesData, tresorerieData] = await Promise.all([
-          getOperationsToday(),
+        const [operationsResult, comptesData, tresorerieData] = await Promise.all([
+          loadOperationsForDateRange(dateDebut, dateFin),
           getAllComptes(),
           getAllComptesTresorerie(),
         ]);
@@ -127,10 +134,11 @@ const DesktopGererLesOperationsComptables = () => {
           ...tresorerieData.comptes,
         ];
 
-        setOperations(operationsData.operations);
+        setOperations(operationsResult.operations);
         setComptesDisponibles(allComptes);
+        setCurrentPeriodDays(operationsResult.daysLoaded);
 
-        console.log(`✅ ${operationsData.operations.length} opérations chargées`);
+        console.log(`✅ ${operationsResult.operations.length} opérations chargées`);
       } catch (err) {
         console.error("❌ Erreur chargement données:", err);
         setError(err.message);
@@ -146,6 +154,37 @@ const DesktopGererLesOperationsComptables = () => {
       reset();
     };
   }, []);
+
+  // Surveiller needsReload et recharger si nécessaire
+  useEffect(() => {
+    if (!needsReload) return;
+
+    const reloadData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        console.log("🔄 Rechargement pour nouvelle période...");
+
+        const operationsResult = await loadOperationsForDateRange(dateDebut, dateFin);
+
+        setOperations(operationsResult.operations);
+        setCurrentPeriodDays(operationsResult.daysLoaded);
+        setNeedsReload(false);
+
+        console.log(`✅ ${operationsResult.operations.length} opérations rechargées`);
+      } catch (err) {
+        console.error("❌ Erreur rechargement:", err);
+        setError(err.message);
+        toast.error("Erreur lors du rechargement");
+        setNeedsReload(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    reloadData();
+  }, [needsReload, dateDebut, dateFin]);
 
   const formatMontant = (montant) => {
     return new Intl.NumberFormat("fr-FR").format(montant);

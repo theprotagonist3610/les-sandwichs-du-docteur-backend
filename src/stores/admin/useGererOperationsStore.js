@@ -42,6 +42,8 @@ const useGererOperationsStore = create((set, get) => ({
   isLoading: true,
   error: null,
   showFilters: true, // Afficher/masquer le panneau de filtres
+  needsReload: false, // Flag pour indiquer qu'un rechargement est nécessaire
+  currentPeriodDays: 0, // Nombre de jours actuellement chargés (0 = aujourd'hui seulement)
 
   // ============================================================================
   // ACTIONS - Setters des filtres
@@ -69,11 +71,13 @@ const useGererOperationsStore = create((set, get) => ({
 
   setDateDebut: (value) => {
     set({ dateDebut: value });
+    get().checkIfReloadNeeded();
     get().appliquerFiltres();
   },
 
   setDateFin: (value) => {
     set({ dateFin: value });
+    get().checkIfReloadNeeded();
     get().appliquerFiltres();
   },
 
@@ -98,6 +102,36 @@ const useGererOperationsStore = create((set, get) => ({
   setIsLoading: (value) => set({ isLoading: value }),
 
   setError: (value) => set({ error: value }),
+
+  setNeedsReload: (value) => set({ needsReload: value }),
+
+  setCurrentPeriodDays: (value) => set({ currentPeriodDays: value }),
+
+  // ============================================================================
+  // ACTIONS - Gestion du rechargement
+  // ============================================================================
+
+  /**
+   * Vérifie si un rechargement est nécessaire en fonction de la période sélectionnée
+   */
+  checkIfReloadNeeded: () => {
+    const { dateDebut, dateFin, currentPeriodDays } = get();
+
+    const daysDiff = Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24));
+
+    // Si la période demandée est plus grande que celle chargée, recharger
+    if (daysDiff > currentPeriodDays) {
+      set({ needsReload: true });
+    }
+  },
+
+  /**
+   * Calcule le nombre de jours entre dateDebut et dateFin
+   */
+  getRequiredDays: () => {
+    const { dateDebut, dateFin } = get();
+    return Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24)) + 1;
+  },
 
   // ============================================================================
   // ACTIONS - Filtrage
@@ -233,6 +267,7 @@ const useGererOperationsStore = create((set, get) => ({
     }
 
     set({ dateDebut: debut, dateFin: fin });
+    get().checkIfReloadNeeded();
     get().appliquerFiltres();
   },
 
@@ -283,6 +318,8 @@ export const selectFiltreMotif = (state) => state.filtreMotif;
 export const selectIsLoading = (state) => state.isLoading;
 export const selectError = (state) => state.error;
 export const selectShowFilters = (state) => state.showFilters;
+export const selectNeedsReload = (state) => state.needsReload;
+export const selectCurrentPeriodDays = (state) => state.currentPeriodDays;
 
 // Sélecteurs pour les actions
 export const selectSetFiltreCompte = (state) => state.setFiltreCompte;
@@ -298,10 +335,14 @@ export const selectSetOperations = (state) => state.setOperations;
 export const selectSetComptesDisponibles = (state) => state.setComptesDisponibles;
 export const selectSetIsLoading = (state) => state.setIsLoading;
 export const selectSetError = (state) => state.setError;
+export const selectSetNeedsReload = (state) => state.setNeedsReload;
+export const selectSetCurrentPeriodDays = (state) => state.setCurrentPeriodDays;
 
 export const selectAppliquerFiltres = (state) => state.appliquerFiltres;
 export const selectResetFiltres = (state) => state.resetFiltres;
 export const selectSetPeriodePredefined = (state) => state.setPeriodePredefined;
+export const selectCheckIfReloadNeeded = (state) => state.checkIfReloadNeeded;
+export const selectGetRequiredDays = (state) => state.getRequiredDays;
 export const selectReset = (state) => state.reset;
 
 export default useGererOperationsStore;

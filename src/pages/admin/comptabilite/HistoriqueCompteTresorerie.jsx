@@ -1,14 +1,16 @@
+/**
+ * HistoriqueCompteTresorerie.jsx
+ * Composant wrapper responsive pour l'historique d'un compte de trésorerie
+ */
+
 import useBreakpoint from "@/hooks/useBreakpoint";
-import MobileHistoriqueCompteTresorerie from "./mobile/MobileHistoriqueCompteTresorerie";
 import DesktopHistoriqueCompteTresorerie from "./desktop/DesktopHistoriqueCompteTresorerie";
+import MobileHistoriqueCompteTresorerie from "./mobile/MobileHistoriqueCompteTresorerie";
 
 const HistoriqueCompteTresorerie = () => {
-  const { mobile } = useBreakpoint();
-  return mobile ? (
-    <MobileHistoriqueCompteTresorerie />
-  ) : (
-    <DesktopHistoriqueCompteTresorerie />
-  );
+  const { isMobile } = useBreakpoint();
+
+  return isMobile ? <MobileHistoriqueCompteTresorerie /> : <DesktopHistoriqueCompteTresorerie />;
 };
 
 export default HistoriqueCompteTresorerie;
