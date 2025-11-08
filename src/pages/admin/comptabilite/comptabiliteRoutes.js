@@ -17,6 +17,8 @@ import Dashboard from "@/pages/admin/comptabilite/Dashboard";
 import CreateOperationComptable from "@/pages/admin/comptabilite/CreateOperationComptable";
 import GererLesOperationsComptables from "@/pages/admin/comptabilite/GererLesOperationsComptables";
 import GererUneOperationComptable from "@/pages/admin/comptabilite/GererUneOperationComptable";
+import Comptes from "@/pages/admin/comptabilite/Comptes";
+import HistoriqueCompteComptable from "@/pages/admin/comptabilite/HistoriqueCompteComptable";
 import Tresorerie from "@/pages/admin/comptabilite/Tresorerie";
 import HistoriqueCompteTresorerie from "@/pages/admin/comptabilite/HistoriqueCompteTresorerie";
 import CloturerJournee from "@/pages/admin/comptabilite/CloturerJournee";
@@ -35,6 +37,20 @@ export const comptabiliteSubRoutes = [
     description: "Créer une nouvelle opération comptable",
     url: "/users.svg",
     component: CreateOperationComptable, // ✅ Composant activé
+  },
+  {
+    path: "comptes",
+    nom: "Gérer les comptes comptables",
+    description: "Vue d'ensemble des comptes comptables OHADA",
+    url: "/users.svg",
+    component: Comptes, // ✅ Composant activé
+    children: [
+      {
+        path: ":id",
+        nom: "Historique compte comptable",
+        component: HistoriqueCompteComptable,
+      },
+    ],
   },
   {
     path: "tresorerie",

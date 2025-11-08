@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,6 +10,8 @@ import {
   Loader2,
   RotateCcw,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,10 @@ import { loadOperationsForDateRange } from "@/utils/comptabilite/loadOperationsF
 const MobileGererLesOperationsComptables = () => {
   const navigate = useNavigate();
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
   // Store state
   const operationsFiltrees = useGererOperationsStore(selectOperationsFiltrees);
   const comptesDisponibles = useGererOperationsStore(selectComptesDisponibles);
@@ -106,6 +112,22 @@ const MobileGererLesOperationsComptables = () => {
   const reset = useGererOperationsStore(selectReset);
   const setNeedsReload = useGererOperationsStore(selectSetNeedsReload);
   const setCurrentPeriodDays = useGererOperationsStore(selectSetCurrentPeriodDays);
+
+  // Pagination calculations
+  const totalPages = useMemo(() => {
+    return Math.ceil(operationsFiltrees.length / itemsPerPage);
+  }, [operationsFiltrees.length, itemsPerPage]);
+
+  const operationsPaginated = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return operationsFiltrees.slice(startIndex, endIndex);
+  }, [operationsFiltrees, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filtreCompte, filtreType, montantMin, montantMax, dateDebut, dateFin, filtreMotif]);
 
   // Charger les opérations et les comptes (initial)
   useEffect(() => {
@@ -379,8 +401,23 @@ const MobileGererLesOperationsComptables = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {operationsFiltrees.map((operation) => (
+        <>
+          {/* Info pagination */}
+          <Card>
+            <CardContent className="py-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <p>
+                  {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, operationsFiltrees.length)} / {operationsFiltrees.length}
+                </p>
+                <p>
+                  Page {currentPage}/{totalPages}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-3">
+            {operationsPaginated.map((operation) => (
             <motion.div
               key={operation.id}
               initial={{ opacity: 0, y: 5 }}
@@ -438,6 +475,62 @@ const MobileGererLesOperationsComptables = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <Card>
+            <CardContent className="py-3">
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {currentPage > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      className="min-w-[36px]"
+                    >
+                      1
+                    </Button>
+                  )}
+                  {currentPage > 2 && <span className="text-muted-foreground text-xs">...</span>}
+                  <Button variant="default" size="sm" className="min-w-[36px]">
+                    {currentPage}
+                  </Button>
+                  {currentPage < totalPages - 1 && <span className="text-muted-foreground text-xs">...</span>}
+                  {currentPage < totalPages && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      className="min-w-[36px]"
+                    >
+                      {totalPages}
+                    </Button>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </>
       )}
     </div>
   );

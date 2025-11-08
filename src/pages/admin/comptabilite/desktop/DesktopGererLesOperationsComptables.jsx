@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,6 +14,8 @@ import {
   ChevronDown,
   RotateCcw,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,10 @@ import { loadOperationsForDateRange } from "@/utils/comptabilite/loadOperationsF
 const DesktopGererLesOperationsComptables = () => {
   const navigate = useNavigate();
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
   // Store state
   const operationsFiltrees = useGererOperationsStore(selectOperationsFiltrees);
   const comptesDisponibles = useGererOperationsStore(selectComptesDisponibles);
@@ -113,6 +119,22 @@ const DesktopGererLesOperationsComptables = () => {
   const reset = useGererOperationsStore(selectReset);
   const setNeedsReload = useGererOperationsStore(selectSetNeedsReload);
   const setCurrentPeriodDays = useGererOperationsStore(selectSetCurrentPeriodDays);
+
+  // Pagination calculations
+  const totalPages = useMemo(() => {
+    return Math.ceil(operationsFiltrees.length / itemsPerPage);
+  }, [operationsFiltrees.length, itemsPerPage]);
+
+  const operationsPaginated = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return operationsFiltrees.slice(startIndex, endIndex);
+  }, [operationsFiltrees, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filtreCompte, filtreType, montantMin, montantMax, dateDebut, dateFin, filtreMotif]);
 
   // Charger les opérations et les comptes (initial)
   useEffect(() => {
@@ -426,8 +448,25 @@ const DesktopGererLesOperationsComptables = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {operationsFiltrees.map((operation) => (
+        <>
+          {/* Info pagination */}
+          <Card>
+            <CardContent className="py-3">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <p>
+                  Affichage de <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> à{" "}
+                  <span className="font-semibold">{Math.min(currentPage * itemsPerPage, operationsFiltrees.length)}</span> sur{" "}
+                  <span className="font-semibold">{operationsFiltrees.length}</span> opération(s)
+                </p>
+                <p>
+                  Page <span className="font-semibold">{currentPage}</span> sur <span className="font-semibold">{totalPages}</span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4">
+            {operationsPaginated.map((operation) => (
             <motion.div
               key={operation.id}
               initial={{ opacity: 0, y: 10 }}
@@ -499,6 +538,67 @@ const DesktopGererLesOperationsComptables = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Précédent
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      // Afficher seulement les pages proches de la page actuelle
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 2
+                      );
+                    })
+                    .map((page, index, array) => {
+                      // Ajouter des "..." entre les pages non consécutives
+                      const prevPage = array[index - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsis && <span className="px-2 text-muted-foreground">...</span>}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className="min-w-[40px]"
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Suivant
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </>
       )}
     </div>
   );

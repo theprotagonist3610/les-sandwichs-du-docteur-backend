@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -78,6 +79,8 @@ import { calculerDataEvolutionCompte } from "../../../../utils/comptabilite/comp
 import ComptesSkeleton from "../components/ComptesSkeleton";
 
 const DesktopComptes = () => {
+  const navigate = useNavigate();
+
   // ============================================================================
   // HOOKS
   // ============================================================================
@@ -144,10 +147,9 @@ const DesktopComptes = () => {
 
   const handleVoirDetail = useCallback(
     (compte) => {
-      selectionnerCompte(compte);
-      setVue("detail");
+      navigate(`/admin/comptabilite/comptes/${compte.id}`);
     },
-    [selectionnerCompte, setVue]
+    [navigate]
   );
 
   const handleRetourListe = useCallback(() => {
