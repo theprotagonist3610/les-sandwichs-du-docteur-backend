@@ -465,73 +465,68 @@ const DesktopGererLesOperationsComptables = () => {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {operationsPaginated.map((operation) => (
             <motion.div
               key={operation.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              whileHover={{ scale: 1.01 }}
+              whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
             >
               <Card
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-lg transition-all h-full"
                 onClick={() => navigate(`/admin/comptabilite/gerer/${operation.id}`)}
               >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
-                      {/* Icône et type */}
-                      <div
-                        className={`p-3 rounded-lg ${
-                          operation.type_operation === "entree"
-                            ? "bg-green-50"
-                            : "bg-red-50"
-                        }`}
-                      >
-                        {operation.type_operation === "entree" ? (
-                          <TrendingUp className="h-6 w-6 text-green-600" />
-                        ) : (
-                          <TrendingDown className="h-6 w-6 text-red-600" />
-                        )}
-                      </div>
-
-                      {/* Informations */}
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="font-mono">
-                            {operation.compte_ohada}
-                          </Badge>
-                          <span className="font-semibold">
-                            {operation.compte_denomination}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">
-                          {operation.motif}
-                        </p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {formatDate(operation.date)}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Montant */}
-                      <div className="text-right">
-                        <p
-                          className={`text-2xl font-bold ${
-                            operation.type_operation === "entree"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {operation.type_operation === "entree" ? "+" : "-"}
-                          {formatMontant(operation.montant)} FCFA
-                        </p>
-                      </div>
+                <CardContent className="p-4 flex flex-col h-full">
+                  {/* Icône et type en haut */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div
+                      className={`p-2 rounded-lg ${
+                        operation.type_operation === "entree"
+                          ? "bg-green-50"
+                          : "bg-red-50"
+                      }`}
+                    >
+                      {operation.type_operation === "entree" ? (
+                        <TrendingUp className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <TrendingDown className="h-5 w-5 text-red-600" />
+                      )}
                     </div>
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {operation.compte_ohada}
+                    </Badge>
+                  </div>
+
+                  {/* Informations */}
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">
+                      {operation.compte_denomination}
+                    </h3>
+                    <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
+                      {operation.motif}
+                    </p>
+                  </div>
+
+                  {/* Date et Montant en bas */}
+                  <div className="mt-3 pt-3 border-t space-y-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(operation.date)}
+                    </div>
+                    <p
+                      className={`text-xl font-bold ${
+                        operation.type_operation === "entree"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {operation.type_operation === "entree" ? "+" : "-"}
+                      {formatMontant(operation.montant)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">FCFA</p>
                   </div>
                 </CardContent>
               </Card>

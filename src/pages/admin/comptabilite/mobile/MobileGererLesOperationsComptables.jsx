@@ -416,7 +416,7 @@ const MobileGererLesOperationsComptables = () => {
             </CardContent>
           </Card>
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             {operationsPaginated.map((operation) => (
             <motion.div
               key={operation.id}
@@ -425,50 +425,53 @@ const MobileGererLesOperationsComptables = () => {
               transition={{ duration: 0.2 }}
             >
               <Card
-                className="cursor-pointer active:scale-[0.98] transition-transform"
+                className="cursor-pointer active:scale-[0.98] transition-transform h-full"
                 onClick={() => navigate(`/admin/comptabilite/gerer/${operation.id}`)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
+                <CardContent className="p-3 flex flex-col h-full">
+                  {/* Icône et code en haut */}
+                  <div className="flex items-center justify-between mb-2">
                     <div
-                      className={`p-2 rounded-lg shrink-0 ${
+                      className={`p-1.5 rounded-lg ${
                         operation.type_operation === "entree" ? "bg-green-50" : "bg-red-50"
                       }`}
                     >
                       {operation.type_operation === "entree" ? (
-                        <TrendingUp className="h-5 w-5 text-green-600" />
+                        <TrendingUp className="h-4 w-4 text-green-600" />
                       ) : (
-                        <TrendingDown className="h-5 w-5 text-red-600" />
+                        <TrendingDown className="h-4 w-4 text-red-600" />
                       )}
                     </div>
+                    <Badge variant="outline" className="font-mono text-[10px] px-1 py-0">
+                      {operation.compte_ohada}
+                    </Badge>
+                  </div>
 
-                    <div className="flex-1 min-w-0">
-                      <Badge variant="outline" className="font-mono text-xs mb-1">
-                        {operation.compte_ohada}
-                      </Badge>
-                      <p className="font-semibold text-sm line-clamp-1">
-                        {operation.compte_denomination}
-                      </p>
-                      <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
-                        {operation.motif}
-                      </p>
-                      <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {formatDate(operation.date)}
-                      </div>
-                    </div>
+                  {/* Informations */}
+                  <div className="flex-1 space-y-1.5">
+                    <h3 className="font-semibold text-xs line-clamp-2 min-h-[2rem]">
+                      {operation.compte_denomination}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground line-clamp-2 min-h-[1.5rem]">
+                      {operation.motif}
+                    </p>
+                  </div>
 
-                    <div className="text-right shrink-0">
-                      <p
-                        className={`text-lg font-bold ${
-                          operation.type_operation === "entree" ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {operation.type_operation === "entree" ? "+" : "-"}
-                        {formatMontant(operation.montant)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">FCFA</p>
+                  {/* Date et Montant en bas */}
+                  <div className="mt-2 pt-2 border-t space-y-1">
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Calendar className="h-2.5 w-2.5" />
+                      {formatDate(operation.date)}
                     </div>
+                    <p
+                      className={`text-base font-bold ${
+                        operation.type_operation === "entree" ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {operation.type_operation === "entree" ? "+" : "-"}
+                      {formatMontant(operation.montant)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">FCFA</p>
                   </div>
                 </CardContent>
               </Card>
