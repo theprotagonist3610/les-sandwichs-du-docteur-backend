@@ -1,10 +1,17 @@
+/**
+ * CloturerJournee.jsx
+ * Composant wrapper responsive pour la clôture journalière
+ */
+
+import React from "react";
 import useBreakpoint from "@/hooks/useBreakpoint";
-import MobileCloturerJournee from "./mobile/MobileCloturerJournee";
-import DesktopCloturerJournee from "./desktop/DesktopCloturerJournee";
+import DesktopCloture from "./desktop/DesktopCloture";
+import MobileCloture from "./mobile/MobileCloture";
 
 const CloturerJournee = () => {
-  const { mobile } = useBreakpoint();
-  return mobile ? <MobileCloturerJournee /> : <DesktopCloturerJournee />;
+  const { isMobile } = useBreakpoint();
+
+  return isMobile ? <MobileCloture /> : <DesktopCloture />;
 };
 
 export default CloturerJournee;

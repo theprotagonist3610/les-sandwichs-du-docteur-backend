@@ -2,9 +2,10 @@ import { useEffect, useMemo, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ref, onValue } from "firebase/database";
 import { toast } from "sonner";
+import { rtdb } from "../firebase";
 import useTresorerieStore from "@/stores/admin/useTresorerieStore";
 import { getAllComptesTresorerie } from "@/toolkits/admin/comptabiliteToolkit";
-import { rtdb } from "@/firebase";
+import { getOperationsForPeriod } from "@/toolkits/admin/comptabilite/operations";
 import {
   calculerDataRepartition,
   calculerDataEvolution,
@@ -51,7 +52,9 @@ export const useTresorerieData = () => {
     }))
   );
 
-  // Fonction de chargement des données (mémorisée pour éviter les re-créations)
+  /**
+   * Fonction de chargement des données avec calcul des soldes dynamiques
+   */
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -60,16 +63,50 @@ export const useTresorerieData = () => {
       // Récupérer les comptes de trésorerie
       const { comptes } = await getAllComptesTresorerie();
 
-      // Calculer les soldes réels basés sur les opérations du jour
-      const comptesAvecSoldes = await calculerSoldesAujourdhui(comptes);
+      // Charger les opérations des 7 derniers jours
+      const { operations } = await getOperationsForPeriod(7);
 
-      setComptesTresorerie(comptesAvecSoldes);
+      // Calculer le solde de chaque compte de trésorerie
+      const comptesAvecSolde = comptes.map((compte) => {
+        const operationsCompte = operations.filter((op) => op.compte_id === compte.id);
 
-      // Calculer la vraie variation (aujourd'hui vs hier)
-      const variation = await calculerVariationTresorerie(comptes);
+        const solde = operationsCompte.reduce((acc, op) => {
+          if (op.type_operation === "entree") {
+            return acc + op.montant;
+          } else if (op.type_operation === "sortie") {
+            return acc - op.montant;
+          }
+          return acc;
+        }, 0);
+
+        return {
+          ...compte,
+          solde,
+        };
+      });
+
+      setComptesTresorerie(comptesAvecSolde);
+
+      // Calculer la variation (comparaison 7 derniers jours vs 7 jours précédents)
+      const { operations: opsPrecedentes } = await getOperationsForPeriod(
+        7,
+        new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+      );
+
+      const soldeActuel = comptesAvecSolde.reduce((sum, c) => sum + c.solde, 0);
+      const soldePrecedent = opsPrecedentes.reduce((sum, op) => {
+        if (op.type_operation === "entree") return sum + op.montant;
+        if (op.type_operation === "sortie") return sum - op.montant;
+        return sum;
+      }, 0);
+
+      const variation = soldePrecedent === 0
+        ? (soldeActuel > 0 ? 100 : 0)
+        : ((soldeActuel - soldePrecedent) / soldePrecedent) * 100;
+
       setVariationPourcentage(variation);
 
-      console.log(`✅ ${comptes.length} comptes de trésorerie chargés avec soldes dynamiques`);
+      console.log(`✅ ${comptes.length} comptes de trésorerie chargés (7 derniers jours)`);
     } catch (err) {
       console.error("❌ Erreur chargement trésorerie:", err);
       setError(err.message);
@@ -79,7 +116,28 @@ export const useTresorerieData = () => {
     }
   }, [setIsLoading, setError, setComptesTresorerie, setVariationPourcentage]);
 
-  // Charger les comptes de trésorerie au montage du composant
+  // Listener RTDB pour mises à jour automatiques
+  useEffect(() => {
+    const triggerRef = ref(rtdb, "comptabilite_trigger");
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const lastTrigger = snapshot.val();
+        const keys = Object.keys(lastTrigger);
+        const latestKey = keys[keys.length - 1];
+        const trigger = lastTrigger[latestKey];
+
+        if (trigger.action && trigger.action.includes("operation")) {
+          console.log("♻️ Trésorerie - rechargement automatique...");
+          loadData();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [loadData]);
+
+  // Chargement initial
   useEffect(() => {
     loadData();
 
@@ -88,35 +146,6 @@ export const useTresorerieData = () => {
       reset();
     };
   }, [loadData, reset]);
-
-  // 🔥 Écouter les changements RTDB pour les mises à jour en temps réel
-  useEffect(() => {
-    const triggerRef = ref(rtdb, "comptabilite_trigger");
-
-    const unsubscribe = onValue(triggerRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const lastTrigger = snapshot.val();
-
-        // Récupérer la dernière clé (dernière notification)
-        const keys = Object.keys(lastTrigger);
-        if (keys.length > 0) {
-          const latestKey = keys[keys.length - 1];
-          const trigger = lastTrigger[latestKey];
-
-          console.log("🔔 Trigger RTDB détecté:", trigger);
-
-          // Recharger les données automatiquement après une opération
-          if (trigger.action && trigger.action.includes("operation")) {
-            console.log("♻️ Rechargement automatique de la trésorerie...");
-            loadData();
-          }
-        }
-      }
-    });
-
-    // Cleanup: se désabonner lors du démontage
-    return () => unsubscribe();
-  }, [loadData]);
 
   // Calculer les données de répartition (BarChart) de manière mémoïsée
   const dataRepartition = useMemo(() => {

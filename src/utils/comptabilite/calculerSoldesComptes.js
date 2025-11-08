@@ -6,6 +6,7 @@
 import {
   getOperationsToday,
   getOperationsByDay,
+  getOperationsForPeriod,
 } from "@/toolkits/admin/comptabilite/operations";
 import { formatDayKey } from "@/toolkits/admin/comptabilite/utils";
 
@@ -86,6 +87,37 @@ export async function calculerSoldesParJour(comptes, dayKey) {
 }
 
 /**
+ * Calcule les soldes des comptes pour une période (plusieurs jours)
+ * C'est la fonction recommandée pour charger les données avec performance optimale
+ * @param {Array} comptes - Liste des comptes comptables
+ * @param {number} nombreJours - Nombre de jours à charger (par défaut 7)
+ * @returns {Promise<Array>} Comptes avec leur solde calculé
+ */
+export async function calculerSoldesPeriode(comptes, nombreJours = 7) {
+  try {
+    // Charger toutes les opérations de la période en une seule fois
+    const { operations } = await getOperationsForPeriod(nombreJours);
+
+    console.log(`📊 Calcul des soldes sur ${nombreJours} jours (${operations.length} opérations)`);
+
+    // Calculer le solde de chaque compte
+    const comptesAvecSoldes = comptes.map((compte) => {
+      const solde = calculerSoldeCompte(compte.id, operations);
+      return {
+        ...compte,
+        solde,
+      };
+    });
+
+    return comptesAvecSoldes;
+  } catch (error) {
+    console.error(`❌ Erreur calcul soldes période (${nombreJours}j):`, error);
+    // Retourner les comptes avec solde à 0 en cas d'erreur
+    return comptes.map((c) => ({ ...c, solde: 0 }));
+  }
+}
+
+/**
  * Calcule le total d'une liste de comptes
  * @param {Array} comptes - Comptes avec soldes
  * @returns {number} Total des soldes
@@ -122,6 +154,45 @@ export async function calculerVariationComptes(comptes) {
     return variation;
   } catch (error) {
     console.error("❌ Erreur calcul variation:", error);
+    return 0;
+  }
+}
+
+/**
+ * Calcule la variation entre la période actuelle et la période précédente
+ * Version optimisée qui utilise getOperationsForPeriod()
+ * @param {Array} comptes - Liste des comptes
+ * @param {number} nombreJours - Nombre de jours (par défaut 7)
+ * @returns {Promise<number>} Variation en pourcentage
+ */
+export async function calculerVariationPeriode(comptes, nombreJours = 7) {
+  try {
+    // Période actuelle
+    const comptesPeriodeActuelle = await calculerSoldesPeriode(comptes, nombreJours);
+    const soldePeriodeActuelle = calculerSoldeTotal(comptesPeriodeActuelle);
+
+    // Période précédente (même durée, mais décalée dans le passé)
+    const dateDebutPrecedente = new Date(Date.now() - nombreJours * 2 * 24 * 60 * 60 * 1000);
+    const { operations: opsPrecedentes } = await getOperationsForPeriod(nombreJours, dateDebutPrecedente);
+
+    const comptesPeriodePrecedente = comptes.map((compte) => {
+      const solde = calculerSoldeCompte(compte.id, opsPrecedentes);
+      return { ...compte, solde };
+    });
+    const soldePeriodePrecedente = calculerSoldeTotal(comptesPeriodePrecedente);
+
+    // Calculer la variation
+    if (soldePeriodePrecedente === 0) {
+      return soldePeriodeActuelle > 0 ? 100 : 0;
+    }
+
+    const variation = ((soldePeriodeActuelle - soldePeriodePrecedente) / soldePeriodePrecedente) * 100;
+
+    console.log(`📈 Variation ${nombreJours}j: ${variation.toFixed(2)}% (${soldePeriodeActuelle} vs ${soldePeriodePrecedente})`);
+
+    return variation;
+  } catch (error) {
+    console.error("❌ Erreur calcul variation période:", error);
     return 0;
   }
 }

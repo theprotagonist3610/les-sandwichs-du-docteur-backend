@@ -8,9 +8,16 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, push } from "firebase/database";
 import { db, rtdb, auth } from "../../../firebase.js";
 import { operationSchema, operationsListeSchema } from "./schemas";
-import { TODAY_DOC, HISTORIQUE_DAYS_COLLECTION, RTDB_COMPTA_TRIGGER_PATH } from "./constants";
-import { formatDayKey } from "./utils";
+import {
+  TODAY_DOC,
+  HISTORIQUE_DAYS_COLLECTION,
+  RTDB_COMPTA_TRIGGER_PATH,
+  CACHE_KEY_TODAY,
+  CACHE_KEY_HISTORIQUE_PREFIX
+} from "./constants";
+import { formatDayKey, saveToCache, getFromCache, clearCache } from "./utils";
 import { getAllComptes, getAllComptesTresorerie } from "./comptes";
+import { updateStatistiquesEnTempsReel } from "./statistiques";
 
 // ============================================================================
 // FONCTIONS DE GESTION DES OPÉRATIONS
@@ -18,19 +25,34 @@ import { getAllComptes, getAllComptesTresorerie } from "./comptes";
 
 /**
  * Récupère les opérations du jour (today)
+ * Utilise le cache en priorité pour optimiser les performances
  */
 export async function getOperationsToday() {
   try {
+    // Essayer le cache d'abord
+    const cached = getFromCache(CACHE_KEY_TODAY);
+    if (cached) {
+      console.log(`📦 Cache: ${cached.operations.length} opérations today`);
+      return cached;
+    }
+
+    // Si pas de cache, récupérer depuis Firestore
     const todayRef = doc(db, TODAY_DOC);
     const todaySnap = await getDoc(todayRef);
 
     if (!todaySnap.exists()) {
       console.log("ℹ️ Aucune opération aujourd'hui");
-      return { operations: [], lastUpdated: Date.now() };
+      const emptyData = { operations: [], lastUpdated: Date.now() };
+      saveToCache(CACHE_KEY_TODAY, emptyData);
+      return emptyData;
     }
 
     const validated = operationsListeSchema.parse(todaySnap.data());
-    console.log(`✅ ${validated.operations.length} opérations récupérées`);
+    console.log(`✅ ${validated.operations.length} opérations today récupérées`);
+
+    // Sauvegarder dans le cache
+    saveToCache(CACHE_KEY_TODAY, validated);
+
     return validated;
   } catch (error) {
     console.error("❌ Erreur récupération operations today:", error);
@@ -40,22 +62,98 @@ export async function getOperationsToday() {
 
 /**
  * Récupère les opérations d'un jour spécifique (historique)
+ * Utilise le cache en priorité pour optimiser les performances
  */
 export async function getOperationsByDay(dayKey) {
   try {
+    // Essayer le cache d'abord
+    const cacheKey = `${CACHE_KEY_HISTORIQUE_PREFIX}${dayKey}`;
+    const cached = getFromCache(cacheKey);
+    if (cached) {
+      console.log(`📦 Cache: ${cached.operations.length} opérations pour ${dayKey}`);
+      return cached;
+    }
+
+    // Si pas de cache, récupérer depuis Firestore
     const dayRef = doc(db, `${HISTORIQUE_DAYS_COLLECTION}/${dayKey}`);
     const daySnap = await getDoc(dayRef);
 
     if (!daySnap.exists()) {
       console.log(`ℹ️ Aucune opération pour ${dayKey}`);
-      return { operations: [], lastUpdated: Date.now() };
+      const emptyData = { operations: [], lastUpdated: Date.now() };
+      saveToCache(cacheKey, emptyData);
+      return emptyData;
     }
 
     const validated = operationsListeSchema.parse(daySnap.data());
     console.log(`✅ ${validated.operations.length} opérations récupérées pour ${dayKey}`);
+
+    // Sauvegarder dans le cache
+    saveToCache(cacheKey, validated);
+
     return validated;
   } catch (error) {
     console.error(`❌ Erreur récupération operations ${dayKey}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Récupère les opérations pour une période (plusieurs jours)
+ * Charge today + historique pour les jours spécifiés
+ * @param {number} nombreJours - Nombre de jours à charger (par défaut 7)
+ * @param {Date} dateDebut - Date de début (optionnel, sinon calcul automatique)
+ * @returns {Promise<{operations: Array, dayKeys: string[]}>}
+ */
+export async function getOperationsForPeriod(nombreJours = 7, dateDebut = null) {
+  try {
+    const allOperations = [];
+    const dayKeys = [];
+
+    // Déterminer les jours à charger
+    const today = new Date();
+    const startDate = dateDebut || new Date(today.getTime() - (nombreJours - 1) * 24 * 60 * 60 * 1000);
+
+    // Générer les clés de jours
+    for (let i = 0; i < nombreJours; i++) {
+      const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+      const dayKey = formatDayKey(date);
+      dayKeys.push(dayKey);
+    }
+
+    console.log(`🔄 Chargement de ${nombreJours} jours: ${dayKeys[0]} → ${dayKeys[dayKeys.length - 1]}`);
+
+    // Charger les opérations de chaque jour
+    const promises = dayKeys.map(async (dayKey) => {
+      // Vérifier si c'est aujourd'hui
+      const todayKey = formatDayKey(today);
+      if (dayKey === todayKey) {
+        // Charger depuis "today"
+        const { operations } = await getOperationsToday();
+        return operations;
+      } else {
+        // Charger depuis l'historique
+        const { operations } = await getOperationsByDay(dayKey);
+        return operations;
+      }
+    });
+
+    const results = await Promise.all(promises);
+
+    // Fusionner toutes les opérations
+    results.forEach((ops) => {
+      allOperations.push(...ops);
+    });
+
+    console.log(`✅ Total: ${allOperations.length} opérations sur ${nombreJours} jours`);
+
+    return {
+      operations: allOperations,
+      dayKeys,
+      nombreJours,
+    };
+  } catch (error) {
+    console.error("❌ Erreur récupération operations période:", error);
     throw error;
   }
 }
@@ -148,6 +246,9 @@ export async function creerOperation(operationData, userId = "system") {
       lastUpdated: now,
     });
 
+    // Invalider le cache pour forcer le rechargement
+    clearCache(CACHE_KEY_TODAY);
+
     // Trigger RTDB pour mise à jour des statistiques
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
       action: "create_operation",
@@ -158,6 +259,14 @@ export async function creerOperation(operationData, userId = "system") {
       isFirstOperation,
       timestamp: now,
     });
+
+    // Mettre à jour les statistiques en temps réel
+    try {
+      await updateStatistiquesEnTempsReel();
+    } catch (statsError) {
+      console.warn("⚠️ Erreur mise à jour statistiques:", statsError);
+      // Ne pas bloquer la création d'opération si stats échouent
+    }
 
     console.log(`✅ Opération créée: ${validated.motif} (${validated.montant} FCFA)`);
     return validated;
@@ -236,6 +345,9 @@ export async function creerOperations(operationsArray, userId = "system") {
       lastUpdated: now,
     });
 
+    // Invalider le cache pour forcer le rechargement
+    clearCache(CACHE_KEY_TODAY);
+
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
       action: "create_operations_bulk",
@@ -243,6 +355,14 @@ export async function creerOperations(operationsArray, userId = "system") {
       isFirstOperation,
       timestamp: now,
     });
+
+    // Mettre à jour les statistiques en temps réel
+    try {
+      await updateStatistiquesEnTempsReel();
+    } catch (statsError) {
+      console.warn("⚠️ Erreur mise à jour statistiques:", statsError);
+      // Ne pas bloquer la création d'opérations si stats échouent
+    }
 
     console.log(`✅ ${nouvellesOperations.length} opérations créées en bulk`);
     return nouvellesOperations;
@@ -305,6 +425,9 @@ export async function updateOperation(operationId, updates, userId = "system") {
       lastUpdated: now,
     });
 
+    // Invalider le cache pour forcer le rechargement
+    clearCache(CACHE_KEY_TODAY);
+
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
       action: "update_operation",
@@ -348,6 +471,9 @@ export async function deleteOperation(operationId, userId = "system") {
       operations,
       lastUpdated: now,
     });
+
+    // Invalider le cache pour forcer le rechargement
+    clearCache(CACHE_KEY_TODAY);
 
     // Trigger RTDB
     await push(ref(rtdb, RTDB_COMPTA_TRIGGER_PATH), {
