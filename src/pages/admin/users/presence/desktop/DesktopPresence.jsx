@@ -257,7 +257,7 @@ const DesktopPresence = () => {
                   className={`cursor-pointer hover:shadow-md transition-all ${config.borderColor} ${
                     isOnline ? "ring-2 ring-green-200" : ""
                   }`}
-                  onClick={() => navigate(`/admin/user/profile/${user.id}`)}
+                  onClick={() => navigate(`/admin/users/profil/${user.id}`)}
                 >
                   <CardContent className="p-4">
                     {/* Header avec avatar */}

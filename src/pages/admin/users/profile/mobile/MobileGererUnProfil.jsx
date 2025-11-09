@@ -46,7 +46,7 @@ const MobileProfile = () => {
   }
 
   if (!user) {
-    return <div className="p-4"><Card className="border-red-200 bg-red-50"><CardContent className="pt-6"><p className="text-sm text-red-600">Utilisateur non trouvé</p><Button size="sm" onClick={() => navigate("/admin/user/profiles")} className="mt-4">Retour</Button></CardContent></Card></div>;
+    return <div className="p-4"><Card className="border-red-200 bg-red-50"><CardContent className="pt-6"><p className="text-sm text-red-600">Utilisateur non trouvé</p><Button size="sm" onClick={() => navigate("/admin/users/profil")} className="mt-4">Retour</Button></CardContent></Card></div>;
   }
 
   const config = STATUS_CONFIG[presence?.status] || STATUS_CONFIG.offline;
@@ -56,7 +56,7 @@ const MobileProfile = () => {
     <div className="pb-20">
       <div className="sticky top-0 z-10 bg-background border-b p-4">
         <div className="flex items-center gap-3 mb-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/user/profiles")}><ArrowLeft className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/users/profil")}><ArrowLeft className="h-5 w-5" /></Button>
           <div className="relative">
             <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">{user.nom?.charAt(0)}{user.prenoms?.[0]?.charAt(0)}</div>
             <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${config.color} rounded-full border border-white ${isOnline ? "animate-pulse" : ""}`} />

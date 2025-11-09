@@ -133,7 +133,7 @@ const DesktopProfiles = () => {
               <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Aucun utilisateur trouvé</TableCell></TableRow>
             ) : (
               usersFiltres.map((user) => (
-                <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/user/profile/${user.id}`)}>
+                <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/users/profil/${user.id}`)}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">{user.nom?.charAt(0)}{user.prenoms?.[0]?.charAt(0)}</div>
@@ -148,7 +148,7 @@ const DesktopProfiles = () => {
                   <TableCell>{user.sexe === "m" ? <User className="h-4 w-4" /> : <UserCircle className="h-4 w-4" />}</TableCell>
                   <TableCell>{formatDate(user.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate(`/admin/user/profile/${user.id}`); }}><Eye className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate(`/admin/users/profil/${user.id}`); }}><Eye className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))

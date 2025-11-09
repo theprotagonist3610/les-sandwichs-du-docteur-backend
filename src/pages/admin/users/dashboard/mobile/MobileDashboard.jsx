@@ -147,7 +147,7 @@ const MobileDashboard = () => {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => navigate("/admin/user/presence")}
+                  onClick={() => navigate("/admin/users/presence")}
                 >
                   <Eye className="h-3 w-3" />
                 </Button>
@@ -167,7 +167,7 @@ const MobileDashboard = () => {
                       key={user.id}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/user/profile/${user.id}`)
+                        navigate(`/admin/users/profil/${user.id}`)
                       }
                     >
                       <CardContent className="p-3">
@@ -216,7 +216,7 @@ const MobileDashboard = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => navigate("/admin/user/presence")}
+                onClick={() => navigate("/admin/users/presence")}
               >
                 <UserCheck className="h-4 w-4 mr-2" />
                 Monitoring Présence
@@ -224,7 +224,7 @@ const MobileDashboard = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => navigate("/admin/user/profiles")}
+                onClick={() => navigate("/admin/users/profil")}
               >
                 <Users className="h-4 w-4 mr-2" />
                 Tous les Profils

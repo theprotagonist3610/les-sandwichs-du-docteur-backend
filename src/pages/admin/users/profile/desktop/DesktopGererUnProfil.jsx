@@ -46,7 +46,7 @@ const DesktopProfile = () => {
   }
 
   if (!user) {
-    return <div className="p-6"><Card className="border-red-200 bg-red-50"><CardContent className="pt-6"><p className="text-red-600">Utilisateur non trouvé</p><Button onClick={() => navigate("/admin/user/profiles")} className="mt-4">Retour</Button></CardContent></Card></div>;
+    return <div className="p-6"><Card className="border-red-200 bg-red-50"><CardContent className="pt-6"><p className="text-red-600">Utilisateur non trouvé</p><Button onClick={() => navigate("/admin/users/profil")} className="mt-4">Retour</Button></CardContent></Card></div>;
   }
 
   const config = STATUS_CONFIG[presence?.status] || STATUS_CONFIG.offline;
@@ -56,7 +56,7 @@ const DesktopProfile = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/user/profiles")}><ArrowLeft className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/users/profil")}><ArrowLeft className="h-5 w-5" /></Button>
           <div className="relative">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-2xl">{user.nom?.charAt(0)}{user.prenoms?.[0]?.charAt(0)}</div>
             <div className={`absolute -bottom-1 -right-1 w-5 h-5 ${config.color} rounded-full border-2 border-white ${isOnline ? "animate-pulse" : ""}`} />

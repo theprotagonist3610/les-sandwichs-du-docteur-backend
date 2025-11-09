@@ -156,7 +156,7 @@ const MobilePresence = () => {
               const config = STATUS_CONFIG[user.presence.status] || STATUS_CONFIG.offline;
               const isOnline = user.presence.status === "online";
               return (
-                <Card key={user.id} className={`cursor-pointer ${isOnline ? "border-green-300" : ""}`} onClick={() => navigate(`/admin/user/profile/${user.id}`)}>
+                <Card key={user.id} className={`cursor-pointer ${isOnline ? "border-green-300" : ""}`} onClick={() => navigate(`/admin/users/profil/${user.id}`)}>
                   <CardContent className="p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 flex-1 min-w-0">

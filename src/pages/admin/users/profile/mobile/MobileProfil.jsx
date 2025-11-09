@@ -77,7 +77,7 @@ const MobileProfiles = () => {
             <Card><CardContent className="pt-6 text-center"><p className="text-sm text-muted-foreground">Aucun utilisateur</p></CardContent></Card>
           ) : (
             usersFiltres.map((user) => (
-              <Card key={user.id} className="cursor-pointer" onClick={() => navigate(`/admin/user/profile/${user.id}`)}>
+              <Card key={user.id} className="cursor-pointer" onClick={() => navigate(`/admin/users/profil/${user.id}`)}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
