@@ -27,7 +27,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const TYPE_COLORS = {
@@ -48,7 +48,6 @@ const TYPE_LABELS = {
 
 const DesktopStockElements = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [filtreType, setFiltreType] = useState("");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
@@ -124,16 +123,9 @@ const DesktopStockElements = () => {
   const handleRefresh = async () => {
     try {
       await refetch();
-      toast({
-        title: "✅ Données actualisées",
-        description: "La liste des éléments a été rechargée",
-      });
+      toast.success("Données actualisées - La liste des éléments a été rechargée");
     } catch (err) {
-      toast({
-        title: "❌ Erreur",
-        description: err.message,
-        variant: "destructive",
-      });
+      toast.error(`Erreur: ${err.message}`);
     }
   };
 

@@ -32,7 +32,7 @@ import {
   Clock,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const EMPLACEMENT_ICONS = {
@@ -49,7 +49,6 @@ const EMPLACEMENT_COLORS = {
 
 const DesktopEmplacements = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [filtreType, setFiltreType] = useState("");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
@@ -121,16 +120,9 @@ const DesktopEmplacements = () => {
   const handleRefresh = async () => {
     try {
       await refetch();
-      toast({
-        title: "✅ Données actualisées",
-        description: "La liste des emplacements a été rechargée",
-      });
+      toast.success("Données actualisées - La liste des emplacements a été rechargée");
     } catch (err) {
-      toast({
-        title: "❌ Erreur",
-        description: err.message,
-        variant: "destructive",
-      });
+      toast.error(`Erreur: ${err.message}`);
     }
   };
 
