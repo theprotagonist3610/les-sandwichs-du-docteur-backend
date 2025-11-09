@@ -1,74 +1,68 @@
 /**
- * stockRoutes.js
- * Configuration des routes pour la gestion du stock
+ * Configuration des sous-routes de Settings
+ * Ces routes seront intégrées dans adminRoutes
+ *
+ * Pour ajouter un composant à une route :
+ * 1. Créez le composant dans pages/admin/Settings/{nom}.jsx
+ * 2. Importez-le en haut de ce fichier
+ * 3. Remplacez `component: null` par `component: YourComponent`
+ *
+ * Pour ajouter des sous-routes (ex: users/create) :
+ * Ajoutez un tableau `children` avec la même structure
  */
 
-import { lazy } from "react";
+import Dashboard from "@/pages/admin/stock/Dashboard";
+import Emplacement from "@/pages/admin/stock/Emplacement";
+import Emplacements from "@/pages/admin/stock/Emplacements";
+import OperationDeStock from "@/pages/admin/stock/OperationDeStock";
+import StockElement from "@/pages/admin/stock/StockElement";
+import StockElements from "@/pages/admin/stock/StockElements";
 
-// Lazy loading des composants
-const Dashboard = lazy(() => import("./Dashboard"));
-const Emplacements = lazy(() => import("./Emplacements"));
-const Emplacement = lazy(() => import("./Emplacement"));
-const StockElements = lazy(() => import("./StockElements"));
-const StockElement = lazy(() => import("./StockElement"));
-const OperationDeStock = lazy(() => import("./OperationDeStock"));
+// Import des composants pour chaque section
+// À décommenter et créer au fur et à mesure
+export const stockSubRoutes = [
+  {
+    path: "dashboard",
+    nom: "Tableau de bord",
+    description: "Monitoring du stock",
+    url: "/users.svg",
+    component: Dashboard, // ✅ Composant activé
+  },
+  {
+    path: "emplacements",
+    nom: "Emplacements",
+    description: "Les points de vente",
+    url: "/users.svg",
+    component: Emplacements, // ✅ Composant activé
+    children: [
+      {
+        path: ":id",
+        nom: "Surveiller un emplacement",
+        component: Emplacement, // ✅ Composant activé
+      },
+    ],
+  },
+  {
+    path: "stock",
+    nom: "Le stock",
+    description: "Etat du stock",
+    url: "/users.svg",
+    component: StockElements, // ✅ Composant activé
+    children: [
+      {
+        path: ":id",
+        nom: "Surveiller un élément de stock",
+        component: StockElement, // ✅ Composant activé
+      },
+    ],
+  },
+  {
+    path: "operation",
+    nom: "Faire une opération de stock",
+    description: "Etat du stock",
+    url: "/users.svg",
+    component: OperationDeStock, // ✅ Composant activé
+  },
+];
 
-export const stockRoutes = {
-  path: "stock",
-  nom: "Gestion du Stock",
-  description: "Gestion complète du stock et des emplacements",
-  url: "/stock.svg",
-  children: [
-    {
-      path: "",
-      nom: "Dashboard Stock",
-      description: "Vue d'ensemble globale du stock",
-      component: Dashboard,
-    },
-    {
-      path: "emplacements",
-      nom: "Emplacements",
-      description: "Liste de tous les emplacements",
-      component: Emplacements,
-      children: [
-        {
-          path: ":id",
-          nom: "Détail Emplacement",
-          component: Emplacement,
-        },
-      ],
-    },
-    {
-      path: "elements",
-      nom: "Éléments de Stock",
-      description: "Liste de tous les éléments de stock",
-      component: StockElements,
-      children: [
-        {
-          path: ":id",
-          nom: "Détail Élément",
-          component: StockElement,
-        },
-      ],
-    },
-    {
-      path: "operations",
-      nom: "Opérations de Stock",
-      description: "Gestion des opérations de stock",
-      children: [
-        {
-          path: "create",
-          nom: "Nouvelle Opération",
-          component: OperationDeStock,
-        },
-        {
-          path: "edit/:id",
-          nom: "Éditer Opération",
-          component: OperationDeStock,
-        },
-      ],
-    },
-  ],
-};
-
-export default stockRoutes;
+export default stockSubRoutes;
