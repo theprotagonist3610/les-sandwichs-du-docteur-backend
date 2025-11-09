@@ -3,19 +3,32 @@
  * Affiche les différentes sections de paramétrage
  */
 import GenericCards from "@/components/global/GenericCards";
-import userSubRoutes from "./usersRoutes";
+import { LayoutDashboard, UserRoundCheck, UserRoundPen } from "lucide-react";
 
 /**
  * Construire la liste avec les liens complets
  */
-const liste = userSubRoutes.map((route) => ({
-  nom: route.nom,
-  description: route.description,
-  url: route.url,
-  to: `/admin/users/${route.path}`,
-}));
-
 const Users = () => {
+  const liste = [
+    {
+      nom: "Tableau de bord",
+      description: "Surveillez les utilisateurs",
+      to: "/admin/users/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      nom: "Presence",
+      description: "Surveillez les utilisateurs",
+      to: "/admin/users/presence",
+      icon: UserRoundCheck,
+    },
+    {
+      nom: "Profiles",
+      description: "Surveillez les utilisateurs",
+      to: "/admin/users/profiles",
+      icon: UserRoundPen,
+    },
+  ];
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* En-tête */}
