@@ -28,7 +28,8 @@ const ProtectedRoute = ({ children, requireAuth = true, allowedRoles = [] }) => 
 
   // Si l'utilisateur est connecté et essaie d'accéder aux pages login/register
   if (!requireAuth && user) {
-    return <Navigate to="/dashboard" replace />;
+    const role = user.role || "admin";
+    return <Navigate to={`/${role}/dashboard`} replace />;
   }
 
   // Vérification des rôles autorisés
@@ -43,7 +44,9 @@ const ProtectedRoute = ({ children, requireAuth = true, allowedRoles = [] }) => 
     }
   }
 
-  return children;
+  // Force remount when user changes by using user.uid as key
+  // This ensures components reload correctly after login/logout
+  return <div key={user?.uid || 'no-user'}>{children}</div>;
 };
 
 export default ProtectedRoute;
