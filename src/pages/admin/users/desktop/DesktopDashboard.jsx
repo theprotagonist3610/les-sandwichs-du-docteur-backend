@@ -99,7 +99,7 @@ const DesktopDashboard = () => {
             Supervision et monitoring en temps réel
           </p>
         </div>
-        <Button onClick={() => navigate("/admin/user/profiles")}>
+        <Button onClick={() => navigate("/admin/users/profil")}>
           <ListFilter className="h-4 w-4 mr-2" />
           Voir tous les profils
         </Button>
@@ -255,7 +255,7 @@ const DesktopDashboard = () => {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => navigate("/admin/user/presence")}
+                onClick={() => navigate("/admin/users/presence")}
               >
                 <Eye className="h-4 w-4 mr-1" />
                 Voir tout
@@ -276,7 +276,7 @@ const DesktopDashboard = () => {
                       key={user.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/user/profile/${user.id}`)
+                        navigate(`/admin/users/profil/${user.id}`)
                       }
                     >
                       <div className="flex items-center gap-3">
@@ -324,7 +324,7 @@ const DesktopDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/admin/user/presence")}
+          onClick={() => navigate("/admin/users/presence")}
         >
           <CardContent className="pt-6 text-center">
             <UserCheck className="h-12 w-12 mx-auto mb-3 text-green-600" />
@@ -337,7 +337,7 @@ const DesktopDashboard = () => {
 
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/admin/user/profiles")}
+          onClick={() => navigate("/admin/users/profil")}
         >
           <CardContent className="pt-6 text-center">
             <Users className="h-12 w-12 mx-auto mb-3 text-blue-600" />
