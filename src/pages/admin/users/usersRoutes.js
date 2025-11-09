@@ -12,11 +12,11 @@
  */
 
 // Import des composants pour chaque section
-// À décommenter et créer au fur et à mesure
 import Dashboard from "@/pages/admin/users/Dashboard";
 import Presence from "@/pages/admin/users/Presence";
 import Profiles from "@/pages/admin/users/Profiles";
 import Profile from "@/pages/admin/users/Profile";
+
 export const userSubRoutes = [
   {
     path: "dashboard",
