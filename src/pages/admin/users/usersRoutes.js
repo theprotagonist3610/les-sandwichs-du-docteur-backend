@@ -12,10 +12,11 @@
  */
 
 // Import des composants pour chaque section
-// À décommenter et créer au fur et à mesure
 import Dashboard from "@/pages/admin/users/dashboard/Dashboard";
 import Presence from "@/pages/admin/users/presence/Presence";
+import GererUnePresence from "@/pages/admin/users/presence/GererUnePresence";
 import Profil from "@/pages/admin/users/profile/Profil";
+import GererUnProfil from "@/pages/admin/users/profile/GererUnProfil";
 export const userSubRoutes = [
   {
     path: "dashboard",
@@ -34,8 +35,8 @@ export const userSubRoutes = [
     children: [
       {
         path: ":id",
-        nom: "Surveiller la presence des utilisateurs",
-        component: null, // ✅ Composant activé
+        nom: "Surveiller la presence d'un utilisateur",
+        component: GererUnePresence, // ✅ Composant activé
       },
     ],
   },
@@ -49,8 +50,8 @@ export const userSubRoutes = [
     children: [
       {
         path: ":id",
-        nom: "Surveiller la presence des utilisateurs",
-        component: null, // ✅ Composant activé
+        nom: "Gérer le profil d'un utilisateur",
+        component: GererUnProfil, // ✅ Composant activé
       },
     ],
   },
