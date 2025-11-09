@@ -56,14 +56,14 @@ const EMPLACEMENT_COLORS = {
 
 const MobileEmplacements = () => {
   const navigate = useNavigate();
-  const [filtreType, setFiltreType] = useState("");
+  const [filtreType, setFiltreType] = useState("all");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("nom");
 
   const { emplacements, loading, error, refetch } = useEmplacements({
-    type: filtreType || undefined,
-    status: filtreStatus === "true" ? true : filtreStatus === "false" ? false : undefined,
+    type: filtreType === "all" ? undefined : filtreType,
+    status: filtreStatus === "all" ? undefined : filtreStatus === "true" ? true : false,
     search: recherche || undefined,
   });
 
@@ -235,7 +235,7 @@ const MobileEmplacements = () => {
                       <SelectValue placeholder="Tous" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="entrepot">Entrepôt</SelectItem>
                       <SelectItem value="point_de_vente">
                         Point de vente
@@ -253,7 +253,7 @@ const MobileEmplacements = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="true">Actifs</SelectItem>
                       <SelectItem value="false">Inactifs</SelectItem>
                     </SelectContent>

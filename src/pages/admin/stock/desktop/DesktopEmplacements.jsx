@@ -49,15 +49,15 @@ const EMPLACEMENT_COLORS = {
 
 const DesktopEmplacements = () => {
   const navigate = useNavigate();
-  const [filtreType, setFiltreType] = useState("");
+  const [filtreType, setFiltreType] = useState("all");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("nom");
 
   // Charger les emplacements avec cache
   const { emplacements, loading, error, refetch } = useEmplacements({
-    type: filtreType || undefined,
-    status: filtreStatus === "true" ? true : filtreStatus === "false" ? false : undefined,
+    type: filtreType === "all" ? undefined : filtreType,
+    status: filtreStatus === "all" ? undefined : filtreStatus === "true" ? true : false,
     search: recherche || undefined,
   });
 
@@ -278,7 +278,7 @@ const DesktopEmplacements = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les types</SelectItem>
+                <SelectItem value="all">Tous les types</SelectItem>
                 <SelectItem value="entrepot">Entrepôt</SelectItem>
                 <SelectItem value="point_de_vente">Point de vente</SelectItem>
                 <SelectItem value="stand">Stand</SelectItem>
@@ -289,7 +289,7 @@ const DesktopEmplacements = () => {
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 <SelectItem value="true">Actifs</SelectItem>
                 <SelectItem value="false">Inactifs</SelectItem>
               </SelectContent>
