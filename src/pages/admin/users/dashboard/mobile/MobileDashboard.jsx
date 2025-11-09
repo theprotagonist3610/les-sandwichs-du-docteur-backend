@@ -167,7 +167,7 @@ const MobileDashboard = () => {
                       key={user.id}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/users/profil/${user.id}`)
+                        navigate(`/admin/users/profile/${user.id}`)
                       }
                     >
                       <CardContent className="p-3">
@@ -224,7 +224,7 @@ const MobileDashboard = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => navigate("/admin/users/profil")}
+                onClick={() => navigate("/admin/users/profiles")}
               >
                 <Users className="h-4 w-4 mr-2" />
                 Tous les Profils

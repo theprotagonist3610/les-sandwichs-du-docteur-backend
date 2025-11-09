@@ -23,7 +23,7 @@ Test unitaires pour tester chacune des fonctions
 // admin/userToolkit.jsx - Collection d'outils pour la gestion des utilisateurs
 // ============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
   createUserWithEmailAndPassword,

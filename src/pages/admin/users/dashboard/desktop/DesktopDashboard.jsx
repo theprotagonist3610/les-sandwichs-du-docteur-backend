@@ -99,7 +99,7 @@ const DesktopDashboard = () => {
             Supervision et monitoring en temps réel
           </p>
         </div>
-        <Button onClick={() => navigate("/admin/users/profil")}>
+        <Button onClick={() => navigate("/admin/users/profiles")}>
           <ListFilter className="h-4 w-4 mr-2" />
           Voir tous les profils
         </Button>
@@ -276,7 +276,7 @@ const DesktopDashboard = () => {
                       key={user.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/users/profil/${user.id}`)
+                        navigate(`/admin/users/profile/${user.id}`)
                       }
                     >
                       <div className="flex items-center gap-3">
@@ -337,7 +337,7 @@ const DesktopDashboard = () => {
 
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/admin/users/profil")}
+          onClick={() => navigate("/admin/users/profiles")}
         >
           <CardContent className="pt-6 text-center">
             <Users className="h-12 w-12 mx-auto mb-3 text-blue-600" />
