@@ -670,6 +670,169 @@ export function useUser(userId) {
   };
 }
 
+/**
+ * Hook pour récupérer toutes les présences en temps réel depuis RTDB
+ * Utilise un listener qui se met à jour automatiquement
+ * @returns {Object} { presences, loading, error }
+ */
+export function usePresences() {
+  const [presences, setPresences] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const presencesRef = ref(rtdb, "presence");
+
+    const unsubscribe = onValue(
+      presencesRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setPresences(snapshot.val());
+        } else {
+          setPresences({});
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.error("❌ Erreur usePresences:", err);
+        setError(err.message);
+        setPresences({});
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  return {
+    presences,
+    loading,
+    error,
+  };
+}
+
+/**
+ * Hook pour récupérer la présence d'un utilisateur spécifique en temps réel
+ * @param {string} userId - ID de l'utilisateur
+ * @returns {Object} { presence, loading, error }
+ */
+export function useUserPresence(userId) {
+  const [presence, setPresence] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setPresence(null);
+      setLoading(false);
+      return;
+    }
+
+    const presenceRef = ref(rtdb, `presence/${userId}`);
+
+    const unsubscribe = onValue(
+      presenceRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setPresence(snapshot.val());
+        } else {
+          setPresence({
+            userId: userId,
+            status: "offline",
+            updatedAt: 0,
+          });
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.error("❌ Erreur useUserPresence:", err);
+        setError(err.message);
+        setPresence(null);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  return {
+    presence,
+    loading,
+    error,
+  };
+}
+
+/**
+ * Hook pour récupérer tous les utilisateurs avec leurs présences en temps réel
+ * Combine automatiquement les données Firestore et RTDB
+ * @param {Object} options - Options pour useUsers
+ * @returns {Object} { users, loading, error, refetch }
+ */
+export function useUsersWithPresence(options = {}) {
+  const { users, loading: loadingUsers, error: errorUsers, refetch } = useUsers(options);
+  const { presences, loading: loadingPresences, error: errorPresences } = usePresences();
+
+  const usersWithPresence = useMemo(() => {
+    return users.map((user) => ({
+      ...user,
+      presence: presences[user.id] || {
+        userId: user.id,
+        status: "offline",
+        updatedAt: 0,
+      },
+    }));
+  }, [users, presences]);
+
+  return {
+    users: usersWithPresence,
+    loading: loadingUsers || loadingPresences,
+    error: errorUsers || errorPresences,
+    refetch,
+  };
+}
+
+/**
+ * Hook pour calculer automatiquement les métriques utilisateurs en temps réel
+ * @param {Object} options - Options pour useUsersWithPresence
+ * @returns {Object} Métriques calculées (total, online, offline, away, admins, male, female, newUsers)
+ */
+export function useUserMetrics(options = {}) {
+  const { users, loading, error } = useUsersWithPresence(options);
+
+  const metrics = useMemo(() => {
+    const online = users.filter((u) => u.presence.status === "online").length;
+    const offline = users.filter((u) => u.presence.status === "offline").length;
+    const away = users.filter((u) => u.presence.status === "away").length;
+    const admins = users.filter((u) => u.role === "admin").length;
+    const regularUsers = users.filter((u) => u.role === "user" || !u.role).length;
+    const male = users.filter((u) => u.sexe === "m").length;
+    const female = users.filter((u) => u.sexe === "f").length;
+
+    // Utilisateurs créés dans les 7 derniers jours
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const newUsers = users.filter((u) => u.createdAt >= sevenDaysAgo).length;
+
+    return {
+      total: users.length,
+      online,
+      offline,
+      away,
+      admins,
+      regularUsers,
+      male,
+      female,
+      newUsers,
+    };
+  }, [users]);
+
+  return {
+    metrics,
+    users,
+    loading,
+    error,
+  };
+}
+
 // ============================================================================
 // EXPORT PAR DÉFAUT
 // ============================================================================
@@ -697,4 +860,8 @@ export default {
   // Hooks
   useUsers,
   useUser,
+  usePresences,
+  useUserPresence,
+  useUsersWithPresence,
+  useUserMetrics,
 };
