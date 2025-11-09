@@ -3,11 +3,9 @@
  * Monitoring temps réel des utilisateurs connectés
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsers } from "@/toolkits/admin/userToolkit";
-import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/firebase";
+import { useUsersWithPresence } from "@/toolkits/admin/userToolkit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,40 +58,10 @@ const STATUS_CONFIG = {
 
 const DesktopPresence = () => {
   const navigate = useNavigate();
-  const { users, loading: loadingUsers, refetch } = useUsers();
-  const [presences, setPresences] = useState({});
-  const [loadingPresences, setLoadingPresences] = useState(true);
+  const { users: usersWithPresence, loading, error } = useUsersWithPresence();
   const [filtreStatus, setFiltreStatus] = useState("");
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("activity");
-
-  // Real-time listener
-  useEffect(() => {
-    const presencesRef = ref(rtdb, "presence");
-
-    const unsubscribe = onValue(presencesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setPresences(snapshot.val());
-      } else {
-        setPresences({});
-      }
-      setLoadingPresences(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Combiner users et presences
-  const usersWithPresence = useMemo(() => {
-    return users.map((user) => ({
-      ...user,
-      presence: presences[user.id] || {
-        userId: user.id,
-        status: "offline",
-        updatedAt: 0,
-      },
-    }));
-  }, [users, presences]);
 
   // Appliquer filtres
   const usersFiltres = useMemo(() => {
@@ -164,12 +132,7 @@ const DesktopPresence = () => {
     return `Il y a ${days}j`;
   };
 
-  const handleRefresh = async () => {
-    await refetch();
-    toast.success("Données actualisées");
-  };
-
-  if (loadingUsers || loadingPresences) {
+  if (loading) {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-16 w-full" />
@@ -182,6 +145,10 @@ const DesktopPresence = () => {
     );
   }
 
+  if (error) {
+    toast.error("Erreur de connexion au monitoring temps réel");
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -190,10 +157,6 @@ const DesktopPresence = () => {
           <h1 className="text-3xl font-bold">Monitoring Présence</h1>
           <p className="text-muted-foreground">Surveillance en temps réel</p>
         </div>
-        <Button variant="outline" onClick={handleRefresh}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualiser
-        </Button>
       </div>
 
       {/* KPIs compacts */}

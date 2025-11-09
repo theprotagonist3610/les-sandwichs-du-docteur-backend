@@ -3,11 +3,9 @@
  * Version mobile du dashboard de supervision
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsers } from "@/toolkits/admin/userToolkit";
-import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/firebase";
+import { useUserMetrics } from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,56 +47,14 @@ const STATUS_CONFIG = {
 
 const MobileDashboard = () => {
   const navigate = useNavigate();
-  const { users, loading: loadingUsers, refetch } = useUsers();
-  const [presences, setPresences] = useState({});
-  const [loadingPresences, setLoadingPresences] = useState(true);
-
-  // Real-time listener
-  useEffect(() => {
-    const presencesRef = ref(rtdb, "presence");
-
-    const unsubscribe = onValue(presencesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setPresences(snapshot.val());
-      } else {
-        setPresences({});
-      }
-      setLoadingPresences(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const kpis = useMemo(() => {
-    const presencesList = Object.values(presences);
-    const online = presencesList.filter((p) => p.status === "online").length;
-    const offline = presencesList.filter((p) => p.status === "offline").length;
-    const away = presencesList.filter((p) => p.status === "away").length;
-
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const newUsers = users.filter((u) => u.createdAt >= sevenDaysAgo).length;
-
-    return {
-      total: users.length,
-      online,
-      offline,
-      away,
-      newUsers,
-    };
-  }, [users, presences]);
+  const { metrics, users, loading, error } = useUserMetrics();
 
   const recentlyActive = useMemo(() => {
-    const presencesList = Object.entries(presences).map(([userId, data]) => ({
-      userId,
-      ...data,
-      user: users.find((u) => u.id === userId),
-    }));
-
-    return presencesList
-      .filter((p) => p.user)
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    return users
+      .filter((u) => u.presence)
+      .sort((a, b) => (b.presence?.updatedAt || 0) - (a.presence?.updatedAt || 0))
       .slice(0, 3);
-  }, [presences, users]);
+  }, [users]);
 
   const formatRelativeTime = (timestamp) => {
     if (!timestamp) return "Jamais";
@@ -111,12 +67,7 @@ const MobileDashboard = () => {
     return `${Math.floor(hours / 24)}j`;
   };
 
-  const handleRefresh = async () => {
-    await refetch();
-    toast.success("Actualisé");
-  };
-
-  if (loadingUsers || loadingPresences) {
+  if (loading) {
     return (
       <div className="p-4 space-y-4">
         <Skeleton className="h-16 w-full" />
@@ -129,6 +80,10 @@ const MobileDashboard = () => {
     );
   }
 
+  if (error) {
+    toast.error("Erreur de connexion au monitoring temps réel");
+  }
+
   return (
     <div className="pb-20">
       {/* Header sticky */}
@@ -138,9 +93,6 @@ const MobileDashboard = () => {
             <h1 className="text-xl font-bold">Dashboard</h1>
             <p className="text-xs text-muted-foreground">Supervision</p>
           </div>
-          <Button variant="outline" size="icon" onClick={handleRefresh}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
@@ -152,7 +104,7 @@ const MobileDashboard = () => {
               <CardContent className="pt-4 pb-4">
                 <Users className="h-6 w-6 text-blue-600 mb-2" />
                 <p className="text-[10px] text-blue-700">Total</p>
-                <p className="text-xl font-bold text-blue-900">{kpis.total}</p>
+                <p className="text-xl font-bold text-blue-900">{metrics.total}</p>
                 <p className="text-[10px] text-blue-600">utilisateurs</p>
               </CardContent>
             </Card>
@@ -161,7 +113,7 @@ const MobileDashboard = () => {
               <CardContent className="pt-4 pb-4">
                 <UserCheck className="h-6 w-6 text-green-600 mb-2" />
                 <p className="text-[10px] text-green-700">En ligne</p>
-                <p className="text-xl font-bold text-green-900">{kpis.online}</p>
+                <p className="text-xl font-bold text-green-900">{metrics.online}</p>
                 <p className="text-[10px] text-green-600">actifs</p>
               </CardContent>
             </Card>
@@ -170,8 +122,8 @@ const MobileDashboard = () => {
               <CardContent className="pt-4 pb-4">
                 <UserX className="h-6 w-6 text-gray-600 mb-2" />
                 <p className="text-[10px] text-gray-700">Hors ligne</p>
-                <p className="text-xl font-bold text-gray-900">{kpis.offline}</p>
-                <p className="text-[10px] text-gray-600">{kpis.away} absents</p>
+                <p className="text-xl font-bold text-gray-900">{metrics.offline}</p>
+                <p className="text-[10px] text-gray-600">{metrics.away} absents</p>
               </CardContent>
             </Card>
 
@@ -180,7 +132,7 @@ const MobileDashboard = () => {
                 <Clock className="h-6 w-6 text-purple-600 mb-2" />
                 <p className="text-[10px] text-purple-700">Nouveaux</p>
                 <p className="text-xl font-bold text-purple-900">
-                  {kpis.newUsers}
+                  {metrics.newUsers}
                 </p>
                 <p className="text-[10px] text-purple-600">7 derniers j</p>
               </CardContent>
@@ -207,15 +159,15 @@ const MobileDashboard = () => {
                   Aucune activité
                 </p>
               ) : (
-                recentlyActive.map((presence) => {
+                recentlyActive.map((user) => {
                   const config =
-                    STATUS_CONFIG[presence.status] || STATUS_CONFIG.offline;
+                    STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
                   return (
                     <Card
-                      key={presence.userId}
+                      key={user.id}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/user/profile/${presence.userId}`)
+                        navigate(`/admin/user/profile/${user.id}`)
                       }
                     >
                       <CardContent className="p-3">
@@ -223,8 +175,8 @@ const MobileDashboard = () => {
                           <div className="flex items-center gap-2">
                             <div className="relative">
                               <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                                {presence.user?.nom?.charAt(0)}
-                                {presence.user?.prenoms?.[0]?.charAt(0)}
+                                {user.nom?.charAt(0)}
+                                {user.prenoms?.[0]?.charAt(0)}
                               </div>
                               <div
                                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${config.color} rounded-full border border-white`}
@@ -232,11 +184,11 @@ const MobileDashboard = () => {
                             </div>
                             <div>
                               <p className="text-xs font-semibold line-clamp-1">
-                                {presence.user?.nom}{" "}
-                                {presence.user?.prenoms?.[0]}
+                                {user.nom}{" "}
+                                {user.prenoms?.[0]}
                               </p>
                               <p className="text-[10px] text-muted-foreground">
-                                {formatRelativeTime(presence.updatedAt)}
+                                {formatRelativeTime(user.presence?.updatedAt)}
                               </p>
                             </div>
                           </div>

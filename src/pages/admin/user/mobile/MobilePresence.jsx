@@ -3,11 +3,9 @@
  * Version mobile du monitoring présence temps réel
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsers } from "@/toolkits/admin/userToolkit";
-import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/firebase";
+import { useUsersWithPresence } from "@/toolkits/admin/userToolkit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,28 +25,10 @@ const STATUS_CONFIG = {
 
 const MobilePresence = () => {
   const navigate = useNavigate();
-  const { users, loading: loadingUsers, refetch } = useUsers();
-  const [presences, setPresences] = useState({});
-  const [loadingPresences, setLoadingPresences] = useState(true);
+  const { users: usersWithPresence, loading, error } = useUsersWithPresence();
   const [filtreStatus, setFiltreStatus] = useState("");
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("activity");
-
-  useEffect(() => {
-    const presencesRef = ref(rtdb, "presence");
-    const unsubscribe = onValue(presencesRef, (snapshot) => {
-      setPresences(snapshot.exists() ? snapshot.val() : {});
-      setLoadingPresences(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const usersWithPresence = useMemo(() => {
-    return users.map((user) => ({
-      ...user,
-      presence: presences[user.id] || { userId: user.id, status: "offline", updatedAt: 0 },
-    }));
-  }, [users, presences]);
 
   const usersFiltres = useMemo(() => {
     let filtered = usersWithPresence;
@@ -85,8 +65,12 @@ const MobilePresence = () => {
     return `${Math.floor(h / 24)}j`;
   };
 
-  if (loadingUsers || loadingPresences) {
+  if (loading) {
     return <div className="p-4 space-y-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>;
+  }
+
+  if (error) {
+    toast.error("Erreur de connexion au monitoring temps réel");
   }
 
   return (
@@ -97,9 +81,6 @@ const MobilePresence = () => {
             <h1 className="text-xl font-bold">Présence</h1>
             <p className="text-xs text-muted-foreground">Temps réel</p>
           </div>
-          <Button variant="outline" size="icon" onClick={() => refetch().then(() => toast.success("Actualisé"))}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="grid grid-cols-3 gap-2">

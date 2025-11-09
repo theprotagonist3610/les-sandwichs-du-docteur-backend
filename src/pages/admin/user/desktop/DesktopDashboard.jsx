@@ -3,11 +3,9 @@
  * Dashboard de supervision des utilisateurs
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsers } from "@/toolkits/admin/userToolkit";
-import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/firebase";
+import { useUserMetrics } from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,73 +49,15 @@ const STATUS_CONFIG = {
 
 const DesktopDashboard = () => {
   const navigate = useNavigate();
-  const { users, loading: loadingUsers, refetch } = useUsers();
-  const [presences, setPresences] = useState({});
-  const [loadingPresences, setLoadingPresences] = useState(true);
-
-  // Real-time listener pour les présences
-  useEffect(() => {
-    const presencesRef = ref(rtdb, "presence");
-
-    const unsubscribe = onValue(presencesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setPresences(snapshot.val());
-      } else {
-        setPresences({});
-      }
-      setLoadingPresences(false);
-    }, (error) => {
-      console.error("Erreur RTDB:", error);
-      toast.error("Erreur de connexion au monitoring temps réel");
-      setLoadingPresences(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Calcul des KPIs
-  const kpis = useMemo(() => {
-    const presencesList = Object.values(presences);
-    const online = presencesList.filter((p) => p.status === "online").length;
-    const offline = presencesList.filter((p) => p.status === "offline").length;
-    const away = presencesList.filter((p) => p.status === "away").length;
-
-    const male = users.filter((u) => u.sexe === "m").length;
-    const female = users.filter((u) => u.sexe === "f").length;
-
-    // Nouveaux utilisateurs (7 derniers jours)
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const newUsers = users.filter((u) => u.createdAt >= sevenDaysAgo).length;
-
-    return {
-      total: users.length,
-      online,
-      offline,
-      away,
-      male,
-      female,
-      newUsers,
-    };
-  }, [users, presences]);
+  const { metrics, users, loading, error } = useUserMetrics();
 
   // Utilisateurs récemment actifs
   const recentlyActive = useMemo(() => {
-    const presencesList = Object.entries(presences).map(([userId, data]) => ({
-      userId,
-      ...data,
-      user: users.find((u) => u.id === userId),
-    }));
-
-    return presencesList
-      .filter((p) => p.user)
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    return users
+      .filter((u) => u.presence)
+      .sort((a, b) => (b.presence?.updatedAt || 0) - (a.presence?.updatedAt || 0))
       .slice(0, 5);
-  }, [presences, users]);
-
-  const handleRefresh = async () => {
-    await refetch();
-    toast.success("Données actualisées");
-  };
+  }, [users]);
 
   const formatRelativeTime = (timestamp) => {
     if (!timestamp) return "Jamais";
@@ -132,7 +72,7 @@ const DesktopDashboard = () => {
     return `Il y a ${days}j`;
   };
 
-  if (loadingUsers || loadingPresences) {
+  if (loading) {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-16 w-full" />
@@ -145,6 +85,10 @@ const DesktopDashboard = () => {
     );
   }
 
+  if (error) {
+    toast.error("Erreur de connexion au monitoring temps réel");
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -155,16 +99,10 @@ const DesktopDashboard = () => {
             Supervision et monitoring en temps réel
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualiser
-          </Button>
-          <Button onClick={() => navigate("/admin/user/profiles")}>
-            <ListFilter className="h-4 w-4 mr-2" />
-            Voir tous les profils
-          </Button>
-        </div>
+        <Button onClick={() => navigate("/admin/user/profiles")}>
+          <ListFilter className="h-4 w-4 mr-2" />
+          Voir tous les profils
+        </Button>
       </div>
 
       {/* KPIs Principaux */}
@@ -176,9 +114,9 @@ const DesktopDashboard = () => {
                 <p className="text-sm text-blue-700 font-medium">
                   Total Utilisateurs
                 </p>
-                <p className="text-3xl font-bold text-blue-900">{kpis.total}</p>
+                <p className="text-3xl font-bold text-blue-900">{metrics.total}</p>
                 <p className="text-xs text-blue-600">
-                  {kpis.male} H / {kpis.female} F
+                  {metrics.male} H / {metrics.female} F
                 </p>
               </div>
               <Users className="h-10 w-10 text-blue-600" />
@@ -192,11 +130,11 @@ const DesktopDashboard = () => {
               <div>
                 <p className="text-sm text-green-700 font-medium">En ligne</p>
                 <p className="text-3xl font-bold text-green-900">
-                  {kpis.online}
+                  {metrics.online}
                 </p>
                 <p className="text-xs text-green-600">
-                  {kpis.total > 0
-                    ? Math.round((kpis.online / kpis.total) * 100)
+                  {metrics.total > 0
+                    ? Math.round((metrics.online / metrics.total) * 100)
                     : 0}
                   % actifs
                 </p>
@@ -212,10 +150,10 @@ const DesktopDashboard = () => {
               <div>
                 <p className="text-sm text-gray-700 font-medium">Hors ligne</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  {kpis.offline}
+                  {metrics.offline}
                 </p>
                 <p className="text-xs text-gray-600">
-                  {kpis.away} absents
+                  {metrics.away} absents
                 </p>
               </div>
               <UserX className="h-10 w-10 text-gray-600" />
@@ -231,7 +169,7 @@ const DesktopDashboard = () => {
                   Nouveaux (7j)
                 </p>
                 <p className="text-3xl font-bold text-purple-900">
-                  {kpis.newUsers}
+                  {metrics.newUsers}
                 </p>
                 <p className="text-xs text-purple-600">Utilisateurs récents</p>
               </div>
@@ -257,11 +195,11 @@ const DesktopDashboard = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold text-blue-900">
-                    {kpis.male}
+                    {metrics.male}
                   </span>
                   <Badge variant="secondary">
-                    {kpis.total > 0
-                      ? Math.round((kpis.male / kpis.total) * 100)
+                    {metrics.total > 0
+                      ? Math.round((metrics.male / metrics.total) * 100)
                       : 0}
                     %
                   </Badge>
@@ -272,7 +210,7 @@ const DesktopDashboard = () => {
                   className="bg-blue-600 h-2 rounded-full transition-all"
                   style={{
                     width: `${
-                      kpis.total > 0 ? (kpis.male / kpis.total) * 100 : 0
+                      metrics.total > 0 ? (metrics.male / metrics.total) * 100 : 0
                     }%`,
                   }}
                 />
@@ -285,11 +223,11 @@ const DesktopDashboard = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold text-pink-900">
-                    {kpis.female}
+                    {metrics.female}
                   </span>
                   <Badge variant="secondary">
-                    {kpis.total > 0
-                      ? Math.round((kpis.female / kpis.total) * 100)
+                    {metrics.total > 0
+                      ? Math.round((metrics.female / metrics.total) * 100)
                       : 0}
                     %
                   </Badge>
@@ -300,7 +238,7 @@ const DesktopDashboard = () => {
                   className="bg-pink-600 h-2 rounded-full transition-all"
                   style={{
                     width: `${
-                      kpis.total > 0 ? (kpis.female / kpis.total) * 100 : 0
+                      metrics.total > 0 ? (metrics.female / metrics.total) * 100 : 0
                     }%`,
                   }}
                 />
@@ -331,34 +269,34 @@ const DesktopDashboard = () => {
               </p>
             ) : (
               <div className="space-y-3">
-                {recentlyActive.map((presence) => {
-                  const config = STATUS_CONFIG[presence.status] || STATUS_CONFIG.offline;
+                {recentlyActive.map((user) => {
+                  const config = STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
                   return (
                     <div
-                      key={presence.userId}
+                      key={user.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/user/profile/${presence.userId}`)
+                        navigate(`/admin/user/profile/${user.id}`)
                       }
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
-                            {presence.user?.nom?.charAt(0)}
-                            {presence.user?.prenoms?.[0]?.charAt(0)}
+                            {user.nom?.charAt(0)}
+                            {user.prenoms?.[0]?.charAt(0)}
                           </div>
                           <div
                             className={`absolute -bottom-1 -right-1 w-4 h-4 ${config.color} rounded-full border-2 border-white ${
-                              presence.status === "online" ? "animate-pulse" : ""
+                              user.presence?.status === "online" ? "animate-pulse" : ""
                             }`}
                           />
                         </div>
                         <div>
                           <p className="text-sm font-semibold">
-                            {presence.user?.nom} {presence.user?.prenoms?.join(" ")}
+                            {user.nom} {user.prenoms?.join(" ")}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {presence.user?.email}
+                            {user.email}
                           </p>
                         </div>
                       </div>
@@ -370,7 +308,7 @@ const DesktopDashboard = () => {
                           {config.label}
                         </Badge>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {formatRelativeTime(presence.updatedAt)}
+                          {formatRelativeTime(user.presence?.updatedAt)}
                         </p>
                       </div>
                     </div>

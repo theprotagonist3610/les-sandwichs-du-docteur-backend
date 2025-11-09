@@ -3,11 +3,8 @@
  * Version mobile du détail profil avec tabs
  */
 
-import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useUser } from "@/toolkits/admin/userToolkit";
-import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/firebase";
+import { useUser, useUserPresence } from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,16 +23,7 @@ const MobileProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading, refetch } = useUser(id);
-  const [presence, setPresence] = useState(null);
-
-  useEffect(() => {
-    if (!id) return;
-    const presenceRef = ref(rtdb, `presence/${id}`);
-    const unsubscribe = onValue(presenceRef, (snapshot) => {
-      setPresence(snapshot.exists() ? snapshot.val() : { userId: id, status: "offline", updatedAt: 0 });
-    });
-    return () => unsubscribe();
-  }, [id]);
+  const { presence } = useUserPresence(id);
 
   const formatDate = (timestamp) => {
     if (!timestamp) return "-";
