@@ -1,6 +1,6 @@
 /**
  * DesktopOperationDeStock.jsx
- * Création/édition d'opérations de stock (À IMPLÉMENTER)
+ * Création/édition d'opérations de stock (wizard)
  */
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +20,14 @@ const DesktopOperationDeStock = () => {
             <li>• ENTREE - Ajouter du stock</li>
             <li>• SORTIE - Retirer du stock</li>
             <li>• TRANSFERT - Déplacer entre emplacements</li>
+          </ul>
+          <p className="text-sm text-muted-foreground mt-4">
+            Ce composant utilisera les fonctions du stockToolkit :
+          </p>
+          <ul className="text-xs text-left max-w-md mx-auto mt-2 space-y-1 text-muted-foreground">
+            <li>• enqueueOperation() pour ajouter à la queue</li>
+            <li>• makeTransaction() pour entrées/sorties</li>
+            <li>• makeTransfert() pour les transferts</li>
           </ul>
         </CardContent>
       </Card>

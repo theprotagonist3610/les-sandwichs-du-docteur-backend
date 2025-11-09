@@ -1,6 +1,6 @@
 /**
  * MobileOperationDeStock.jsx
- * Version mobile pour les opérations de stock (À IMPLÉMENTER)
+ * Version mobile pour les opérations de stock (stepper)
  */
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,12 @@ const MobileOperationDeStock = () => {
           <p className="text-sm text-muted-foreground">
             Stepper vertical pour mobile
           </p>
+          <ul className="text-xs text-left max-w-md mx-auto mt-4 space-y-1 text-muted-foreground">
+            <li>• Sélection type d'opération</li>
+            <li>• Sélection élément/emplacement</li>
+            <li>• Saisie quantité et motif</li>
+            <li>• Confirmation et validation</li>
+          </ul>
         </CardContent>
       </Card>
     </div>
