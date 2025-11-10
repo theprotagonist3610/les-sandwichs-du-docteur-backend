@@ -23,7 +23,7 @@ Test unitaires pour tester chacune des fonctions
 // admin/userToolkit.jsx - Collection d'outils pour la gestion des utilisateurs
 // ============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
   createUserWithEmailAndPassword,
@@ -83,7 +83,9 @@ export const userSchemaComplet = userSchemaMinimal.extend({
 export const presenceSchema = z.object({
   userId: z.string().min(1, "L'ID utilisateur est requis"),
   status: z.enum(["online", "offline", "away"], {
-    errorMap: () => ({ message: "Le statut doit être 'online', 'offline' ou 'away'" }),
+    errorMap: () => ({
+      message: "Le statut doit être 'online', 'offline' ou 'away'",
+    }),
   }),
   updatedAt: z.number().positive("Date de mise à jour invalide"),
   userName: z.string().optional(),
@@ -769,8 +771,17 @@ export function useUserPresence(userId) {
  * @returns {Object} { users, loading, error, refetch }
  */
 export function useUsersWithPresence(options = {}) {
-  const { users, loading: loadingUsers, error: errorUsers, refetch } = useUsers(options);
-  const { presences, loading: loadingPresences, error: errorPresences } = usePresences();
+  const {
+    users,
+    loading: loadingUsers,
+    error: errorUsers,
+    refetch,
+  } = useUsers(options);
+  const {
+    presences,
+    loading: loadingPresences,
+    error: errorPresences,
+  } = usePresences();
 
   const usersWithPresence = useMemo(() => {
     return users.map((user) => ({
@@ -804,7 +815,9 @@ export function useUserMetrics(options = {}) {
     const offline = users.filter((u) => u.presence.status === "offline").length;
     const away = users.filter((u) => u.presence.status === "away").length;
     const admins = users.filter((u) => u.role === "admin").length;
-    const regularUsers = users.filter((u) => u.role === "user" || !u.role).length;
+    const regularUsers = users.filter(
+      (u) => u.role === "user" || !u.role
+    ).length;
     const male = users.filter((u) => u.sexe === "m").length;
     const female = users.filter((u) => u.sexe === "f").length;
 
