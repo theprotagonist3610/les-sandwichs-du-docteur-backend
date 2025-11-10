@@ -69,7 +69,7 @@ const NavBar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b">
-      <div className="container mx-auto px-2">
+      <div className="container mx-auto">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link
@@ -83,7 +83,7 @@ const NavBar = () => {
           </Link>
 
           {/* Navigation Links */}
-          <div className="flex items-center gap-1 flex-1 mx-4">
+          <div className="flex items-center gap-1 flex-1 mx-2">
             {routes.map((route) => {
               // Vérifier si la route actuelle correspond ou commence par le lien
               const isActive =
@@ -125,8 +125,7 @@ const NavBar = () => {
               size="icon"
               onClick={handleLogout}
               title="Déconnexion"
-              className="hover:bg-destructive/10 hover:text-destructive"
-            >
+              className="hover:bg-destructive/10 hover:text-destructive">
               <LogOut className="h-5 w-5" />
             </Button>
             <ThemeSwitcher />
