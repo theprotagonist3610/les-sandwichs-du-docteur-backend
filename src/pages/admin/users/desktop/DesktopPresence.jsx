@@ -61,7 +61,7 @@ const STATUS_CONFIG = {
 const DesktopPresence = () => {
   const navigate = useNavigate();
   const { users: usersWithPresence, loading, error } = useUsersWithPresence();
-  const [filtreStatus, setFiltreStatus] = useState("");
+  const [filtreStatus, setFiltreStatus] = useState("all");
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("activity");
 
@@ -73,7 +73,7 @@ const DesktopPresence = () => {
     if (filtreStatus === "active") {
       // Filtre spécial : seulement les vraiment actifs
       filtered = filtered.filter((u) => isUserActive(u.presence, 90000));
-    } else if (filtreStatus) {
+    } else if (filtreStatus !== "all") {
       filtered = filtered.filter((u) => u.presence.status === filtreStatus);
     }
 
@@ -248,7 +248,7 @@ const DesktopPresence = () => {
             <SelectValue placeholder="Tous les statuts" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tous</SelectItem>
+            <SelectItem value="all">Tous</SelectItem>
             <SelectItem value="active">
               <div className="flex items-center gap-2">
                 <Activity className="h-3 w-3" />

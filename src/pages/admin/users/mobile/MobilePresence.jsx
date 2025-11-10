@@ -26,13 +26,13 @@ const STATUS_CONFIG = {
 const MobilePresence = () => {
   const navigate = useNavigate();
   const { users: usersWithPresence, loading, error } = useUsersWithPresence();
-  const [filtreStatus, setFiltreStatus] = useState("");
+  const [filtreStatus, setFiltreStatus] = useState("all");
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("activity");
 
   const usersFiltres = useMemo(() => {
     let filtered = usersWithPresence;
-    if (filtreStatus) filtered = filtered.filter((u) => u.presence.status === filtreStatus);
+    if (filtreStatus !== "all") filtered = filtered.filter((u) => u.presence.status === filtreStatus);
     if (recherche) {
       const search = recherche.toLowerCase();
       filtered = filtered.filter((u) =>
@@ -124,7 +124,7 @@ const MobilePresence = () => {
                   <Select value={filtreStatus} onValueChange={setFiltreStatus}>
                     <SelectTrigger><SelectValue placeholder="Tous" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="online">En ligne</SelectItem>
                       <SelectItem value="away">Absents</SelectItem>
                       <SelectItem value="offline">Hors ligne</SelectItem>

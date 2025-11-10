@@ -86,9 +86,9 @@ const DesktopProfiles = () => {
 
   // États des filtres
   const [recherche, setRecherche] = useState("");
-  const [filtreRole, setFiltreRole] = useState("");
-  const [filtreSexe, setFiltreSexe] = useState("");
-  const [filtreStatus, setFiltreStatus] = useState("");
+  const [filtreRole, setFiltreRole] = useState("all");
+  const [filtreSexe, setFiltreSexe] = useState("all");
+  const [filtreStatus, setFiltreStatus] = useState("all");
   const [tri, setTri] = useState("nom");
 
   // Appliquer tous les filtres
@@ -108,19 +108,19 @@ const DesktopProfiles = () => {
     }
 
     // Filtre rôle
-    if (filtreRole) {
+    if (filtreRole !== "all") {
       filtered = filtered.filter((u) => u.role === filtreRole);
     }
 
     // Filtre sexe
-    if (filtreSexe) {
+    if (filtreSexe !== "all") {
       filtered = filtered.filter((u) => u.sexe === filtreSexe);
     }
 
     // Filtre status
     if (filtreStatus === "active") {
       filtered = filtered.filter((u) => isUserActive(u.presence, 90000));
-    } else if (filtreStatus) {
+    } else if (filtreStatus !== "all") {
       filtered = filtered.filter((u) => u.presence?.status === filtreStatus);
     }
 
@@ -314,7 +314,7 @@ const DesktopProfiles = () => {
                 <SelectValue placeholder="Tous les rôles" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les rôles</SelectItem>
+                <SelectItem value="all">Tous les rôles</SelectItem>
                 <SelectItem value="admin">Administrateur</SelectItem>
                 <SelectItem value="user">Utilisateur</SelectItem>
               </SelectContent>
@@ -325,7 +325,7 @@ const DesktopProfiles = () => {
                 <SelectValue placeholder="Tous les sexes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 <SelectItem value="m">Hommes</SelectItem>
                 <SelectItem value="f">Femmes</SelectItem>
               </SelectContent>
@@ -336,7 +336,7 @@ const DesktopProfiles = () => {
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les statuts</SelectItem>
+                <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="active">Vraiment actifs</SelectItem>
                 <SelectItem value="online">En ligne</SelectItem>
                 <SelectItem value="away">Absents</SelectItem>
