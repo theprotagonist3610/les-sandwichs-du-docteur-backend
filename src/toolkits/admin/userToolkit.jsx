@@ -395,6 +395,9 @@ export async function setupPresenceSystem(userId, userName) {
   try {
     const presenceRef = ref(rtdb, `presence/${userId}`);
     const now = Date.now();
+    const time = new Date(now).toLocaleTimeString();
+
+    console.log(`🔧 [${time}] setupPresenceSystem: Configuration pour ${userId} (${userName})`);
 
     // 1. Configurer onDisconnect pour marquer offline automatiquement
     await onDisconnect(presenceRef).set({
@@ -405,7 +408,7 @@ export async function setupPresenceSystem(userId, userName) {
       userName: userName,
     });
 
-    console.log("✅ onDisconnect configuré pour:", userId);
+    console.log(`✅ [${time}] onDisconnect configuré pour ${userId}`);
 
     // 2. Marquer l'utilisateur comme online
     await set(presenceRef, {
@@ -416,14 +419,21 @@ export async function setupPresenceSystem(userId, userName) {
       userName: userName,
     });
 
-    console.log("✅ Système de présence configuré pour:", userId);
+    console.log(`✅ [${time}] Utilisateur marqué comme ONLINE - lastSeen: ${now}`);
+    console.log(`📋 [${time}] Données de présence initiales:`, {
+      userId,
+      status: "online",
+      updatedAt: now,
+      lastSeen: now,
+      userName
+    });
 
     return {
       success: true,
       message: "Système de présence configuré avec succès",
     };
   } catch (error) {
-    console.error("❌ Erreur lors de la configuration de la présence:", error);
+    console.error(`❌ [${new Date().toLocaleTimeString()}] Erreur lors de la configuration de la présence:`, error);
     throw error;
   }
 }
@@ -438,22 +448,30 @@ export async function setupPresenceSystem(userId, userName) {
 export function startHeartbeat(userId, intervalMs = 30000) {
   // Arrêter l'ancien heartbeat s'il existe
   if (heartbeatInterval) {
+    console.log(`🔄 Arrêt de l'ancien heartbeat`);
     clearInterval(heartbeatInterval);
   }
 
-  console.log(`✅ Heartbeat démarré pour ${userId} (intervalle: ${intervalMs}ms)`);
+  const startTime = new Date().toLocaleTimeString();
+  console.log(`✅ [${startTime}] Heartbeat démarré pour ${userId} (intervalle: ${intervalMs}ms)`);
 
   // Démarrer le nouveau heartbeat
   heartbeatInterval = setInterval(async () => {
     try {
+      const now = Date.now();
+      const time = new Date(now).toLocaleTimeString();
       const presenceRef = ref(rtdb, `presence/${userId}`);
+
+      console.log(`💓 [${time}] Envoi du heartbeat pour ${userId}...`);
+
       await update(presenceRef, {
-        lastSeen: Date.now(),
-        updatedAt: Date.now(),
+        lastSeen: now,
+        updatedAt: now,
       });
-      console.log(`💓 Heartbeat envoyé pour ${userId}`);
+
+      console.log(`✅ [${time}] Heartbeat envoyé avec succès - lastSeen: ${now}`);
     } catch (error) {
-      console.error("❌ Erreur lors de l'envoi du heartbeat:", error);
+      console.error(`❌ [${new Date().toLocaleTimeString()}] Erreur lors de l'envoi du heartbeat:`, error);
     }
   }, intervalMs);
 
@@ -543,6 +561,9 @@ export async function loginUser(
   options = { enableHeartbeat: true, heartbeatInterval: 30000 }
 ) {
   try {
+    const startTime = new Date().toLocaleTimeString();
+    console.log(`🔐 [${startTime}] loginUser: Début de la connexion pour ${email}`);
+
     // Étape 1: Connexion avec Firebase Auth
     const userCredential = await signInWithEmailAndPassword(
       auth,
@@ -552,7 +573,7 @@ export async function loginUser(
     const firebaseUser = userCredential.user;
     const userId = firebaseUser.uid;
 
-    console.log("✅ Connexion réussie:", userId);
+    console.log(`✅ [${new Date().toLocaleTimeString()}] Connexion Firebase Auth réussie:`, userId);
 
     // Étape 2: Récupérer les données utilisateur depuis Firestore
     const userData = await getUser(userId);
@@ -562,23 +583,31 @@ export async function loginUser(
     }
 
     const userName = `${userData.nom} ${userData.prenoms.join(" ")}`;
+    console.log(`✅ [${new Date().toLocaleTimeString()}] Données utilisateur récupérées:`, userName);
 
     // Étape 3: Configurer le système de présence robuste
+    console.log(`🔧 [${new Date().toLocaleTimeString()}] Configuration du système de présence...`);
     await setupPresenceSystem(userId, userName);
 
     // Étape 4: Démarrer le heartbeat si activé
     if (options.enableHeartbeat) {
+      console.log(`💓 [${new Date().toLocaleTimeString()}] Démarrage du heartbeat (intervalle: ${options.heartbeatInterval}ms)...`);
       startHeartbeat(userId, options.heartbeatInterval);
+    } else {
+      console.log(`⚠️ [${new Date().toLocaleTimeString()}] Heartbeat désactivé`);
     }
 
     // Étape 5: Configurer beforeunload
+    console.log(`🚪 [${new Date().toLocaleTimeString()}] Configuration du beforeunload listener...`);
     setupBeforeUnload(userId);
 
     // Étape 6: Redirection
     if (navigate) {
       navigate(redirectPath);
-      console.log("✅ Redirection vers:", redirectPath);
+      console.log(`✅ [${new Date().toLocaleTimeString()}] Redirection vers: ${redirectPath}`);
     }
+
+    console.log(`🎉 [${new Date().toLocaleTimeString()}] Login complet avec succès pour ${userName}`);
 
     return {
       success: true,
@@ -586,7 +615,7 @@ export async function loginUser(
       message: "Connexion réussie",
     };
   } catch (error) {
-    console.error("❌ Erreur lors de la connexion:", error);
+    console.error(`❌ [${new Date().toLocaleTimeString()}] Erreur lors de la connexion:`, error);
 
     if (
       error.code === "auth/invalid-credential" ||
@@ -844,27 +873,37 @@ export function usePresences() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    console.log(`🔌 [${new Date().toLocaleTimeString()}] usePresences: Création du listener temps réel`);
     const presencesRef = ref(rtdb, "presence");
 
     const unsubscribe = onValue(
       presencesRef,
       (snapshot) => {
+        const time = new Date().toLocaleTimeString();
         if (snapshot.exists()) {
-          setPresences(snapshot.val());
+          const data = snapshot.val();
+          const count = Object.keys(data).length;
+          console.log(`📡 [${time}] usePresences: Mise à jour reçue - ${count} utilisateurs`);
+          console.log(`📋 [${time}] Données:`, data);
+          setPresences(data);
         } else {
+          console.log(`⚠️ [${time}] usePresences: Aucune présence trouvée`);
           setPresences({});
         }
         setLoading(false);
       },
       (err) => {
-        console.error("❌ Erreur usePresences:", err);
+        console.error(`❌ [${new Date().toLocaleTimeString()}] Erreur usePresences:`, err);
         setError(err.message);
         setPresences({});
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      console.log(`🔌 [${new Date().toLocaleTimeString()}] usePresences: Nettoyage du listener`);
+      unsubscribe();
+    };
   }, []);
 
   return {
@@ -886,19 +925,25 @@ export function useUserPresence(userId) {
 
   useEffect(() => {
     if (!userId) {
+      console.log(`⚠️ useUserPresence: Pas d'userId fourni`);
       setPresence(null);
       setLoading(false);
       return;
     }
 
+    console.log(`🔌 [${new Date().toLocaleTimeString()}] useUserPresence: Création du listener pour ${userId}`);
     const presenceRef = ref(rtdb, `presence/${userId}`);
 
     const unsubscribe = onValue(
       presenceRef,
       (snapshot) => {
+        const time = new Date().toLocaleTimeString();
         if (snapshot.exists()) {
-          setPresence(snapshot.val());
+          const data = snapshot.val();
+          console.log(`📡 [${time}] useUserPresence(${userId}): Mise à jour reçue`, data);
+          setPresence(data);
         } else {
+          console.log(`⚠️ [${time}] useUserPresence(${userId}): Présence non trouvée, création offline`);
           setPresence({
             userId: userId,
             status: "offline",
@@ -908,14 +953,17 @@ export function useUserPresence(userId) {
         setLoading(false);
       },
       (err) => {
-        console.error("❌ Erreur useUserPresence:", err);
+        console.error(`❌ [${new Date().toLocaleTimeString()}] Erreur useUserPresence(${userId}):`, err);
         setError(err.message);
         setPresence(null);
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      console.log(`🔌 [${new Date().toLocaleTimeString()}] useUserPresence: Nettoyage du listener pour ${userId}`);
+      unsubscribe();
+    };
   }, [userId]);
 
   return {
@@ -945,14 +993,31 @@ export function useUsersWithPresence(options = {}) {
   } = usePresences();
 
   const usersWithPresence = useMemo(() => {
-    return users.map((user) => ({
-      ...user,
-      presence: presences[user.id] || {
+    const time = new Date().toLocaleTimeString();
+    console.log(`🔄 [${time}] useUsersWithPresence: Combinaison des données`);
+    console.log(`📊 [${time}] ${users.length} utilisateurs, ${Object.keys(presences).length} présences`);
+
+    const combined = users.map((user) => {
+      const presence = presences[user.id] || {
         userId: user.id,
         status: "offline",
         updatedAt: 0,
-      },
-    }));
+      };
+
+      if (presences[user.id]) {
+        console.log(`✅ [${time}] Présence trouvée pour ${user.nom}:`, presence);
+      } else {
+        console.log(`⚠️ [${time}] Pas de présence pour ${user.nom}, défaut offline`);
+      }
+
+      return {
+        ...user,
+        presence,
+      };
+    });
+
+    console.log(`🎯 [${time}] useUsersWithPresence: ${combined.length} utilisateurs avec présence combinés`);
+    return combined;
   }, [users, presences]);
 
   return {
