@@ -1,12 +1,12 @@
 /**
  * DesktopPresence.jsx
- * Monitoring temps réel des utilisateurs connectés
+ * Monitoring temps réel avec détection d'activité réelle (heartbeat)
  */
 
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsersWithPresence } from "@/toolkits/admin/userToolkit";
-import { Card, CardContent } from "@/components/ui/card";
+import { useUsersWithPresence, isUserActive } from "@/toolkits/admin/userToolkit";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -21,12 +21,14 @@ import {
   UserCheck,
   UserX,
   Clock,
-  RefreshCw,
   Search,
   User,
   UserCircle,
   Mail,
   Phone,
+  Activity,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -68,7 +70,10 @@ const DesktopPresence = () => {
     let filtered = usersWithPresence;
 
     // Filtre status
-    if (filtreStatus) {
+    if (filtreStatus === "active") {
+      // Filtre spécial : seulement les vraiment actifs
+      filtered = filtered.filter((u) => isUserActive(u.presence, 90000));
+    } else if (filtreStatus) {
       filtered = filtered.filter((u) => u.presence.status === filtreStatus);
     }
 
@@ -89,7 +94,8 @@ const DesktopPresence = () => {
       case "activity":
         return filtered.sort(
           (a, b) =>
-            (b.presence?.updatedAt || 0) - (a.presence?.updatedAt || 0)
+            (b.presence?.lastSeen || b.presence?.updatedAt || 0) -
+            (a.presence?.lastSeen || a.presence?.updatedAt || 0)
         );
       case "nom":
         return filtered.sort((a, b) => a.nom.localeCompare(b.nom));
@@ -104,7 +110,7 @@ const DesktopPresence = () => {
     }
   }, [usersWithPresence, filtreStatus, recherche, tri]);
 
-  // KPIs
+  // KPIs avec distinction actifs/en ligne
   const kpis = useMemo(() => {
     const online = usersWithPresence.filter(
       (u) => u.presence.status === "online"
@@ -115,18 +121,23 @@ const DesktopPresence = () => {
     const away = usersWithPresence.filter(
       (u) => u.presence.status === "away"
     ).length;
+    const reallyActive = usersWithPresence.filter((u) =>
+      isUserActive(u.presence, 90000)
+    ).length;
 
-    return { online, offline, away };
+    return { online, offline, away, reallyActive };
   }, [usersWithPresence]);
 
   const formatRelativeTime = (timestamp) => {
     if (!timestamp) return "Jamais";
     const diff = Date.now() - timestamp;
-    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (minutes < 1) return "À l'instant";
+    if (seconds < 30) return "En ce moment";
+    if (minutes < 1) return `Il y a ${seconds}s`;
     if (minutes < 60) return `Il y a ${minutes} min`;
     if (hours < 24) return `Il y a ${hours}h`;
     return `Il y a ${days}j`;
@@ -154,18 +165,41 @@ const DesktopPresence = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Monitoring Présence</h1>
-          <p className="text-muted-foreground">Surveillance en temps réel</p>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            Monitoring Présence
+            <Badge variant="outline" className="text-xs animate-pulse">
+              <Activity className="h-3 w-3 mr-1" />
+              Temps réel
+            </Badge>
+          </h1>
+          <p className="text-muted-foreground">
+            Surveillance avec détection d'activité réelle (heartbeat)
+          </p>
         </div>
       </div>
 
       {/* KPIs compacts */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="bg-emerald-50 border-emerald-200">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-emerald-700 flex items-center gap-1">
+                  <Activity className="h-3 w-3" />
+                  Vraiment actifs
+                </p>
+                <p className="text-2xl font-bold text-emerald-900">{kpis.reallyActive}</p>
+              </div>
+              <Wifi className="h-8 w-8 text-emerald-600 animate-pulse" />
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="bg-green-50 border-green-200">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-700">En ligne</p>
+                <p className="text-xs text-green-700">En ligne</p>
                 <p className="text-2xl font-bold text-green-900">{kpis.online}</p>
               </div>
               <UserCheck className="h-8 w-8 text-green-600" />
@@ -177,7 +211,7 @@ const DesktopPresence = () => {
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-700">Absents</p>
+                <p className="text-xs text-orange-700">Absents</p>
                 <p className="text-2xl font-bold text-orange-900">{kpis.away}</p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
@@ -189,7 +223,7 @@ const DesktopPresence = () => {
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-700">Hors ligne</p>
+                <p className="text-xs text-gray-700">Hors ligne</p>
                 <p className="text-2xl font-bold text-gray-900">{kpis.offline}</p>
               </div>
               <UserX className="h-8 w-8 text-gray-600" />
@@ -210,11 +244,17 @@ const DesktopPresence = () => {
           />
         </div>
         <Select value={filtreStatus} onValueChange={setFiltreStatus}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Tous les statuts" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Tous</SelectItem>
+            <SelectItem value="active">
+              <div className="flex items-center gap-2">
+                <Activity className="h-3 w-3" />
+                Vraiment actifs
+              </div>
+            </SelectItem>
             <SelectItem value="online">En ligne</SelectItem>
             <SelectItem value="away">Absents</SelectItem>
             <SelectItem value="offline">Hors ligne</SelectItem>
@@ -235,7 +275,8 @@ const DesktopPresence = () => {
       {/* Liste utilisateurs */}
       {usersFiltres.length === 0 ? (
         <Card>
-          <CardContent className="pt-6 text-center">
+          <CardContent className="pt-6 text-center py-12">
+            <WifiOff className="h-16 w-16 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">Aucun utilisateur trouvé</p>
           </CardContent>
         </Card>
@@ -244,6 +285,7 @@ const DesktopPresence = () => {
           {usersFiltres.map((user) => {
             const config =
               STATUS_CONFIG[user.presence.status] || STATUS_CONFIG.offline;
+            const active = isUserActive(user.presence, 90000);
             const isOnline = user.presence.status === "online";
 
             return (
@@ -255,7 +297,7 @@ const DesktopPresence = () => {
               >
                 <Card
                   className={`cursor-pointer hover:shadow-md transition-all ${config.borderColor} ${
-                    isOnline ? "ring-2 ring-green-200" : ""
+                    active ? "ring-2 ring-emerald-300" : ""
                   }`}
                   onClick={() => navigate(`/admin/users/profil/${user.id}`)}
                 >
@@ -263,26 +305,49 @@ const DesktopPresence = () => {
                     {/* Header avec avatar */}
                     <div className="flex items-start gap-3 mb-3">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                          active
+                            ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
+                            : "bg-gradient-to-br from-blue-400 to-blue-600"
+                        }`}>
                           {user.nom?.charAt(0)}
                           {user.prenoms?.[0]?.charAt(0)}
                         </div>
                         <div
-                          className={`absolute -bottom-1 -right-1 w-4 h-4 ${config.color} rounded-full border-2 border-white ${
-                            isOnline ? "animate-pulse" : ""
+                          className={`absolute -bottom-1 -right-1 w-4 h-4 ${
+                            active ? "bg-emerald-500" : config.color
+                          } rounded-full border-2 border-white ${
+                            active ? "animate-pulse" : isOnline ? "animate-pulse" : ""
                           }`}
-                        />
+                        >
+                          {active && (
+                            <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75" />
+                          )}
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm line-clamp-1">
                           {user.nom} {user.prenoms?.join(" ")}
                         </p>
-                        <Badge
-                          variant="outline"
-                          className={`${config.bgLight} ${config.textColor} ${config.borderColor} text-[10px] mt-1`}
-                        >
-                          {config.label}
-                        </Badge>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge
+                            variant="outline"
+                            className={`${
+                              active
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : `${config.bgLight} ${config.textColor} ${config.borderColor}`
+                            } text-[10px]`}
+                          >
+                            {active ? (
+                              <>
+                                <Activity className="h-2 w-2 mr-1" />
+                                Actif
+                              </>
+                            ) : (
+                              config.label
+                            )}
+                          </Badge>
+                        </div>
                       </div>
                       {user.sexe && (
                         <div className="text-muted-foreground">
@@ -309,11 +374,19 @@ const DesktopPresence = () => {
                           <span>{user.contact}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1 text-muted-foreground pt-2 border-t">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {formatRelativeTime(user.presence.updatedAt)}
-                        </span>
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {formatRelativeTime(user.presence.lastSeen || user.presence.updatedAt)}
+                          </span>
+                        </div>
+                        {active && (
+                          <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-0">
+                            <Wifi className="h-2 w-2 mr-1" />
+                            Live
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </CardContent>

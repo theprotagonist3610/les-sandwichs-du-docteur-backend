@@ -23,7 +23,7 @@ Test unitaires pour tester chacune des fonctions
 // admin/userToolkit.jsx - Collection d'outils pour la gestion des utilisateurs
 // ============================================================================
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { z } from "zod";
 import {
   createUserWithEmailAndPassword,
@@ -38,7 +38,7 @@ import {
   updateDoc,
   collection,
 } from "firebase/firestore";
-import { ref, set, get, update, onValue } from "firebase/database";
+import { ref, set, get, update, onValue, onDisconnect, serverTimestamp } from "firebase/database";
 import { auth, db, rtdb } from "../../firebase.js";
 
 // ============================================================================
@@ -88,6 +88,7 @@ export const presenceSchema = z.object({
     }),
   }),
   updatedAt: z.number().positive("Date de mise à jour invalide"),
+  lastSeen: z.number().positive("Date de dernière activité invalide").optional(),
   userName: z.string().optional(),
 });
 
@@ -375,22 +376,171 @@ export async function getUserPresence(userId) {
 }
 
 // ============================================================================
-// 7. loginUser() - Connexion et redirection
+// 7. SYSTÈME DE PRÉSENCE ROBUSTE
+// ============================================================================
+
+// Variable globale pour stocker l'intervalle du heartbeat
+let heartbeatInterval = null;
+
+/**
+ * Configure le système de présence automatique avec onDisconnect
+ * Cette fonction DOIT être appelée au login pour garantir que l'utilisateur
+ * sera automatiquement marqué comme "offline" en cas de déconnexion réseau
+ * ou fermeture de page
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} userName - Nom complet de l'utilisateur
+ * @returns {Promise<Object>} Résultat de la configuration
+ */
+export async function setupPresenceSystem(userId, userName) {
+  try {
+    const presenceRef = ref(rtdb, `presence/${userId}`);
+    const now = Date.now();
+
+    // 1. Configurer onDisconnect pour marquer offline automatiquement
+    await onDisconnect(presenceRef).set({
+      userId: userId,
+      status: "offline",
+      updatedAt: now,
+      lastSeen: now,
+      userName: userName,
+    });
+
+    console.log("✅ onDisconnect configuré pour:", userId);
+
+    // 2. Marquer l'utilisateur comme online
+    await set(presenceRef, {
+      userId: userId,
+      status: "online",
+      updatedAt: now,
+      lastSeen: now,
+      userName: userName,
+    });
+
+    console.log("✅ Système de présence configuré pour:", userId);
+
+    return {
+      success: true,
+      message: "Système de présence configuré avec succès",
+    };
+  } catch (error) {
+    console.error("❌ Erreur lors de la configuration de la présence:", error);
+    throw error;
+  }
+}
+
+/**
+ * Démarre le heartbeat pour maintenir la présence active
+ * Envoie un signal toutes les 30 secondes pour mettre à jour lastSeen
+ * @param {string} userId - ID de l'utilisateur
+ * @param {number} intervalMs - Intervalle en millisecondes (défaut: 30000 = 30 secondes)
+ * @returns {number} L'ID de l'intervalle (pour pouvoir l'arrêter)
+ */
+export function startHeartbeat(userId, intervalMs = 30000) {
+  // Arrêter l'ancien heartbeat s'il existe
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+  }
+
+  console.log(`✅ Heartbeat démarré pour ${userId} (intervalle: ${intervalMs}ms)`);
+
+  // Démarrer le nouveau heartbeat
+  heartbeatInterval = setInterval(async () => {
+    try {
+      const presenceRef = ref(rtdb, `presence/${userId}`);
+      await update(presenceRef, {
+        lastSeen: Date.now(),
+        updatedAt: Date.now(),
+      });
+      console.log(`💓 Heartbeat envoyé pour ${userId}`);
+    } catch (error) {
+      console.error("❌ Erreur lors de l'envoi du heartbeat:", error);
+    }
+  }, intervalMs);
+
+  return heartbeatInterval;
+}
+
+/**
+ * Arrête le heartbeat
+ */
+export function stopHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+    console.log("✅ Heartbeat arrêté");
+  }
+}
+
+/**
+ * Configure l'event listener beforeunload pour détecter la fermeture de page
+ * Tente de marquer l'utilisateur comme offline avant la fermeture
+ * @param {string} userId - ID de l'utilisateur
+ * @returns {Function} Fonction de nettoyage pour retirer l'event listener
+ */
+export function setupBeforeUnload(userId) {
+  const handleBeforeUnload = async (event) => {
+    try {
+      // Utiliser navigator.sendBeacon pour garantir l'envoi même lors de la fermeture
+      const presenceRef = ref(rtdb, `presence/${userId}`);
+      await set(presenceRef, {
+        userId: userId,
+        status: "offline",
+        updatedAt: Date.now(),
+        lastSeen: Date.now(),
+      });
+      console.log("✅ Présence mise à offline (beforeunload)");
+    } catch (error) {
+      console.error("❌ Erreur beforeunload:", error);
+    }
+  };
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+
+  // Retourner une fonction de nettoyage
+  return () => {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+  };
+}
+
+/**
+ * Vérifie si un utilisateur est réellement actif basé sur son lastSeen
+ * @param {Object} presence - Objet de présence
+ * @param {number} thresholdMs - Seuil d'inactivité en ms (défaut: 90000 = 90 secondes)
+ * @returns {boolean} True si l'utilisateur est actif
+ */
+export function isUserActive(presence, thresholdMs = 90000) {
+  if (!presence || !presence.lastSeen) {
+    return false;
+  }
+
+  const now = Date.now();
+  const timeSinceLastSeen = now - presence.lastSeen;
+
+  return presence.status === "online" && timeSinceLastSeen < thresholdMs;
+}
+
+// ============================================================================
+// 8. loginUser() - Connexion et redirection
 // ============================================================================
 
 /**
  * Connecte un utilisateur et le redirige
+ * Configure automatiquement le système de présence robuste
  * @param {string} email - Email de l'utilisateur
  * @param {string} password - Mot de passe
  * @param {Function} navigate - Fonction useNavigate de react-router-dom
  * @param {string} [redirectPath='/dashboard'] - Chemin de redirection
+ * @param {Object} [options] - Options supplémentaires
+ * @param {boolean} [options.enableHeartbeat=true] - Activer le heartbeat automatique
+ * @param {number} [options.heartbeatInterval=30000] - Intervalle du heartbeat en ms
  * @returns {Promise<Object>} Les données de l'utilisateur connecté
  */
 export async function loginUser(
   email,
   password,
   navigate,
-  redirectPath = "/dashboard"
+  redirectPath = "/dashboard",
+  options = { enableHeartbeat: true, heartbeatInterval: 30000 }
 ) {
   try {
     // Étape 1: Connexion avec Firebase Auth
@@ -411,13 +561,20 @@ export async function loginUser(
       throw new Error("Données utilisateur introuvables");
     }
 
-    // Étape 3: Mettre à jour la présence (connexion)
-    await setUserPresence(userId, {
-      status: "online",
-      userName: `${userData.nom} ${userData.prenoms.join(" ")}`,
-    });
+    const userName = `${userData.nom} ${userData.prenoms.join(" ")}`;
 
-    // Étape 4: Redirection
+    // Étape 3: Configurer le système de présence robuste
+    await setupPresenceSystem(userId, userName);
+
+    // Étape 4: Démarrer le heartbeat si activé
+    if (options.enableHeartbeat) {
+      startHeartbeat(userId, options.heartbeatInterval);
+    }
+
+    // Étape 5: Configurer beforeunload
+    setupBeforeUnload(userId);
+
+    // Étape 6: Redirection
     if (navigate) {
       navigate(redirectPath);
       console.log("✅ Redirection vers:", redirectPath);
@@ -452,6 +609,7 @@ export async function loginUser(
 
 /**
  * Déconnecte l'utilisateur actuel
+ * Arrête le heartbeat et met à jour la présence
  * @param {Function} [navigate] - Fonction useNavigate de react-router-dom
  * @param {string} [redirectPath='/login'] - Chemin de redirection après déconnexion
  * @returns {Promise<Object>} Résultat de la déconnexion
@@ -467,16 +625,19 @@ export async function logoutUser(navigate, redirectPath = "/login") {
 
     const userId = currentUser.uid;
 
-    // Étape 1: Mettre à jour la présence (déconnexion)
+    // Étape 1: Arrêter le heartbeat
+    stopHeartbeat();
+
+    // Étape 2: Mettre à jour la présence (déconnexion)
     await setUserPresence(userId, {
       status: "offline",
     });
 
-    // Étape 2: Déconnexion Firebase Auth
+    // Étape 3: Déconnexion Firebase Auth
     await firebaseSignOut(auth);
     console.log("✅ Déconnexion réussie:", userId);
 
-    // Étape 3: Redirection
+    // Étape 4: Redirection
     if (navigate) {
       navigate(redirectPath);
       console.log("✅ Redirection vers:", redirectPath);
@@ -804,16 +965,25 @@ export function useUsersWithPresence(options = {}) {
 
 /**
  * Hook pour calculer automatiquement les métriques utilisateurs en temps réel
+ * Filtre les utilisateurs réellement actifs basé sur lastSeen
  * @param {Object} options - Options pour useUsersWithPresence
- * @returns {Object} Métriques calculées (total, online, offline, away, admins, male, female, newUsers)
+ * @param {number} options.activityThreshold - Seuil d'activité en ms (défaut: 90000)
+ * @returns {Object} Métriques calculées (total, online, offline, away, admins, male, female, newUsers, reallyOnline)
  */
 export function useUserMetrics(options = {}) {
-  const { users, loading, error } = useUsersWithPresence(options);
+  const { activityThreshold = 90000, ...usersOptions } = options;
+  const { users, loading, error } = useUsersWithPresence(usersOptions);
 
   const metrics = useMemo(() => {
     const online = users.filter((u) => u.presence.status === "online").length;
     const offline = users.filter((u) => u.presence.status === "offline").length;
     const away = users.filter((u) => u.presence.status === "away").length;
+
+    // Utilisateurs VRAIMENT actifs (basé sur lastSeen)
+    const reallyOnline = users.filter((u) =>
+      isUserActive(u.presence, activityThreshold)
+    ).length;
+
     const admins = users.filter((u) => u.role === "admin").length;
     const regularUsers = users.filter(
       (u) => u.role === "user" || !u.role
@@ -830,18 +1000,124 @@ export function useUserMetrics(options = {}) {
       online,
       offline,
       away,
+      reallyOnline, // Nombre d'utilisateurs réellement actifs
       admins,
       regularUsers,
       male,
       female,
       newUsers,
     };
-  }, [users]);
+  }, [users, activityThreshold]);
 
   return {
     metrics,
     users,
     loading,
+    error,
+  };
+}
+
+/**
+ * Hook pour gérer automatiquement la présence de l'utilisateur connecté
+ * Configure automatiquement le heartbeat, onDisconnect et beforeunload
+ * À utiliser dans le composant racine de l'application après le login
+ *
+ * @param {Object} options - Options de configuration
+ * @param {boolean} options.enabled - Activer la gestion automatique (défaut: true)
+ * @param {number} options.heartbeatInterval - Intervalle du heartbeat en ms (défaut: 30000)
+ * @returns {Object} { isActive, lastSeen, error }
+ *
+ * @example
+ * function App() {
+ *   const { isActive } = usePresenceManager({ heartbeatInterval: 30000 });
+ *   return <div>Statut: {isActive ? 'Actif' : 'Inactif'}</div>;
+ * }
+ */
+export function usePresenceManager(options = {}) {
+  const { enabled = true, heartbeatInterval = 30000 } = options;
+  const [isActive, setIsActive] = useState(false);
+  const [lastSeen, setLastSeen] = useState(null);
+  const [error, setError] = useState(null);
+  const cleanupRef = useRef(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setIsActive(false);
+      return;
+    }
+
+    const userId = currentUser.uid;
+
+    // Fonction d'initialisation
+    const initPresence = async () => {
+      try {
+        // Récupérer les données utilisateur
+        const userData = await getUser(userId);
+        if (!userData) {
+          throw new Error("Données utilisateur introuvables");
+        }
+
+        const userName = `${userData.nom} ${userData.prenoms.join(" ")}`;
+
+        // Configurer le système de présence
+        await setupPresenceSystem(userId, userName);
+
+        // Démarrer le heartbeat
+        startHeartbeat(userId, heartbeatInterval);
+
+        // Configurer beforeunload
+        const cleanup = setupBeforeUnload(userId);
+        cleanupRef.current = cleanup;
+
+        setIsActive(true);
+        setLastSeen(Date.now());
+        console.log("✅ Gestionnaire de présence initialisé");
+      } catch (err) {
+        console.error("❌ Erreur lors de l'initialisation de la présence:", err);
+        setError(err.message);
+        setIsActive(false);
+      }
+    };
+
+    initPresence();
+
+    // Cleanup à la déconnexion du composant
+    return () => {
+      stopHeartbeat();
+      if (cleanupRef.current) {
+        cleanupRef.current();
+      }
+      console.log("✅ Gestionnaire de présence nettoyé");
+    };
+  }, [enabled, heartbeatInterval]);
+
+  // Écouter les changements de présence de l'utilisateur actuel
+  useEffect(() => {
+    if (!enabled) return;
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    const userId = currentUser.uid;
+    const presenceRef = ref(rtdb, `presence/${userId}`);
+
+    const unsubscribe = onValue(presenceRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const presence = snapshot.val();
+        setLastSeen(presence.lastSeen || null);
+        setIsActive(presence.status === "online");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [enabled]);
+
+  return {
+    isActive,
+    lastSeen,
     error,
   };
 }
@@ -866,6 +1142,13 @@ export default {
   loginUser,
   logoutUser,
 
+  // Système de présence robuste
+  setupPresenceSystem,
+  startHeartbeat,
+  stopHeartbeat,
+  setupBeforeUnload,
+  isUserActive,
+
   // Fonctions admin
   getAllUsers,
   getAllUsersPresences,
@@ -877,4 +1160,5 @@ export default {
   useUserPresence,
   useUsersWithPresence,
   useUserMetrics,
+  usePresenceManager,
 };
