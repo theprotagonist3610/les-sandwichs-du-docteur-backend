@@ -256,6 +256,8 @@ export async function createUserWithPrecheck(userData) {
 
 /**
  * Connecte un utilisateur en détectant automatiquement son role
+ * NOTE: Le système de présence (heartbeat) est géré automatiquement par
+ * le hook usePresenceManager dans MainLayout, pas ici !
  * @param {string} email - Email de l'utilisateur
  * @param {string} password - Mot de passe
  * @returns {Promise<Object>} Les données de l'utilisateur connecté
@@ -278,7 +280,11 @@ export async function loginUser(email, password) {
 
     // Étape 3: Utiliser la fonction loginUser du toolkit approprié (sans navigation)
     // On ne passe pas navigate car on gère ça depuis le composant
-    const result = await userToolkit.loginUser(email, password, null);
+    // IMPORTANT: On désactive le heartbeat ici car il sera géré par usePresenceManager
+    const result = await userToolkit.loginUser(email, password, null, "/dashboard", {
+      enableHeartbeat: false, // ❌ Désactivé - géré par usePresenceManager dans Layout
+      heartbeatInterval: 30000
+    });
 
     // Étape 4: Sauvegarder l'utilisateur en localStorage
     if (result.user) {
@@ -286,6 +292,7 @@ export async function loginUser(email, password) {
     }
 
     console.log("✅ Connexion réussie avec role:", preuser.role);
+    console.log("ℹ️ Le heartbeat sera démarré automatiquement par usePresenceManager dans Layout");
 
     return {
       ...result,

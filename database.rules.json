@@ -17,6 +17,9 @@
         "updatedAt": {
           ".validate": "newData.isNumber()"
         },
+        "lastSeen": {
+          ".validate": "!newData.exists() || newData.isNumber()"
+        },
         "userName": {
           ".validate": "!newData.exists() || newData.isString()"
         },
