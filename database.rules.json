@@ -6,7 +6,7 @@
       "$presenceId": {
         ".write": "auth != null",
 
-        ".validate": "newData.hasChildren(['userId', 'status', 'updatedAt'])",
+        ".validate": "newData.hasChildren(['userId', 'status', 'updatedAt']) && (newData.hasChildren(['lastSeen']) || !newData.hasChildren(['lastSeen']))",
 
         "userId": {
           ".validate": "newData.isString()"
@@ -15,6 +15,9 @@
           ".validate": "newData.isString() && (newData.val() == 'online' || newData.val() == 'offline' || newData.val() == 'away')"
         },
         "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastSeen": {
           ".validate": "newData.isNumber()"
         },
         "userName": {
