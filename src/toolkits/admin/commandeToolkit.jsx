@@ -1877,6 +1877,196 @@ export function useCommandeQueue(filter = {}) {
 }
 
 // ============================================================================
+// HOOKS AVANCÉS - ANALYSES DÉTAILLÉES
+// ============================================================================
+
+/**
+ * Hook pour récupérer les détails d'un produit spécifique avec analyses
+ * @param {string} productId - ID du produit
+ * @param {number} days - Nombre de jours d'historique (défaut: 7)
+ * @returns {Object} { productStats, loading, error, refetch }
+ */
+export function useProductDetails(productId, days = 7) {
+  const [productStats, setProductStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchProductDetails = useCallback(async () => {
+    if (!productId) {
+      setProductStats(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Récupérer les statistiques de la semaine
+      const statsRef = doc(db, VENTES_PATH, STATISTIQUES_DOC);
+      const statsDoc = await getDoc(statsRef);
+
+      if (!statsDoc.exists()) {
+        setProductStats(null);
+        setLoading(false);
+        return;
+      }
+
+      const allStats = statsDoc.data().liste || [];
+      const lastDaysStats = allStats.slice(-days);
+
+      // Calculer les données du produit
+      let totalQuantity = 0;
+      let totalRevenue = 0;
+      let dailySales = [];
+      let productName = "";
+
+      lastDaysStats.forEach((dayStat) => {
+        const productInDay = dayStat.total_ventes_par_articles?.find(
+          (article) => article.id === productId
+        );
+
+        if (productInDay) {
+          totalQuantity += productInDay.total;
+          productName = productInDay.denomination;
+
+          dailySales.push({
+            date: dayStat.date,
+            quantity: productInDay.total,
+          });
+        } else {
+          dailySales.push({
+            date: dayStat.date,
+            quantity: 0,
+          });
+        }
+      });
+
+      // Calcul du prix moyen (approximatif à partir du CA total)
+      const avgPrice = totalQuantity > 0 ? Math.round(totalRevenue / totalQuantity) : 0;
+
+      // Tendance (comparaison dernière période vs période précédente)
+      const midPoint = Math.floor(dailySales.length / 2);
+      const firstHalf = dailySales.slice(0, midPoint);
+      const secondHalf = dailySales.slice(midPoint);
+
+      const avgFirstHalf = firstHalf.reduce((sum, d) => sum + d.quantity, 0) / firstHalf.length;
+      const avgSecondHalf = secondHalf.reduce((sum, d) => sum + d.quantity, 0) / secondHalf.length;
+
+      const trend = avgSecondHalf > avgFirstHalf ? "hausse" : avgSecondHalf < avgFirstHalf ? "baisse" : "stable";
+      const trendPercentage = avgFirstHalf > 0
+        ? ((avgSecondHalf - avgFirstHalf) / avgFirstHalf) * 100
+        : 0;
+
+      setProductStats({
+        id: productId,
+        name: productName || "Produit inconnu",
+        totalQuantity,
+        totalRevenue,
+        avgPrice,
+        dailySales,
+        trend,
+        trendPercentage,
+        days,
+      });
+    } catch (err) {
+      console.error("❌ Erreur useProductDetails:", err);
+      setError(err.message);
+      setProductStats(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [productId, days]);
+
+  useEffect(() => {
+    fetchProductDetails();
+  }, [fetchProductDetails]);
+
+  return { productStats, loading, error, refetch: fetchProductDetails };
+}
+
+/**
+ * Hook pour l'analyse ABC des produits (Principe de Pareto)
+ * Catégorie A : Top 20% des produits qui génèrent 80% du CA
+ * Catégorie B : 30% des produits qui génèrent 15% du CA
+ * Catégorie C : 50% des produits qui génèrent 5% du CA
+ * @returns {Object} { analysis, loading, error }
+ */
+export function useABCAnalysis() {
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchAnalysis = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { statistiques } = await (async () => {
+          const statsRef = doc(db, VENTES_PATH, STATISTIQUES_DOC);
+          const statsDoc = await getDoc(statsRef);
+          if (!statsDoc.exists()) return { statistiques: null };
+
+          const allStats = statsDoc.data().liste || [];
+          const todayKey = getDateKey();
+          const todayStats = allStats.find((s) => s.date === todayKey);
+          return { statistiques: todayStats };
+        })();
+
+        if (!statistiques || !statistiques.total_ventes_par_articles) {
+          setAnalysis({ categoryA: [], categoryB: [], categoryC: [] });
+          setLoading(false);
+          return;
+        }
+
+        // Trier par quantité vendue (décroissant)
+        const sortedProducts = [...statistiques.total_ventes_par_articles]
+          .sort((a, b) => b.total - a.total);
+
+        const totalQuantity = sortedProducts.reduce((sum, p) => sum + p.total, 0);
+
+        let cumulativeQuantity = 0;
+        const categoryA = [];
+        const categoryB = [];
+        const categoryC = [];
+
+        sortedProducts.forEach((product) => {
+          cumulativeQuantity += product.total;
+          const percentage = (cumulativeQuantity / totalQuantity) * 100;
+
+          const productWithMetrics = {
+            ...product,
+            percentage: ((product.total / totalQuantity) * 100).toFixed(1),
+            cumulativePercentage: percentage.toFixed(1),
+          };
+
+          if (percentage <= 80) {
+            categoryA.push({ ...productWithMetrics, category: "A" });
+          } else if (percentage <= 95) {
+            categoryB.push({ ...productWithMetrics, category: "B" });
+          } else {
+            categoryC.push({ ...productWithMetrics, category: "C" });
+          }
+        });
+
+        setAnalysis({ categoryA, categoryB, categoryC });
+      } catch (err) {
+        console.error("❌ Erreur useABCAnalysis:", err);
+        setError(err.message);
+        setAnalysis(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalysis();
+  }, []);
+
+  return { analysis, loading, error };
+}
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
