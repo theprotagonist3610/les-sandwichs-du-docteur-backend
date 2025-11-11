@@ -53,7 +53,7 @@ const MobileVenteId = () => {
   const prediction = Math.round(avgDailySales * 1.05);
 
   return (
-    <div className="p-4 space-y-4 bg-gray-50 min-h-screen">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div>
         <Button
@@ -67,7 +67,7 @@ const MobileVenteId = () => {
         </Button>
 
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold">
             {productStats.name}
           </h1>
           <Badge
@@ -85,7 +85,7 @@ const MobileVenteId = () => {
             {productStats.trend}
           </Badge>
         </div>
-        <p className="text-xs text-gray-600 mt-1">Analyse sur 7 jours</p>
+        <p className="text-xs opacity-70 mt-1">Analyse sur 7 jours</p>
       </div>
 
       {/* KPIs - 2 colonnes */}
@@ -133,7 +133,7 @@ const MobileVenteId = () => {
           <p className="text-xs font-semibold mb-1">
             {productStats.trend === "hausse" ? "🎉 Tendance +" : "⚠️ Tendance -"}
           </p>
-          <p className="text-xs text-gray-700">
+          <p className="text-xs opacity-90">
             {productStats.trend === "hausse"
               ? `Hausse de ${Math.abs(productStats.trendPercentage).toFixed(1)}%. Augmentez le stock.`
               : `Baisse de ${Math.abs(productStats.trendPercentage).toFixed(1)}%. Analysez les causes.`}
@@ -186,16 +186,16 @@ const MobileVenteId = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between p-2 bg-gray-50 rounded">
-              <span className="text-gray-600">Total (7j)</span>
+            <div className="flex justify-between p-2 rounded border">
+              <span className="opacity-70">Total (7j)</span>
               <span className="font-bold">{productStats.totalQuantity}</span>
             </div>
-            <div className="flex justify-between p-2 bg-gray-50 rounded">
-              <span className="text-gray-600">Moyenne/jour</span>
+            <div className="flex justify-between p-2 rounded border">
+              <span className="opacity-70">Moyenne/jour</span>
               <span className="font-bold">{avgDailySales.toFixed(1)}</span>
             </div>
-            <div className="flex justify-between p-2 bg-purple-50 rounded">
-              <span className="text-gray-600">Prévision demain</span>
+            <div className="flex justify-between p-2 bg-purple-50 rounded border">
+              <span className="opacity-70">Prévision demain</span>
               <span className="font-bold text-purple-600">~{prediction}</span>
             </div>
           </div>

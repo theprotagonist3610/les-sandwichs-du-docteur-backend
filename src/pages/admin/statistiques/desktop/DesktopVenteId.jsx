@@ -59,7 +59,7 @@ const DesktopVenteId = () => {
   const prediction = Math.round(avgDailySales * 1.05); // +5% de tendance optimiste
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -73,7 +73,7 @@ const DesktopVenteId = () => {
 
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold">
                 {productStats.name}
               </h1>
               <Badge
@@ -91,15 +91,15 @@ const DesktopVenteId = () => {
                 {productStats.trend}
               </Badge>
             </div>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm opacity-70 mt-1">
               Analyse détaillée sur {productStats.days} jours
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-500" />
-          <span className="text-sm text-gray-600">7 derniers jours</span>
+          <Calendar className="h-4 w-4 opacity-70" />
+          <span className="text-sm opacity-70">7 derniers jours</span>
         </div>
       </div>
 
@@ -202,18 +202,18 @@ const DesktopVenteId = () => {
           />
 
           <div className="mt-6 grid grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Moyenne/jour</p>
+            <div className="text-center p-3 rounded-lg border">
+              <p className="text-sm opacity-70">Moyenne/jour</p>
               <p className="text-2xl font-bold text-blue-600">
                 {avgDailySales.toFixed(1)}
               </p>
             </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600">Maximum</p>
+            <div className="text-center p-3 rounded-lg border">
+              <p className="text-sm opacity-70">Maximum</p>
               <p className="text-2xl font-bold text-green-600">{maxDailySales}</p>
             </div>
-            <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <p className="text-sm text-gray-600">Minimum</p>
+            <div className="text-center p-3 rounded-lg border">
+              <p className="text-sm opacity-70">Minimum</p>
               <p className="text-2xl font-bold text-orange-600">{minDailySales}</p>
             </div>
           </div>
@@ -252,18 +252,18 @@ const DesktopVenteId = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Analyse de performance */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900">Performance</h3>
+              <h3 className="font-semibold">Performance</h3>
               <div className="space-y-2">
-                <div className="flex justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-gray-600">Total vendu ({productStats.days}j)</span>
+                <div className="flex justify-between p-2 rounded border">
+                  <span className="opacity-70">Total vendu ({productStats.days}j)</span>
                   <span className="font-bold">{productStats.totalQuantity} unités</span>
                 </div>
-                <div className="flex justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-gray-600">Moyenne quotidienne</span>
+                <div className="flex justify-between p-2 rounded border">
+                  <span className="opacity-70">Moyenne quotidienne</span>
                   <span className="font-bold">{avgDailySales.toFixed(1)} unités/j</span>
                 </div>
-                <div className="flex justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-gray-600">Tendance</span>
+                <div className="flex justify-between p-2 rounded border">
+                  <span className="opacity-70">Tendance</span>
                   <Badge
                     className={
                       productStats.trend === "hausse"
@@ -282,20 +282,20 @@ const DesktopVenteId = () => {
 
             {/* Prévisions & Recommandations */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900">Prévisions & Recommandations</h3>
+              <h3 className="font-semibold">Prévisions & Recommandations</h3>
               <div className="space-y-2">
-                <div className="flex justify-between p-2 bg-purple-50 rounded">
-                  <span className="text-gray-600">Prévision demain</span>
+                <div className="flex justify-between p-2 bg-purple-50 rounded border">
+                  <span className="opacity-70">Prévision demain</span>
                   <span className="font-bold text-purple-600">~{prediction} unités</span>
                 </div>
-                <div className="flex justify-between p-2 bg-purple-50 rounded">
-                  <span className="text-gray-600">Prévision J+3</span>
+                <div className="flex justify-between p-2 bg-purple-50 rounded border">
+                  <span className="opacity-70">Prévision J+3</span>
                   <span className="font-bold text-purple-600">
                     ~{Math.round(prediction * 3)} unités
                   </span>
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                  <p className="text-sm text-blue-900">
+                <div className="p-3 rounded-lg border-l-4 border-blue-500">
+                  <p className="text-sm">
                     <strong>💡 Conseil :</strong>{" "}
                     {productStats.trend === "hausse"
                       ? "Augmentez le stock de 20% pour éviter les ruptures."

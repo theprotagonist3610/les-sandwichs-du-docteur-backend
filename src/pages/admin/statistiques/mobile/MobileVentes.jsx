@@ -51,11 +51,11 @@ const MobileVentes = () => {
   ].filter(item => item.value > 0);
 
   return (
-    <div className="p-4 space-y-4 bg-gray-50 min-h-screen">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">📊 Ventes</h1>
-        <p className="text-xs text-gray-600 mt-1">Statistiques du jour</p>
+        <h1 className="text-2xl font-bold">📊 Ventes</h1>
+        <p className="text-xs opacity-70 mt-1">Statistiques du jour</p>
       </div>
 
       {/* KPIs - 2 colonnes sur mobile */}
@@ -123,7 +123,7 @@ const MobileVentes = () => {
               .map((article, index) => (
                 <div
                   key={article.id}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-blue-50 active:bg-blue-100"
+                  className="flex items-center justify-between p-2 rounded hover:opacity-80 active:opacity-60 cursor-pointer"
                   onClick={() => navigate(`/admin/statistiques/ventes/${article.id}`)}
                 >
                   <div className="flex items-center gap-2 flex-1">
@@ -132,7 +132,7 @@ const MobileVentes = () => {
                     </div>
                     <div>
                       <p className="font-medium text-sm">{article.denomination}</p>
-                      <p className="text-xs text-gray-500">{article.total} ventes</p>
+                      <p className="text-xs opacity-70">{article.total} ventes</p>
                     </div>
                   </div>
                   <Badge variant="outline" className="text-xs">

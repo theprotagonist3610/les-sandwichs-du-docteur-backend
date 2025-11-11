@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -31,11 +31,126 @@ const DesktopVentes = () => {
   const { statistiques, loading, isArchiving } = useCommandeStatistiques();
   const { statistiquesWeek, loading: loadingWeek } = useCommandeStatistiquesWeek();
 
+  // Calculer les statistiques agrégées selon la période sélectionnée
+  const { statsToDisplay, evolutionData, daysLabel } = useMemo(() => {
+    if (!statistiquesWeek || statistiquesWeek.length === 0) {
+      return {
+        statsToDisplay: statistiques,
+        evolutionData: [],
+        daysLabel: "Aujourd'hui"
+      };
+    }
+
+    let filteredStats = [];
+    let label = "";
+
+    switch (period) {
+      case "today":
+        filteredStats = [statistiques];
+        label = "Aujourd'hui";
+        break;
+      case "week":
+        filteredStats = statistiquesWeek.slice(-7);
+        label = "7 derniers jours";
+        break;
+      case "month":
+        filteredStats = statistiquesWeek.slice(-30);
+        label = "30 derniers jours";
+        break;
+      default:
+        filteredStats = [statistiques];
+        label = "Aujourd'hui";
+    }
+
+    // Si période > aujourd'hui, agréger les stats
+    if (period !== "today" && filteredStats.length > 1) {
+      const aggregated = {
+        total_ventes: 0,
+        total_ventes_sur_place: 0,
+        total_ventes_a_livrer: 0,
+        nombre_commandes: 0,
+        total_ventes_par_articles: [],
+        total_ventes_par_vendeur: [],
+        encaissements: { especes: 0, momo: 0, total: 0 },
+        tendance: "stable",
+        tendance_pourcentage: 0,
+      };
+
+      // Agréger les totaux
+      filteredStats.forEach(stat => {
+        aggregated.total_ventes += stat.total_ventes || 0;
+        aggregated.total_ventes_sur_place += stat.total_ventes_sur_place || 0;
+        aggregated.total_ventes_a_livrer += stat.total_ventes_a_livrer || 0;
+        aggregated.nombre_commandes += stat.nombre_commandes || 0;
+        aggregated.encaissements.especes += stat.encaissements?.especes || 0;
+        aggregated.encaissements.momo += stat.encaissements?.momo || 0;
+      });
+
+      aggregated.encaissements.total = aggregated.encaissements.especes + aggregated.encaissements.momo;
+
+      // Agréger les articles
+      const articlesMap = new Map();
+      filteredStats.forEach(stat => {
+        stat.total_ventes_par_articles?.forEach(article => {
+          if (!articlesMap.has(article.id)) {
+            articlesMap.set(article.id, { ...article, total: 0 });
+          }
+          articlesMap.get(article.id).total += article.total;
+        });
+      });
+      aggregated.total_ventes_par_articles = Array.from(articlesMap.values());
+
+      // Agréger les vendeurs
+      const vendeursMap = new Map();
+      filteredStats.forEach(stat => {
+        stat.total_ventes_par_vendeur?.forEach(vendeur => {
+          if (!vendeursMap.has(vendeur.userId)) {
+            vendeursMap.set(vendeur.userId, { ...vendeur, total_commandes: 0, total_ventes: 0 });
+          }
+          const v = vendeursMap.get(vendeur.userId);
+          v.total_commandes += vendeur.total_commandes;
+          v.total_ventes += vendeur.total_ventes;
+        });
+      });
+      aggregated.total_ventes_par_vendeur = Array.from(vendeursMap.values());
+
+      // Calculer la tendance (comparer première moitié vs deuxième moitié)
+      const midPoint = Math.floor(filteredStats.length / 2);
+      const firstHalf = filteredStats.slice(0, midPoint);
+      const secondHalf = filteredStats.slice(midPoint);
+
+      const avgFirst = firstHalf.reduce((sum, s) => sum + (s.total_ventes || 0), 0) / firstHalf.length;
+      const avgSecond = secondHalf.reduce((sum, s) => sum + (s.total_ventes || 0), 0) / secondHalf.length;
+
+      if (avgSecond > avgFirst * 1.05) {
+        aggregated.tendance = "hausse";
+      } else if (avgSecond < avgFirst * 0.95) {
+        aggregated.tendance = "baisse";
+      }
+
+      aggregated.tendance_pourcentage = avgFirst > 0
+        ? ((avgSecond - avgFirst) / avgFirst) * 100
+        : 0;
+
+      return {
+        statsToDisplay: aggregated,
+        evolutionData: filteredStats.map(s => ({ date: s.date, value: s.total_ventes || 0 })),
+        daysLabel: label,
+      };
+    }
+
+    return {
+      statsToDisplay: statistiques,
+      evolutionData: statistiquesWeek.slice(-7).map(s => ({ date: s.date, value: s.total_ventes || 0 })),
+      daysLabel: label,
+    };
+  }, [period, statistiques, statistiquesWeek]);
+
   if (loading || loadingWeek || isArchiving) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <div className="animate-spin text-6xl mb-4">⏳</div>
-        <p className="text-lg text-gray-600">
+        <p className="text-lg">
           {isArchiving ? "Archivage en cours..." : "Chargement des statistiques..."}
         </p>
       </div>
@@ -43,25 +158,19 @@ const DesktopVentes = () => {
   }
 
   // Calculer le ticket moyen
-  const ticketMoyen = statistiques?.nombre_commandes > 0
-    ? Math.round(statistiques.total_ventes / statistiques.nombre_commandes)
+  const ticketMoyen = statsToDisplay?.nombre_commandes > 0
+    ? Math.round(statsToDisplay.total_ventes / statsToDisplay.nombre_commandes)
     : 0;
-
-  // Préparer les données pour le graphique d'évolution
-  const evolutionData = (statistiquesWeek || []).map(stat => ({
-    date: stat.date,
-    value: stat.total_ventes || 0,
-  }));
 
   // Préparer les données pour le donut des encaissements
   const encaissementsData = [
     {
       name: "Espèces",
-      value: statistiques?.encaissements?.especes || 0,
+      value: statsToDisplay?.encaissements?.especes || 0,
     },
     {
       name: "Mobile Money",
-      value: statistiques?.encaissements?.momo || 0,
+      value: statsToDisplay?.encaissements?.momo || 0,
     },
   ].filter(item => item.value > 0);
 
@@ -69,29 +178,29 @@ const DesktopVentes = () => {
   const typeData = [
     {
       name: "Sur place",
-      value: statistiques?.total_ventes_sur_place || 0,
+      value: statsToDisplay?.total_ventes_sur_place || 0,
     },
     {
       name: "Livraison",
-      value: statistiques?.total_ventes_a_livrer || 0,
+      value: statsToDisplay?.total_ventes_a_livrer || 0,
     },
   ].filter(item => item.value > 0);
 
   // Export CSV
   const handleExportCSV = () => {
-    if (!statistiques) return;
+    if (!statsToDisplay) return;
 
-    const csvContent = `Statistiques Ventes - ${new Date().toLocaleDateString()}\n\n` +
-      `Chiffre d'affaires total,${statistiques.total_ventes} FCFA\n` +
-      `Nombre de commandes,${statistiques.nombre_commandes}\n` +
+    const csvContent = `Statistiques Ventes - ${daysLabel} - ${new Date().toLocaleDateString()}\n\n` +
+      `Chiffre d'affaires total,${statsToDisplay.total_ventes} FCFA\n` +
+      `Nombre de commandes,${statsToDisplay.nombre_commandes}\n` +
       `Ticket moyen,${ticketMoyen} FCFA\n` +
-      `Tendance,${statistiques.tendance} (${statistiques.tendance_pourcentage}%)\n\n` +
+      `Tendance,${statsToDisplay.tendance} (${statsToDisplay.tendance_pourcentage?.toFixed(1)}%)\n\n` +
       `Encaissements\n` +
-      `Espèces,${statistiques.encaissements?.especes || 0} FCFA\n` +
-      `Mobile Money,${statistiques.encaissements?.momo || 0} FCFA\n\n` +
+      `Espèces,${statsToDisplay.encaissements?.especes || 0} FCFA\n` +
+      `Mobile Money,${statsToDisplay.encaissements?.momo || 0} FCFA\n\n` +
       `Top 5 Produits\n` +
       `Rang,Produit,Quantité vendue\n` +
-      statistiques.total_ventes_par_articles
+      statsToDisplay.total_ventes_par_articles
         ?.sort((a, b) => b.total - a.total)
         .slice(0, 5)
         .map((article, index) => `${index + 1},${article.denomination},${article.total}`)
@@ -100,18 +209,18 @@ const DesktopVentes = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `statistiques_ventes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `statistiques_ventes_${period}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">📊 Dashboard Ventes</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Vue complète des statistiques de ventes
+          <h1 className="text-3xl font-bold">📊 Dashboard Ventes</h1>
+          <p className="text-sm opacity-70 mt-1">
+            {daysLabel} · Vue complète des statistiques de ventes
           </p>
         </div>
 
@@ -139,17 +248,17 @@ const DesktopVentes = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KPICard
           title="Chiffre d'affaires"
-          value={`${(statistiques?.total_ventes || 0).toLocaleString()} F`}
-          trend={statistiques?.tendance}
-          trendValue={statistiques?.tendance_pourcentage || 0}
+          value={`${(statsToDisplay?.total_ventes || 0).toLocaleString()} F`}
+          trend={statsToDisplay?.tendance}
+          trendValue={statsToDisplay?.tendance_pourcentage || 0}
           icon={<DollarSign className="h-6 w-6" />}
           color="green"
-          subtitle="CA total du jour"
+          subtitle={daysLabel}
         />
 
         <KPICard
           title="Commandes"
-          value={statistiques?.nombre_commandes || 0}
+          value={statsToDisplay?.nombre_commandes || 0}
           icon={<ShoppingCart className="h-6 w-6" />}
           color="blue"
           subtitle="Nombre de transactions"
@@ -165,7 +274,7 @@ const DesktopVentes = () => {
 
         <KPICard
           title="Produits vendus"
-          value={statistiques?.total_ventes_par_articles?.length || 0}
+          value={statsToDisplay?.total_ventes_par_articles?.length || 0}
           icon={<Package className="h-6 w-6" />}
           color="orange"
           subtitle="Références différentes"
@@ -176,7 +285,7 @@ const DesktopVentes = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            📈 Évolution du CA (7 derniers jours)
+            📈 Évolution du CA ({daysLabel})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -202,11 +311,11 @@ const DesktopVentes = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {statistiques?.total_ventes_par_articles
+              {statsToDisplay?.total_ventes_par_articles
                 ?.sort((a, b) => b.total - a.total)
                 .slice(0, 5)
                 .map((article, index) => {
-                  const totalVentes = statistiques.total_ventes_par_articles.reduce(
+                  const totalVentes = statsToDisplay.total_ventes_par_articles.reduce(
                     (sum, a) => sum + a.total,
                     0
                   );
@@ -215,7 +324,7 @@ const DesktopVentes = () => {
                   return (
                     <div
                       key={article.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg hover:opacity-80 cursor-pointer transition-opacity"
                       onClick={() => navigate(`/admin/statistiques/ventes/${article.id}`)}
                     >
                       <div className="flex items-center gap-3 flex-1">
@@ -223,10 +332,10 @@ const DesktopVentes = () => {
                           {index + 1}
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium">
                             {article.denomination}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm opacity-70">
                             {article.total} ventes · {percentage}% du total
                           </p>
                         </div>
@@ -238,9 +347,9 @@ const DesktopVentes = () => {
                   );
                 })}
 
-              {(!statistiques?.total_ventes_par_articles || statistiques.total_ventes_par_articles.length === 0) && (
-                <div className="text-center py-8 text-gray-500">
-                  Aucune vente aujourd'hui
+              {(!statsToDisplay?.total_ventes_par_articles || statsToDisplay.total_ventes_par_articles.length === 0) && (
+                <div className="text-center py-8 opacity-70">
+                  Aucune vente pour cette période
                 </div>
               )}
             </div>
@@ -257,24 +366,24 @@ const DesktopVentes = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {statistiques?.total_ventes_par_vendeur
+              {statsToDisplay?.total_ventes_par_vendeur
                 ?.sort((a, b) => b.total_ventes - a.total_ventes)
                 .slice(0, 5)
                 .map((vendeur, index) => {
                   return (
                     <div
                       key={vendeur.userId}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-3 rounded-lg"
                     >
                       <div className="flex items-center gap-3 flex-1">
                         <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 font-bold rounded-full">
                           {index + 1}
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium">
                             {vendeur.nom}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm opacity-70">
                             {vendeur.total_commandes} commande{vendeur.total_commandes > 1 ? 's' : ''}
                           </p>
                         </div>
@@ -283,7 +392,7 @@ const DesktopVentes = () => {
                         <p className="font-bold text-green-600">
                           {vendeur.total_ventes.toLocaleString()} F
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs opacity-70">
                           ~{Math.round(vendeur.total_ventes / vendeur.total_commandes).toLocaleString()} F/cmd
                         </p>
                       </div>
@@ -291,9 +400,9 @@ const DesktopVentes = () => {
                   );
                 })}
 
-              {(!statistiques?.total_ventes_par_vendeur || statistiques.total_ventes_par_vendeur.length === 0) && (
-                <div className="text-center py-8 text-gray-500">
-                  Aucune vente aujourd'hui
+              {(!statsToDisplay?.total_ventes_par_vendeur || statsToDisplay.total_ventes_par_vendeur.length === 0) && (
+                <div className="text-center py-8 opacity-70">
+                  Aucune vente pour cette période
                 </div>
               )}
             </div>
@@ -324,32 +433,32 @@ const DesktopVentes = () => {
                   <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-green-500 rounded-full" />
-                      <span className="font-medium text-gray-700">Espèces</span>
+                      <span className="font-medium">Espèces</span>
                     </div>
                     <span className="font-bold text-green-600">
-                      {(statistiques?.encaissements?.especes || 0).toLocaleString()} F
+                      {(statsToDisplay?.encaissements?.especes || 0).toLocaleString()} F
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-blue-500 rounded-full" />
-                      <span className="font-medium text-gray-700">Mobile Money</span>
+                      <span className="font-medium">Mobile Money</span>
                     </div>
                     <span className="font-bold text-blue-600">
-                      {(statistiques?.encaissements?.momo || 0).toLocaleString()} F
+                      {(statsToDisplay?.encaissements?.momo || 0).toLocaleString()} F
                     </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-100 rounded-lg border-2 border-gray-300">
-                    <span className="font-bold text-gray-700">Total</span>
-                    <span className="font-bold text-gray-900 text-lg">
-                      {(statistiques?.encaissements?.total || 0).toLocaleString()} F
+                  <div className="flex items-center justify-between p-3 rounded-lg border-2">
+                    <span className="font-bold">Total</span>
+                    <span className="font-bold text-lg">
+                      {(statsToDisplay?.encaissements?.total || 0).toLocaleString()} F
                     </span>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                Aucun encaissement aujourd'hui
+              <div className="text-center py-8 opacity-70">
+                Aucun encaissement pour cette période
               </div>
             )}
           </CardContent>
@@ -376,27 +485,27 @@ const DesktopVentes = () => {
                 />
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                    <span className="font-medium text-gray-700">Sur place</span>
+                    <span className="font-medium">Sur place</span>
                     <div className="text-right">
                       <p className="font-bold text-orange-600">
-                        {(statistiques?.total_ventes_sur_place || 0).toLocaleString()} F
+                        {(statsToDisplay?.total_ventes_sur_place || 0).toLocaleString()} F
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {statistiques?.total_ventes > 0
-                          ? ((statistiques.total_ventes_sur_place / statistiques.total_ventes) * 100).toFixed(1)
+                      <p className="text-xs opacity-70">
+                        {statsToDisplay?.total_ventes > 0
+                          ? ((statsToDisplay.total_ventes_sur_place / statsToDisplay.total_ventes) * 100).toFixed(1)
                           : 0}%
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-cyan-50 rounded-lg">
-                    <span className="font-medium text-gray-700">Livraison</span>
+                    <span className="font-medium">Livraison</span>
                     <div className="text-right">
                       <p className="font-bold text-cyan-600">
-                        {(statistiques?.total_ventes_a_livrer || 0).toLocaleString()} F
+                        {(statsToDisplay?.total_ventes_a_livrer || 0).toLocaleString()} F
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {statistiques?.total_ventes > 0
-                          ? ((statistiques.total_ventes_a_livrer / statistiques.total_ventes) * 100).toFixed(1)
+                      <p className="text-xs opacity-70">
+                        {statsToDisplay?.total_ventes > 0
+                          ? ((statsToDisplay.total_ventes_a_livrer / statsToDisplay.total_ventes) * 100).toFixed(1)
                           : 0}%
                       </p>
                     </div>
@@ -404,8 +513,8 @@ const DesktopVentes = () => {
                 </div>
               </>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                Aucune vente aujourd'hui
+              <div className="text-center py-8 opacity-70">
+                Aucune vente pour cette période
               </div>
             )}
           </CardContent>
