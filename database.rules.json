@@ -6,7 +6,7 @@
       "$presenceId": {
         ".write": "auth != null",
 
-        ".validate": "newData.hasChildren(['userId', 'status', 'updatedAt'])",
+        ".validate": "newData.hasChildren(['userId', 'status', 'updatedAt']) && (newData.hasChildren(['lastSeen']) || !newData.hasChildren(['lastSeen']))",
 
         "userId": {
           ".validate": "newData.isString()"

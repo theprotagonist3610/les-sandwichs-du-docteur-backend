@@ -1033,7 +1033,7 @@ export function useUsersWithPresence(options = {}) {
  * Filtre les utilisateurs réellement actifs basé sur lastSeen
  * @param {Object} options - Options pour useUsersWithPresence
  * @param {number} options.activityThreshold - Seuil d'activité en ms (défaut: 90000)
- * @returns {Object} Métriques calculées (total, online, offline, away, admins, male, female, newUsers, reallyOnline)
+ * @returns {Object} Métriques calculées (total, online, offline, away, reallyOnline, admins, superviseurs, vendeurs, cuisiniers, livreurs, regularUsers, male, female, newUsers)
  */
 export function useUserMetrics(options = {}) {
   const { activityThreshold = 90000, ...usersOptions } = options;
@@ -1049,10 +1049,16 @@ export function useUserMetrics(options = {}) {
       isUserActive(u.presence, activityThreshold)
     ).length;
 
+    // Décompte par rôle
     const admins = users.filter((u) => u.role === "admin").length;
+    const superviseurs = users.filter((u) => u.role === "superviseur").length;
+    const vendeurs = users.filter((u) => u.role === "vendeur").length;
+    const cuisiniers = users.filter((u) => u.role === "cuisinier").length;
+    const livreurs = users.filter((u) => u.role === "livreur").length;
     const regularUsers = users.filter(
       (u) => u.role === "user" || !u.role
     ).length;
+
     const male = users.filter((u) => u.sexe === "m").length;
     const female = users.filter((u) => u.sexe === "f").length;
 
@@ -1067,6 +1073,10 @@ export function useUserMetrics(options = {}) {
       away,
       reallyOnline, // Nombre d'utilisateurs réellement actifs
       admins,
+      superviseurs,
+      vendeurs,
+      cuisiniers,
+      livreurs,
       regularUsers,
       male,
       female,

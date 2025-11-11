@@ -436,34 +436,65 @@ const DesktopDashboard = () => {
             <CardTitle>Distribution par rôle</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-purple-500 rounded-full" />
                   <span className="text-sm font-medium">Administrateurs</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-purple-900">
-                    {metrics.admins}
-                  </span>
-                  <Badge
-                    variant="secondary"
-                    className="bg-purple-100 text-purple-700">
-                    Admin
-                  </Badge>
-                </div>
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+                  {metrics.admins}
+                </Badge>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                  <span className="text-sm font-medium">Superviseurs</span>
+                </div>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
+                  {metrics.superviseurs}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full" />
+                  <span className="text-sm font-medium">Vendeurs</span>
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                  {metrics.vendeurs}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-orange-500 rounded-full" />
+                  <span className="text-sm font-medium">Cuisiniers</span>
+                </div>
+                <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-orange-200">
+                  {metrics.cuisiniers}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-cyan-500 rounded-full" />
+                  <span className="text-sm font-medium">Livreurs</span>
+                </div>
+                <Badge variant="secondary" className="bg-cyan-100 text-cyan-700 border-cyan-200">
+                  {metrics.livreurs}
+                </Badge>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-500 rounded-full" />
                   <span className="text-sm font-medium">Utilisateurs</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-blue-900">
-                    {metrics.regularUsers}
-                  </span>
-                </div>
+                <Badge variant="secondary">
+                  {metrics.regularUsers}
+                </Badge>
               </div>
             </div>
           </CardContent>
