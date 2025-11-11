@@ -10,14 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Users,
-  UserCheck,
-  UserX,
-  Clock,
-  RefreshCw,
-  Eye,
-} from "lucide-react";
+import { Users, UserCheck, UserX, Clock, RefreshCw, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -52,7 +45,9 @@ const MobileDashboard = () => {
   const recentlyActive = useMemo(() => {
     return users
       .filter((u) => u.presence)
-      .sort((a, b) => (b.presence?.updatedAt || 0) - (a.presence?.updatedAt || 0))
+      .sort(
+        (a, b) => (b.presence?.updatedAt || 0) - (a.presence?.updatedAt || 0)
+      )
       .slice(0, 3);
   }, [users]);
 
@@ -104,7 +99,9 @@ const MobileDashboard = () => {
               <CardContent className="pt-4 pb-4">
                 <Users className="h-6 w-6 text-blue-600 mb-2" />
                 <p className="text-[10px] text-blue-700">Total</p>
-                <p className="text-xl font-bold text-blue-900">{metrics.total}</p>
+                <p className="text-xl font-bold text-blue-900">
+                  {metrics.total}
+                </p>
                 <p className="text-[10px] text-blue-600">utilisateurs</p>
               </CardContent>
             </Card>
@@ -113,7 +110,9 @@ const MobileDashboard = () => {
               <CardContent className="pt-4 pb-4">
                 <UserCheck className="h-6 w-6 text-green-600 mb-2" />
                 <p className="text-[10px] text-green-700">En ligne</p>
-                <p className="text-xl font-bold text-green-900">{metrics.online}</p>
+                <p className="text-xl font-bold text-green-900">
+                  {metrics.online}
+                </p>
                 <p className="text-[10px] text-green-600">actifs</p>
               </CardContent>
             </Card>
@@ -122,8 +121,12 @@ const MobileDashboard = () => {
               <CardContent className="pt-4 pb-4">
                 <UserX className="h-6 w-6 text-gray-600 mb-2" />
                 <p className="text-[10px] text-gray-700">Hors ligne</p>
-                <p className="text-xl font-bold text-gray-900">{metrics.offline}</p>
-                <p className="text-[10px] text-gray-600">{metrics.away} absents</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {metrics.offline}
+                </p>
+                <p className="text-[10px] text-gray-600">
+                  {metrics.away} absents
+                </p>
               </CardContent>
             </Card>
 
@@ -147,8 +150,7 @@ const MobileDashboard = () => {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => navigate("/admin/users/presence")}
-                >
+                  onClick={() => navigate("/admin/users/presence")}>
                   <Eye className="h-3 w-3" />
                 </Button>
               </CardTitle>
@@ -161,15 +163,15 @@ const MobileDashboard = () => {
               ) : (
                 recentlyActive.map((user) => {
                   const config =
-                    STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
+                    STATUS_CONFIG[user.presence?.status] ||
+                    STATUS_CONFIG.offline;
                   return (
                     <Card
                       key={user.id}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/users/profil/${user.id}`)
-                      }
-                    >
+                        navigate(`/admin/users/profiles/${user.id}`)
+                      }>
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -184,8 +186,7 @@ const MobileDashboard = () => {
                             </div>
                             <div>
                               <p className="text-xs font-semibold line-clamp-1">
-                                {user.nom}{" "}
-                                {user.prenoms?.[0]}
+                                {user.nom} {user.prenoms?.[0]}
                               </p>
                               <p className="text-[10px] text-muted-foreground">
                                 {formatRelativeTime(user.presence?.updatedAt)}
@@ -194,8 +195,7 @@ const MobileDashboard = () => {
                           </div>
                           <Badge
                             variant="outline"
-                            className={`${config.bgLight} ${config.textColor} text-[10px]`}
-                          >
+                            className={`${config.bgLight} ${config.textColor} text-[10px]`}>
                             {config.label}
                           </Badge>
                         </div>
@@ -216,16 +216,14 @@ const MobileDashboard = () => {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => navigate("/admin/users/presence")}
-              >
+                onClick={() => navigate("/admin/users/presence")}>
                 <UserCheck className="h-4 w-4 mr-2" />
                 Monitoring Présence
               </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => navigate("/admin/users/profil")}
-              >
+                onClick={() => navigate("/admin/users/profiles")}>
                 <Users className="h-4 w-4 mr-2" />
                 Tous les Profils
               </Button>

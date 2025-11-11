@@ -97,8 +97,12 @@ const DesktopDashboard = () => {
     toast.error("Erreur de connexion au monitoring temps réel");
   }
 
-  const activePercentage = metrics.total > 0 ? Math.round((metrics.reallyOnline / metrics.total) * 100) : 0;
-  const onlinePercentage = metrics.total > 0 ? Math.round((metrics.online / metrics.total) * 100) : 0;
+  const activePercentage =
+    metrics.total > 0
+      ? Math.round((metrics.reallyOnline / metrics.total) * 100)
+      : 0;
+  const onlinePercentage =
+    metrics.total > 0 ? Math.round((metrics.online / metrics.total) * 100) : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -115,7 +119,7 @@ const DesktopDashboard = () => {
             Supervision et monitoring avec système de présence robuste
           </p>
         </div>
-        <Button onClick={() => navigate("/admin/users/profil")}>
+        <Button onClick={() => navigate("/admin/users/profiles")}>
           <ListFilter className="h-4 w-4 mr-2" />
           Voir tous les profils
         </Button>
@@ -130,7 +134,9 @@ const DesktopDashboard = () => {
                 <p className="text-sm text-blue-700 font-medium">
                   Total Utilisateurs
                 </p>
-                <p className="text-3xl font-bold text-blue-900">{metrics.total}</p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {metrics.total}
+                </p>
                 <p className="text-xs text-blue-600">
                   {metrics.male} H / {metrics.female} F
                 </p>
@@ -207,10 +213,12 @@ const DesktopDashboard = () => {
               <WifiOff className="h-5 w-5 text-amber-600" />
               <div>
                 <p className="text-sm font-medium text-amber-900">
-                  {metrics.online - metrics.reallyOnline} utilisateur(s) marqué(s) "en ligne" mais inactif(s)
+                  {metrics.online - metrics.reallyOnline} utilisateur(s)
+                  marqué(s) "en ligne" mais inactif(s)
                 </p>
                 <p className="text-xs text-amber-700">
-                  Ces utilisateurs n'ont pas envoyé de heartbeat récent (&lt; 90s). Ils peuvent avoir perdu leur connexion.
+                  Ces utilisateurs n'ont pas envoyé de heartbeat récent (&lt;
+                  90s). Ils peuvent avoir perdu leur connexion.
                 </p>
               </div>
             </div>
@@ -236,12 +244,13 @@ const DesktopDashboard = () => {
                   <span className="text-2xl font-bold text-emerald-900">
                     {metrics.reallyOnline}
                   </span>
-                  <Badge variant="secondary">
-                    {activePercentage}%
-                  </Badge>
+                  <Badge variant="secondary">{activePercentage}%</Badge>
                 </div>
               </div>
-              <Progress value={activePercentage} className="h-2 bg-emerald-100" />
+              <Progress
+                value={activePercentage}
+                className="h-2 bg-emerald-100"
+              />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -252,9 +261,7 @@ const DesktopDashboard = () => {
                   <span className="text-2xl font-bold text-green-900">
                     {metrics.online}
                   </span>
-                  <Badge variant="secondary">
-                    {onlinePercentage}%
-                  </Badge>
+                  <Badge variant="secondary">{onlinePercentage}%</Badge>
                 </div>
               </div>
               <Progress value={onlinePercentage} className="h-2 bg-green-100" />
@@ -285,8 +292,7 @@ const DesktopDashboard = () => {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => navigate("/admin/users/presence")}
-              >
+                onClick={() => navigate("/admin/users/presence")}>
                 <Eye className="h-4 w-4 mr-1" />
                 Voir tout
               </Button>
@@ -303,15 +309,16 @@ const DesktopDashboard = () => {
             ) : (
               <div className="space-y-3">
                 {recentlyActive.map((user) => {
-                  const config = STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
+                  const config =
+                    STATUS_CONFIG[user.presence?.status] ||
+                    STATUS_CONFIG.offline;
                   return (
                     <div
                       key={user.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
                       onClick={() =>
-                        navigate(`/admin/users/profil/${user.id}`)
-                      }
-                    >
+                        navigate(`/admin/users/profiles/${user.id}`)
+                      }>
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold">
@@ -337,7 +344,9 @@ const DesktopDashboard = () => {
                           Actif
                         </Badge>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {formatRelativeTime(user.presence?.lastSeen || user.presence?.updatedAt)}
+                          {formatRelativeTime(
+                            user.presence?.lastSeen || user.presence?.updatedAt
+                          )}
                         </p>
                       </div>
                     </div>
@@ -380,7 +389,9 @@ const DesktopDashboard = () => {
                   className="bg-blue-600 h-2 rounded-full transition-all"
                   style={{
                     width: `${
-                      metrics.total > 0 ? (metrics.male / metrics.total) * 100 : 0
+                      metrics.total > 0
+                        ? (metrics.male / metrics.total) * 100
+                        : 0
                     }%`,
                   }}
                 />
@@ -408,7 +419,9 @@ const DesktopDashboard = () => {
                   className="bg-pink-600 h-2 rounded-full transition-all"
                   style={{
                     width: `${
-                      metrics.total > 0 ? (metrics.female / metrics.total) * 100 : 0
+                      metrics.total > 0
+                        ? (metrics.female / metrics.total) * 100
+                        : 0
                     }%`,
                   }}
                 />
@@ -433,7 +446,9 @@ const DesktopDashboard = () => {
                   <span className="text-2xl font-bold text-purple-900">
                     {metrics.admins}
                   </span>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                  <Badge
+                    variant="secondary"
+                    className="bg-purple-100 text-purple-700">
                     Admin
                   </Badge>
                 </div>
@@ -459,8 +474,7 @@ const DesktopDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card
           className="cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
-          onClick={() => navigate("/admin/users/presence")}
-        >
+          onClick={() => navigate("/admin/users/presence")}>
           <CardContent className="pt-6 text-center">
             <div className="relative inline-block mb-3">
               <UserCheck className="h-12 w-12 text-green-600" />
@@ -475,8 +489,7 @@ const DesktopDashboard = () => {
 
         <Card
           className="cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
-          onClick={() => navigate("/admin/users/profil")}
-        >
+          onClick={() => navigate("/admin/users/profiles")}>
           <CardContent className="pt-6 text-center">
             <Users className="h-12 w-12 mx-auto mb-3 text-blue-600" />
             <p className="font-semibold mb-1">Tous les Profils</p>
@@ -490,9 +503,7 @@ const DesktopDashboard = () => {
           <CardContent className="pt-6 text-center">
             <Clock className="h-12 w-12 mx-auto mb-3 text-purple-600" />
             <p className="font-semibold mb-1">Historique</p>
-            <p className="text-sm text-muted-foreground">
-              Logs et activités
-            </p>
+            <p className="text-sm text-muted-foreground">Logs et activités</p>
           </CardContent>
         </Card>
       </div>

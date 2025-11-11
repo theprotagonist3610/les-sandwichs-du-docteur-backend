@@ -5,7 +5,10 @@
 
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsersWithPresence, isUserActive } from "@/toolkits/admin/userToolkit";
+import {
+  useUsersWithPresence,
+  isUserActive,
+} from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +85,12 @@ const STATUS_CONFIG = {
 
 const DesktopProfiles = () => {
   const navigate = useNavigate();
-  const { users: usersWithPresence, loading, error, refetch } = useUsersWithPresence();
+  const {
+    users: usersWithPresence,
+    loading,
+    error,
+    refetch,
+  } = useUsersWithPresence();
 
   // États des filtres
   const [recherche, setRecherche] = useState("");
@@ -146,9 +154,13 @@ const DesktopProfiles = () => {
   // Statistiques
   const stats = useMemo(() => {
     const total = usersFiltres.length;
-    const actifs = usersFiltres.filter((u) => isUserActive(u.presence, 90000)).length;
+    const actifs = usersFiltres.filter((u) =>
+      isUserActive(u.presence, 90000)
+    ).length;
     const admins = usersFiltres.filter((u) => u.role === "admin").length;
-    const online = usersFiltres.filter((u) => u.presence?.status === "online").length;
+    const online = usersFiltres.filter(
+      (u) => u.presence?.status === "online"
+    ).length;
 
     return { total, actifs, admins, online };
   }, [usersFiltres]);
@@ -178,7 +190,16 @@ const DesktopProfiles = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = ["Nom", "Prénoms", "Email", "Contact", "Sexe", "Rôle", "Statut", "Dernière activité"];
+    const headers = [
+      "Nom",
+      "Prénoms",
+      "Email",
+      "Contact",
+      "Sexe",
+      "Rôle",
+      "Statut",
+      "Dernière activité",
+    ];
     const rows = usersFiltres.map((u) => [
       u.nom,
       u.prenoms?.join(" "),
@@ -223,17 +244,15 @@ const DesktopProfiles = () => {
             Gestion des Profils
           </h1>
           <p className="text-muted-foreground">
-            {stats.total} utilisateur{stats.total > 1 ? "s" : ""} · {stats.actifs} actif{stats.actifs > 1 ? "s" : ""} · {stats.admins} admin{stats.admins > 1 ? "s" : ""}
+            {stats.total} utilisateur{stats.total > 1 ? "s" : ""} ·{" "}
+            {stats.actifs} actif{stats.actifs > 1 ? "s" : ""} · {stats.admins}{" "}
+            admin{stats.admins > 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
-          </Button>
-          <Button onClick={() => navigate("/admin/users/nouveau")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvel utilisateur
           </Button>
         </div>
       </div>
@@ -257,7 +276,9 @@ const DesktopProfiles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-emerald-700">Vraiment actifs</p>
-                <p className="text-2xl font-bold text-emerald-900">{stats.actifs}</p>
+                <p className="text-2xl font-bold text-emerald-900">
+                  {stats.actifs}
+                </p>
               </div>
               <Wifi className="h-8 w-8 text-emerald-600" />
             </div>
@@ -269,7 +290,9 @@ const DesktopProfiles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-700">En ligne</p>
-                <p className="text-2xl font-bold text-green-900">{stats.online}</p>
+                <p className="text-2xl font-bold text-green-900">
+                  {stats.online}
+                </p>
               </div>
               <UserCheck className="h-8 w-8 text-green-600" />
             </div>
@@ -281,7 +304,9 @@ const DesktopProfiles = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-purple-700">Admins</p>
-                <p className="text-2xl font-bold text-purple-900">{stats.admins}</p>
+                <p className="text-2xl font-bold text-purple-900">
+                  {stats.admins}
+                </p>
               </div>
               <UserCheck className="h-8 w-8 text-purple-600" />
             </div>
@@ -381,13 +406,17 @@ const DesktopProfiles = () => {
               <TableBody>
                 {usersFiltres.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-12 text-muted-foreground">
                       Aucun utilisateur trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   usersFiltres.map((user) => {
-                    const config = STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
+                    const config =
+                      STATUS_CONFIG[user.presence?.status] ||
+                      STATUS_CONFIG.offline;
                     const active = isUserActive(user.presence, 90000);
                     const StatusIcon = config.icon;
 
@@ -395,8 +424,9 @@ const DesktopProfiles = () => {
                       <TableRow
                         key={user.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/admin/users/profil/${user.id}`)}
-                      >
+                        onClick={() =>
+                          navigate(`/admin/users/profiles/${user.id}`)
+                        }>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -405,15 +435,18 @@ const DesktopProfiles = () => {
                                   active
                                     ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
                                     : "bg-gradient-to-br from-blue-400 to-blue-600"
-                                }`}
-                              >
+                                }`}>
                                 {user.nom?.charAt(0)}
                                 {user.prenoms?.[0]?.charAt(0)}
                               </div>
                               <div
                                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
                                   active ? "bg-emerald-500" : config.color
-                                } ${active || user.presence?.status === "online" ? "animate-pulse" : ""}`}
+                                } ${
+                                  active || user.presence?.status === "online"
+                                    ? "animate-pulse"
+                                    : ""
+                                }`}
                               />
                             </div>
                             <div>
@@ -439,8 +472,11 @@ const DesktopProfiles = () => {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={user.role === "admin" ? "bg-purple-50 text-purple-700 border-purple-200" : ""}
-                          >
+                            className={
+                              user.role === "admin"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : ""
+                            }>
                             {user.role === "admin" ? "Admin" : "User"}
                           </Badge>
                         </TableCell>
@@ -453,8 +489,7 @@ const DesktopProfiles = () => {
                                 active
                                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                   : `${config.bgColor} ${config.textColor} ${config.borderColor}`
-                              }`}
-                            >
+                              }`}>
                               {active ? (
                                 <>
                                   <Activity className="h-3 w-3 mr-1" />
@@ -473,21 +508,31 @@ const DesktopProfiles = () => {
                         <TableCell>
                           <div className="text-sm">
                             <p className="font-medium">
-                              {formatRelativeTime(user.presence?.lastSeen || user.presence?.updatedAt)}
+                              {formatRelativeTime(
+                                user.presence?.lastSeen ||
+                                  user.presence?.updatedAt
+                              )}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {formatDate(user.presence?.lastSeen || user.presence?.updatedAt)}
+                              {formatDate(
+                                user.presence?.lastSeen ||
+                                  user.presence?.updatedAt
+                              )}
                             </p>
                           </div>
                         </TableCell>
 
                         <TableCell>
-                          <p className="text-sm">{formatDate(user.createdAt)}</p>
+                          <p className="text-sm">
+                            {formatDate(user.createdAt)}
+                          </p>
                         </TableCell>
 
                         <TableCell className="text-right">
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuTrigger
+                              asChild
+                              onClick={(e) => e.stopPropagation()}>
                               <Button variant="ghost" size="sm">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
@@ -495,17 +540,21 @@ const DesktopProfiles = () => {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/users/profil/${user.id}`);
-                              }}>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/admin/users/profiles/${user.id}`);
+                                }}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 Voir le profil
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/users/profil/${user.id}/edit`);
-                              }}>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `/admin/users/profiles/${user.id}/edit`
+                                  );
+                                }}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Modifier
                               </DropdownMenuItem>
@@ -515,8 +564,7 @@ const DesktopProfiles = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toast.error("Fonctionnalité à implémenter");
-                                }}
-                              >
+                                }}>
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Supprimer
                               </DropdownMenuItem>

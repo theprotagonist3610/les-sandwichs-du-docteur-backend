@@ -5,7 +5,10 @@
 
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsersWithPresence, isUserActive } from "@/toolkits/admin/userToolkit";
+import {
+  useUsersWithPresence,
+  isUserActive,
+} from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -188,7 +191,9 @@ const DesktopPresence = () => {
                   <Activity className="h-3 w-3" />
                   Vraiment actifs
                 </p>
-                <p className="text-2xl font-bold text-emerald-900">{kpis.reallyActive}</p>
+                <p className="text-2xl font-bold text-emerald-900">
+                  {kpis.reallyActive}
+                </p>
               </div>
               <Wifi className="h-8 w-8 text-emerald-600 animate-pulse" />
             </div>
@@ -200,7 +205,9 @@ const DesktopPresence = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-green-700">En ligne</p>
-                <p className="text-2xl font-bold text-green-900">{kpis.online}</p>
+                <p className="text-2xl font-bold text-green-900">
+                  {kpis.online}
+                </p>
               </div>
               <UserCheck className="h-8 w-8 text-green-600" />
             </div>
@@ -212,7 +219,9 @@ const DesktopPresence = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-orange-700">Absents</p>
-                <p className="text-2xl font-bold text-orange-900">{kpis.away}</p>
+                <p className="text-2xl font-bold text-orange-900">
+                  {kpis.away}
+                </p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
             </div>
@@ -224,7 +233,9 @@ const DesktopPresence = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-700">Hors ligne</p>
-                <p className="text-2xl font-bold text-gray-900">{kpis.offline}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {kpis.offline}
+                </p>
               </div>
               <UserX className="h-8 w-8 text-gray-600" />
             </div>
@@ -293,23 +304,22 @@ const DesktopPresence = () => {
                 key={user.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+                transition={{ duration: 0.2 }}>
                 <Card
-                  className={`cursor-pointer hover:shadow-md transition-all ${config.borderColor} ${
-                    active ? "ring-2 ring-emerald-300" : ""
-                  }`}
-                  onClick={() => navigate(`/admin/users/profil/${user.id}`)}
-                >
+                  className={`cursor-pointer hover:shadow-md transition-all ${
+                    config.borderColor
+                  } ${active ? "ring-2 ring-emerald-300" : ""}`}
+                  onClick={() => navigate(`/admin/users/profiles/${user.id}`)}>
                   <CardContent className="p-4">
                     {/* Header avec avatar */}
                     <div className="flex items-start gap-3 mb-3">
                       <div className="relative">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
-                          active
-                            ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
-                            : "bg-gradient-to-br from-blue-400 to-blue-600"
-                        }`}>
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                            active
+                              ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
+                              : "bg-gradient-to-br from-blue-400 to-blue-600"
+                          }`}>
                           {user.nom?.charAt(0)}
                           {user.prenoms?.[0]?.charAt(0)}
                         </div>
@@ -317,9 +327,12 @@ const DesktopPresence = () => {
                           className={`absolute -bottom-1 -right-1 w-4 h-4 ${
                             active ? "bg-emerald-500" : config.color
                           } rounded-full border-2 border-white ${
-                            active ? "animate-pulse" : isOnline ? "animate-pulse" : ""
-                          }`}
-                        >
+                            active
+                              ? "animate-pulse"
+                              : isOnline
+                              ? "animate-pulse"
+                              : ""
+                          }`}>
                           {active && (
                             <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75" />
                           )}
@@ -336,8 +349,7 @@ const DesktopPresence = () => {
                               active
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : `${config.bgLight} ${config.textColor} ${config.borderColor}`
-                            } text-[10px]`}
-                          >
+                            } text-[10px]`}>
                             {active ? (
                               <>
                                 <Activity className="h-2 w-2 mr-1" />
@@ -378,7 +390,9 @@ const DesktopPresence = () => {
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {formatRelativeTime(user.presence.lastSeen || user.presence.updatedAt)}
+                            {formatRelativeTime(
+                              user.presence.lastSeen || user.presence.updatedAt
+                            )}
                           </span>
                         </div>
                         {active && (

@@ -5,7 +5,11 @@
 
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useUser, useUserPresence, isUserActive } from "@/toolkits/admin/userToolkit";
+import {
+  useUser,
+  useUserPresence,
+  isUserActive,
+} from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +67,8 @@ const DesktopProfile = () => {
 
     if (seconds < 30) return "En ce moment";
     if (minutes < 1) return `Il y a ${seconds} secondes`;
-    if (minutes < 60) return `Il y a ${minutes} minute${minutes > 1 ? "s" : ""}`;
+    if (minutes < 60)
+      return `Il y a ${minutes} minute${minutes > 1 ? "s" : ""}`;
     if (hours < 24) return `Il y a ${hours} heure${hours > 1 ? "s" : ""}`;
     return `Il y a ${days} jour${days > 1 ? "s" : ""}`;
   };
@@ -133,7 +138,9 @@ const DesktopProfile = () => {
           <CardContent className="pt-6 text-center py-12">
             <UserX className="h-16 w-16 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">Utilisateur non trouvé</p>
-            <Button className="mt-4" onClick={() => navigate("/admin/users/profil")}>
+            <Button
+              className="mt-4"
+              onClick={() => navigate("/admin/users/profil")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Retour à la liste
             </Button>
@@ -151,15 +158,20 @@ const DesktopProfile = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin/users/profil")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/admin/users/profiles")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold">Profil Utilisateur</h1>
-            <p className="text-muted-foreground">Détails et activité en temps réel</p>
+            <p className="text-muted-foreground">
+              Détails et activité en temps réel
+            </p>
           </div>
         </div>
-        <Button onClick={() => navigate(`/admin/users/profil/${userId}/edit`)}>
+        <Button onClick={() => navigate(`/admin/users/profiles/${userId}`)}>
           <Edit className="h-4 w-4 mr-2" />
           Modifier
         </Button>
@@ -172,8 +184,7 @@ const DesktopProfile = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
-          className="space-y-6"
-        >
+          className="space-y-6">
           {/* Avatar et statut */}
           <Card>
             <CardContent className="pt-6">
@@ -184,16 +195,18 @@ const DesktopProfile = () => {
                       active
                         ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
                         : "bg-gradient-to-br from-blue-400 to-blue-600"
-                    }`}
-                  >
+                    }`}>
                     {user.nom?.charAt(0)}
                     {user.prenoms?.[0]?.charAt(0)}
                   </div>
                   <div
-                    className={`absolute bottom-2 right-2 w-8 h-8 rounded-full border-4 border-white ${statusConfig.color} ${
-                      active || presence?.status === "online" ? "animate-pulse" : ""
-                    }`}
-                  >
+                    className={`absolute bottom-2 right-2 w-8 h-8 rounded-full border-4 border-white ${
+                      statusConfig.color
+                    } ${
+                      active || presence?.status === "online"
+                        ? "animate-pulse"
+                        : ""
+                    }`}>
                     {active && (
                       <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75" />
                     )}
@@ -206,18 +219,21 @@ const DesktopProfile = () => {
 
                 <Badge
                   variant="outline"
-                  className={`${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} mb-3`}
-                >
+                  className={`${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} mb-3`}>
                   <StatusIcon className="h-3 w-3 mr-1" />
                   {statusConfig.label}
                 </Badge>
 
-                <Badge variant={user.role === "admin" ? "default" : "secondary"} className="mb-4">
+                <Badge
+                  variant={user.role === "admin" ? "default" : "secondary"}
+                  className="mb-4">
                   <Shield className="h-3 w-3 mr-1" />
                   {user.role === "admin" ? "Administrateur" : "Utilisateur"}
                 </Badge>
 
-                <p className="text-sm text-muted-foreground">{statusConfig.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {statusConfig.description}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -226,27 +242,41 @@ const DesktopProfile = () => {
           <Card className={`${statusConfig.borderColor} border-2`}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                {active ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                {active ? (
+                  <Wifi className="h-4 w-4" />
+                ) : (
+                  <WifiOff className="h-4 w-4" />
+                )}
                 État de la connexion
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Statut</span>
-                <span className="text-sm font-medium">{statusConfig.label}</span>
+                <span className="text-sm font-medium">
+                  {statusConfig.label}
+                </span>
               </div>
 
               {presence?.lastSeen && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Dernier heartbeat</span>
-                  <span className="text-sm font-medium">{formatRelativeTime(presence.lastSeen)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Dernier heartbeat
+                  </span>
+                  <span className="text-sm font-medium">
+                    {formatRelativeTime(presence.lastSeen)}
+                  </span>
                 </div>
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Dernière activité</span>
+                <span className="text-sm text-muted-foreground">
+                  Dernière activité
+                </span>
                 <span className="text-sm font-medium">
-                  {formatRelativeTime(presence?.lastSeen || presence?.updatedAt)}
+                  {formatRelativeTime(
+                    presence?.lastSeen || presence?.updatedAt
+                  )}
                 </span>
               </div>
 
@@ -262,7 +292,9 @@ const DesktopProfile = () => {
                 <div className="pt-3">
                   <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 border border-emerald-200">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-xs text-emerald-700 font-medium">Connexion active</span>
+                    <span className="text-xs text-emerald-700 font-medium">
+                      Connexion active
+                    </span>
                   </div>
                 </div>
               )}
@@ -276,7 +308,9 @@ const DesktopProfile = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Membre depuis</span>
+                <span className="text-sm text-muted-foreground">
+                  Membre depuis
+                </span>
                 <span className="text-sm font-medium">
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString("fr-FR", {
@@ -287,9 +321,13 @@ const DesktopProfile = () => {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Dernière connexion</span>
+                <span className="text-sm text-muted-foreground">
+                  Dernière connexion
+                </span>
                 <span className="text-sm font-medium">
-                  {formatRelativeTime(presence?.lastSeen || presence?.updatedAt)}
+                  {formatRelativeTime(
+                    presence?.lastSeen || presence?.updatedAt
+                  )}
                 </span>
               </div>
             </CardContent>
@@ -301,8 +339,7 @@ const DesktopProfile = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="lg:col-span-2"
-        >
+          className="lg:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="infos">
@@ -328,12 +365,18 @@ const DesktopProfile = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Nom</label>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Nom
+                      </label>
                       <p className="text-lg font-semibold mt-1">{user.nom}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Prénom(s)</label>
-                      <p className="text-lg font-semibold mt-1">{user.prenoms?.join(" ")}</p>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Prénom(s)
+                      </label>
+                      <p className="text-lg font-semibold mt-1">
+                        {user.prenoms?.join(" ")}
+                      </p>
                     </div>
                   </div>
 
@@ -343,7 +386,9 @@ const DesktopProfile = () => {
                     <div className="flex items-center gap-3">
                       <Mail className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground block">Email</label>
+                        <label className="text-sm font-medium text-muted-foreground block">
+                          Email
+                        </label>
                         <p className="text-base">{user.email}</p>
                       </div>
                     </div>
@@ -351,7 +396,9 @@ const DesktopProfile = () => {
                     <div className="flex items-center gap-3">
                       <Phone className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground block">Contact</label>
+                        <label className="text-sm font-medium text-muted-foreground block">
+                          Contact
+                        </label>
                         <p className="text-base">{user.contact}</p>
                       </div>
                     </div>
@@ -363,16 +410,24 @@ const DesktopProfile = () => {
                         <UserCircle className="h-5 w-5 text-muted-foreground" />
                       )}
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground block">Sexe</label>
-                        <p className="text-base">{user.sexe === "m" ? "Homme" : "Femme"}</p>
+                        <label className="text-sm font-medium text-muted-foreground block">
+                          Sexe
+                        </label>
+                        <p className="text-base">
+                          {user.sexe === "m" ? "Homme" : "Femme"}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <Calendar className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground block">Date de naissance</label>
-                        <p className="text-base">{formatDate(user.date_naissance)}</p>
+                        <label className="text-sm font-medium text-muted-foreground block">
+                          Date de naissance
+                        </label>
+                        <p className="text-base">
+                          {formatDate(user.date_naissance)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -385,22 +440,35 @@ const DesktopProfile = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">ID Utilisateur</span>
-                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">{user.id}</code>
+                    <span className="text-sm text-muted-foreground">
+                      ID Utilisateur
+                    </span>
+                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                      {user.id}
+                    </code>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Rôle</span>
-                    <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                    <Badge
+                      variant={user.role === "admin" ? "default" : "secondary"}>
                       {user.role || "user"}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Date de création</span>
-                    <span className="text-sm font-medium">{formatDate(user.createdAt)}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Date de création
+                    </span>
+                    <span className="text-sm font-medium">
+                      {formatDate(user.createdAt)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Dernière mise à jour</span>
-                    <span className="text-sm font-medium">{formatDate(user.updatedAt)}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Dernière mise à jour
+                    </span>
+                    <span className="text-sm font-medium">
+                      {formatDate(user.updatedAt)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -414,26 +482,44 @@ const DesktopProfile = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className={`p-4 rounded-lg ${statusConfig.bgColor} border ${statusConfig.borderColor}`}>
-                      <p className="text-sm text-muted-foreground mb-1">Statut actuel</p>
+                    <div
+                      className={`p-4 rounded-lg ${statusConfig.bgColor} border ${statusConfig.borderColor}`}>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Statut actuel
+                      </p>
                       <div className="flex items-center gap-2">
-                        <StatusIcon className={`h-5 w-5 ${statusConfig.textColor}`} />
-                        <p className="text-lg font-bold">{statusConfig.label}</p>
+                        <StatusIcon
+                          className={`h-5 w-5 ${statusConfig.textColor}`}
+                        />
+                        <p className="text-lg font-bold">
+                          {statusConfig.label}
+                        </p>
                       </div>
                     </div>
 
-                    <div className={`p-4 rounded-lg ${active ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"} border`}>
-                      <p className="text-sm text-muted-foreground mb-1">Activité réelle</p>
+                    <div
+                      className={`p-4 rounded-lg ${
+                        active
+                          ? "bg-emerald-50 border-emerald-200"
+                          : "bg-gray-50 border-gray-200"
+                      } border`}>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Activité réelle
+                      </p>
                       <div className="flex items-center gap-2">
                         {active ? (
                           <>
                             <Activity className="h-5 w-5 text-emerald-700" />
-                            <p className="text-lg font-bold text-emerald-700">Actif</p>
+                            <p className="text-lg font-bold text-emerald-700">
+                              Actif
+                            </p>
                           </>
                         ) : (
                           <>
                             <WifiOff className="h-5 w-5 text-gray-700" />
-                            <p className="text-lg font-bold text-gray-700">Inactif</p>
+                            <p className="text-lg font-bold text-gray-700">
+                              Inactif
+                            </p>
                           </>
                         )}
                       </div>
@@ -448,8 +534,12 @@ const DesktopProfile = () => {
                         <label className="text-sm font-medium text-muted-foreground block mb-1">
                           Dernier heartbeat (lastSeen)
                         </label>
-                        <p className="text-base font-semibold">{formatRelativeTime(presence.lastSeen)}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(presence.lastSeen)}</p>
+                        <p className="text-base font-semibold">
+                          {formatRelativeTime(presence.lastSeen)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(presence.lastSeen)}
+                        </p>
                       </div>
                     )}
 
@@ -457,8 +547,12 @@ const DesktopProfile = () => {
                       <label className="text-sm font-medium text-muted-foreground block mb-1">
                         Dernière mise à jour (updatedAt)
                       </label>
-                      <p className="text-base font-semibold">{formatRelativeTime(presence?.updatedAt)}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(presence?.updatedAt)}</p>
+                      <p className="text-base font-semibold">
+                        {formatRelativeTime(presence?.updatedAt)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(presence?.updatedAt)}
+                      </p>
                     </div>
 
                     {presence?.userName && (
@@ -476,10 +570,16 @@ const DesktopProfile = () => {
                       <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
                         <Wifi className="h-5 w-5 text-emerald-600 mt-0.5" />
                         <div>
-                          <p className="font-medium text-emerald-900">Connexion active détectée</p>
+                          <p className="font-medium text-emerald-900">
+                            Connexion active détectée
+                          </p>
                           <p className="text-sm text-emerald-700 mt-1">
-                            L'utilisateur envoie des heartbeats toutes les 30 secondes. Dernier heartbeat il y a{" "}
-                            {Math.floor((Date.now() - (presence?.lastSeen || 0)) / 1000)} secondes.
+                            L'utilisateur envoie des heartbeats toutes les 30
+                            secondes. Dernier heartbeat il y a{" "}
+                            {Math.floor(
+                              (Date.now() - (presence?.lastSeen || 0)) / 1000
+                            )}{" "}
+                            secondes.
                           </p>
                         </div>
                       </div>
@@ -507,7 +607,9 @@ const DesktopProfile = () => {
                           {active ? "Actif maintenant" : statusConfig.label}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {formatRelativeTime(presence?.lastSeen || presence?.updatedAt)}
+                          {formatRelativeTime(
+                            presence?.lastSeen || presence?.updatedAt
+                          )}
                         </p>
                       </div>
                     </div>
@@ -519,13 +621,17 @@ const DesktopProfile = () => {
                       </div>
                       <div className="pb-8">
                         <p className="font-medium">Compte créé</p>
-                        <p className="text-sm text-muted-foreground">{formatDate(user.createdAt)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(user.createdAt)}
+                        </p>
                       </div>
                     </div>
 
                     <div className="text-center py-8 text-muted-foreground">
                       <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">L'historique complet sera bientôt disponible</p>
+                      <p className="text-sm">
+                        L'historique complet sera bientôt disponible
+                      </p>
                     </div>
                   </div>
                 </CardContent>
