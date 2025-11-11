@@ -3,7 +3,7 @@
  * Page de profil détaillé d'un utilisateur avec présence en temps réel
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser, useUserPresence, isUserActive } from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,9 +35,16 @@ import { motion } from "framer-motion";
 const DesktopProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user, loading: loadingUser, error: errorUser } = useUser(userId);
+  const { user, loading: loadingUser, error: errorUser, refetch } = useUser(userId);
   const { presence, loading: loadingPresence } = useUserPresence(userId);
   const [activeTab, setActiveTab] = useState("infos");
+
+  // Forcer le rechargement si userId change
+  useEffect(() => {
+    if (userId && refetch) {
+      refetch();
+    }
+  }, [userId, refetch]);
 
   const active = isUserActive(presence, 90000);
 

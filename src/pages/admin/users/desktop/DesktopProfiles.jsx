@@ -316,6 +316,10 @@ const DesktopProfiles = () => {
               <SelectContent>
                 <SelectItem value="all">Tous les rôles</SelectItem>
                 <SelectItem value="admin">Administrateur</SelectItem>
+                <SelectItem value="superviseur">Superviseur</SelectItem>
+                <SelectItem value="vendeur">Vendeur</SelectItem>
+                <SelectItem value="cuisinier">Cuisinier</SelectItem>
+                <SelectItem value="livreur">Livreur</SelectItem>
                 <SelectItem value="user">Utilisateur</SelectItem>
               </SelectContent>
             </Select>
@@ -439,9 +443,31 @@ const DesktopProfiles = () => {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={user.role === "admin" ? "bg-purple-50 text-purple-700 border-purple-200" : ""}
+                            className={
+                              user.role === "admin"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : user.role === "superviseur"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : user.role === "vendeur"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : user.role === "cuisinier"
+                                ? "bg-orange-50 text-orange-700 border-orange-200"
+                                : user.role === "livreur"
+                                ? "bg-cyan-50 text-cyan-700 border-cyan-200"
+                                : ""
+                            }
                           >
-                            {user.role === "admin" ? "Admin" : "User"}
+                            {user.role === "admin"
+                              ? "Admin"
+                              : user.role === "superviseur"
+                              ? "Superviseur"
+                              : user.role === "vendeur"
+                              ? "Vendeur"
+                              : user.role === "cuisinier"
+                              ? "Cuisinier"
+                              : user.role === "livreur"
+                              ? "Livreur"
+                              : "User"}
                           </Badge>
                         </TableCell>
 
