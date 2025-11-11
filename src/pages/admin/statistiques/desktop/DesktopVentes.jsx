@@ -305,7 +305,7 @@ const DesktopVentes = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-blue-600" />
+              <Package className="h-5 w-5" />
               Top 5 Produits
             </CardTitle>
           </CardHeader>
@@ -328,7 +328,7 @@ const DesktopVentes = () => {
                       onClick={() => navigate(`/admin/statistiques/ventes/${article.id}`)}
                     >
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 font-bold rounded-full">
+                        <div className="flex items-center justify-center w-8 h-8 border font-bold rounded-full">
                           {index + 1}
                         </div>
                         <div className="flex-1">
@@ -340,7 +340,7 @@ const DesktopVentes = () => {
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <Badge variant="outline">
                         {article.total}
                       </Badge>
                     </div>
@@ -360,7 +360,7 @@ const DesktopVentes = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-green-600" />
+              <Users className="h-5 w-5" />
               Top 5 Vendeurs
             </CardTitle>
           </CardHeader>
@@ -376,7 +376,7 @@ const DesktopVentes = () => {
                       className="flex items-center justify-between p-3 rounded-lg"
                     >
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 font-bold rounded-full">
+                        <div className="flex items-center justify-center w-8 h-8 border font-bold rounded-full">
                           {index + 1}
                         </div>
                         <div className="flex-1">
@@ -389,7 +389,7 @@ const DesktopVentes = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-green-600">
+                        <p className="font-bold">
                           {vendeur.total_ventes.toLocaleString()} F
                         </p>
                         <p className="text-xs opacity-70">
@@ -416,7 +416,7 @@ const DesktopVentes = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-purple-600" />
+              <CreditCard className="h-5 w-5" />
               Répartition Encaissements
             </CardTitle>
           </CardHeader>
@@ -430,21 +430,21 @@ const DesktopVentes = () => {
                   showLegend={false}
                 />
                 <div className="mt-6 space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-green-500 rounded-full" />
+                      <div className="w-4 h-4 border rounded-full" />
                       <span className="font-medium">Espèces</span>
                     </div>
-                    <span className="font-bold text-green-600">
+                    <span className="font-bold">
                       {(statsToDisplay?.encaissements?.especes || 0).toLocaleString()} F
                     </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 rounded-lg border">
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full" />
+                      <div className="w-4 h-4 border rounded-full" />
                       <span className="font-medium">Mobile Money</span>
                     </div>
-                    <span className="font-bold text-blue-600">
+                    <span className="font-bold">
                       {(statsToDisplay?.encaissements?.momo || 0).toLocaleString()} F
                     </span>
                   </div>
@@ -468,7 +468,7 @@ const DesktopVentes = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-orange-600" />
+              <Truck className="h-5 w-5" />
               Répartition par Type de Commande
             </CardTitle>
           </CardHeader>
@@ -484,10 +484,10 @@ const DesktopVentes = () => {
                   horizontal={true}
                 />
                 <div className="mt-6 space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 rounded-lg border">
                     <span className="font-medium">Sur place</span>
                     <div className="text-right">
-                      <p className="font-bold text-orange-600">
+                      <p className="font-bold">
                         {(statsToDisplay?.total_ventes_sur_place || 0).toLocaleString()} F
                       </p>
                       <p className="text-xs opacity-70">
@@ -497,10 +497,10 @@ const DesktopVentes = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-cyan-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 rounded-lg border">
                     <span className="font-medium">Livraison</span>
                     <div className="text-right">
-                      <p className="font-bold text-cyan-600">
+                      <p className="font-bold">
                         {(statsToDisplay?.total_ventes_a_livrer || 0).toLocaleString()} F
                       </p>
                       <p className="text-xs opacity-70">

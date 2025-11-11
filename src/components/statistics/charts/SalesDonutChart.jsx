@@ -19,14 +19,14 @@ const SalesDonutChart = ({
       const percentage = ((payload[0].value / total) * 100).toFixed(1);
 
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium text-gray-900">{payload[0].name}</p>
-          <p className="text-sm text-gray-600">
-            <span className="font-bold" style={{ color: payload[0].payload.fill }}>
+        <div className="bg-card p-3 border rounded-lg shadow-lg">
+          <p className="text-sm font-medium">{payload[0].name}</p>
+          <p className="text-sm opacity-70">
+            <span className="font-bold">
               {payload[0].value.toLocaleString()} FCFA
             </span>
           </p>
-          <p className="text-xs text-gray-500">{percentage}%</p>
+          <p className="text-xs opacity-70">{percentage}%</p>
         </div>
       );
     }
@@ -35,7 +35,7 @@ const SalesDonutChart = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center h-64 opacity-70">
         Aucune donnée disponible
       </div>
     );
@@ -63,7 +63,7 @@ const SalesDonutChart = ({
             verticalAlign="bottom"
             height={36}
             formatter={(value, entry) => (
-              <span className="text-sm text-gray-700">{value}</span>
+              <span className="text-sm">{value}</span>
             )}
           />
         )}

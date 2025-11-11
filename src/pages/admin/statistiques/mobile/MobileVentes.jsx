@@ -127,7 +127,7 @@ const MobileVentes = () => {
                   onClick={() => navigate(`/admin/statistiques/ventes/${article.id}`)}
                 >
                   <div className="flex items-center gap-2 flex-1">
-                    <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 font-bold rounded-full text-xs">
+                    <div className="flex items-center justify-center w-6 h-6 border font-bold rounded-full text-xs">
                       {index + 1}
                     </div>
                     <div>
@@ -162,22 +162,22 @@ const MobileVentes = () => {
                 showLegend={false}
               />
               <div className="mt-4 space-y-2">
-                <div className="flex justify-between p-2 bg-green-50 rounded text-sm">
+                <div className="flex justify-between p-2 rounded border text-sm">
                   <span>💵 Espèces</span>
-                  <span className="font-bold text-green-600">
+                  <span className="font-bold">
                     {(statistiques?.encaissements?.especes || 0).toLocaleString()} F
                   </span>
                 </div>
-                <div className="flex justify-between p-2 bg-blue-50 rounded text-sm">
+                <div className="flex justify-between p-2 rounded border text-sm">
                   <span>📱 MoMo</span>
-                  <span className="font-bold text-blue-600">
+                  <span className="font-bold">
                     {(statistiques?.encaissements?.momo || 0).toLocaleString()} F
                   </span>
                 </div>
               </div>
             </>
           ) : (
-            <p className="text-center text-sm text-gray-500 py-4">
+            <p className="text-center text-sm opacity-70 py-4">
               Aucun encaissement
             </p>
           )}

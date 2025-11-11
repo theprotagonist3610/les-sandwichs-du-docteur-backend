@@ -70,16 +70,7 @@ const MobileVenteId = () => {
           <h1 className="text-xl font-bold">
             {productStats.name}
           </h1>
-          <Badge
-            variant="outline"
-            className={
-              productStats.trend === "hausse"
-                ? "bg-green-50 text-green-700 text-xs"
-                : productStats.trend === "baisse"
-                ? "bg-red-50 text-red-700 text-xs"
-                : "bg-gray-50 text-gray-700 text-xs"
-            }
-          >
+          <Badge variant="outline" className="text-xs">
             {productStats.trend === "hausse" && <TrendingUp className="h-3 w-3 mr-1" />}
             {productStats.trend === "baisse" && <TrendingDown className="h-3 w-3 mr-1" />}
             {productStats.trend}
@@ -123,13 +114,7 @@ const MobileVenteId = () => {
 
       {/* Insight */}
       {productStats.trend !== "stable" && (
-        <div
-          className={`p-3 rounded-lg border-l-4 ${
-            productStats.trend === "hausse"
-              ? "bg-green-50 border-green-500"
-              : "bg-orange-50 border-orange-500"
-          }`}
-        >
+        <div className="p-3 rounded-lg border-l-4 border">
           <p className="text-xs font-semibold mb-1">
             {productStats.trend === "hausse" ? "🎉 Tendance +" : "⚠️ Tendance -"}
           </p>
@@ -194,9 +179,9 @@ const MobileVenteId = () => {
               <span className="opacity-70">Moyenne/jour</span>
               <span className="font-bold">{avgDailySales.toFixed(1)}</span>
             </div>
-            <div className="flex justify-between p-2 bg-purple-50 rounded border">
+            <div className="flex justify-between p-2 rounded border">
               <span className="opacity-70">Prévision demain</span>
-              <span className="font-bold text-purple-600">~{prediction}</span>
+              <span className="font-bold">~{prediction}</span>
             </div>
           </div>
         </CardContent>

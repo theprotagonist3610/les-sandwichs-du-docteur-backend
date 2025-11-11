@@ -31,12 +31,12 @@ const SalesBarChart = ({
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium text-gray-900">
+        <div className="bg-card p-3 border rounded-lg shadow-lg">
+          <p className="text-sm font-medium">
             {payload[0].payload[xKey]}
           </p>
-          <p className="text-sm text-gray-600">
-            <span className="font-bold text-blue-600">
+          <p className="text-sm opacity-70">
+            <span className="font-bold">
               {payload[0].value?.toLocaleString()} FCFA
             </span>
           </p>
@@ -48,7 +48,7 @@ const SalesBarChart = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center h-64 opacity-70">
         Aucune donnée disponible
       </div>
     );
