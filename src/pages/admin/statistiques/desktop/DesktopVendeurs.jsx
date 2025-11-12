@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useVendeursAnalytics } from "@/toolkits/admin/commandeToolkit";
+import { useUsers } from "@/toolkits/admin/userToolkit";
 import KPICard from "@/components/statistics/cards/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,25 +31,61 @@ const DesktopVendeurs = () => {
 
   const daysCount = parseInt(period);
   const { vendeurs, summary, loading, error } = useVendeursAnalytics(daysCount);
+  const { users, loading: loadingUsers } = useUsers();
+
+  // Créer un mapping userId -> nom complet
+  const userNamesMap = useMemo(() => {
+    const map = new Map();
+    users.forEach((user) => {
+      const fullName = `${user.nom} ${user.prenoms?.join(" ") || ""}`.trim();
+      map.set(user.id, fullName);
+    });
+    return map;
+  }, [users]);
+
+  // Fonction pour obtenir le nom d'un vendeur
+  const getVendeurName = (userId) => {
+    return userNamesMap.get(userId) || userId;
+  };
+
+  // Enrichir les vendeurs avec les noms réels
+  const enrichedVendeurs = useMemo(() => {
+    return vendeurs.map((vendeur) => ({
+      ...vendeur,
+      nom: getVendeurName(vendeur.userId),
+    }));
+  }, [vendeurs, userNamesMap]);
+
+  // Enrichir le summary avec le nom réel du top vendeur
+  const enrichedSummary = useMemo(() => {
+    if (!summary || !summary.top_vendeur) return summary;
+    return {
+      ...summary,
+      top_vendeur: {
+        ...summary.top_vendeur,
+        nom: getVendeurName(summary.top_vendeur.userId),
+      },
+    };
+  }, [summary, userNamesMap]);
 
   // Export CSV
   const exportCSV = () => {
-    if (!vendeurs || vendeurs.length === 0) return;
+    if (!enrichedVendeurs || enrichedVendeurs.length === 0) return;
 
     const rows = [
       ["Statistiques Vendeurs", `Période: ${period} derniers jours`],
       [],
       ["Résumé Global"],
-      ["Total Vendeurs", summary?.total_vendeurs || 0],
-      ["Total Ventes", `${(summary?.total_ventes || 0).toLocaleString()} FCFA`],
-      ["Total Commandes", summary?.total_commandes || 0],
-      ["Panier Moyen Global", `${(summary?.panier_moyen_global || 0).toFixed(0)} FCFA`],
+      ["Total Vendeurs", enrichedSummary?.total_vendeurs || 0],
+      ["Total Ventes", `${(enrichedSummary?.total_ventes || 0).toLocaleString()} FCFA`],
+      ["Total Commandes", enrichedSummary?.total_commandes || 0],
+      ["Panier Moyen Global", `${(enrichedSummary?.panier_moyen_global || 0).toFixed(0)} FCFA`],
       [],
       ["Classement des Vendeurs"],
       ["Rang", "Vendeur", "Ventes (FCFA)", "Commandes", "Panier Moyen", "% CA"],
     ];
 
-    vendeurs.forEach((vendeur, index) => {
+    enrichedVendeurs.forEach((vendeur, index) => {
       rows.push([
         index + 1,
         vendeur.nom,
@@ -67,7 +104,7 @@ const DesktopVendeurs = () => {
     link.click();
   };
 
-  if (loading) {
+  if (loading || loadingUsers) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg">Chargement des statistiques vendeurs...</div>
@@ -85,7 +122,7 @@ const DesktopVendeurs = () => {
     );
   }
 
-  if (!summary || vendeurs.length === 0) {
+  if (!enrichedSummary || enrichedVendeurs.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg opacity-70">Aucune donnée disponible</div>
@@ -129,7 +166,7 @@ const DesktopVendeurs = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Total Vendeurs"
-          value={summary.total_vendeurs}
+          value={enrichedSummary.total_vendeurs}
           icon={Users}
           trend="neutral"
           description={`${period} derniers jours`}
@@ -137,7 +174,7 @@ const DesktopVendeurs = () => {
 
         <KPICard
           title="Chiffre d'Affaires Total"
-          value={`${summary.total_ventes.toLocaleString()} FCFA`}
+          value={`${enrichedSummary.total_ventes.toLocaleString()} FCFA`}
           icon={DollarSign}
           trend="neutral"
           description="Toutes ventes cumulées"
@@ -145,7 +182,7 @@ const DesktopVendeurs = () => {
 
         <KPICard
           title="Total Commandes"
-          value={summary.total_commandes}
+          value={enrichedSummary.total_commandes}
           icon={ShoppingCart}
           trend="neutral"
           description="Toutes commandes"
@@ -153,7 +190,7 @@ const DesktopVendeurs = () => {
 
         <KPICard
           title="Panier Moyen Global"
-          value={`${summary.panier_moyen_global.toFixed(0)} FCFA`}
+          value={`${enrichedSummary.panier_moyen_global.toFixed(0)} FCFA`}
           icon={TrendingUp}
           trend="neutral"
           description="Moyenne générale"
@@ -161,7 +198,7 @@ const DesktopVendeurs = () => {
       </div>
 
       {/* Top Performer */}
-      {summary.top_vendeur && (
+      {enrichedSummary.top_vendeur && (
         <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -173,24 +210,24 @@ const DesktopVendeurs = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm opacity-70">Vendeur</p>
-                <p className="text-xl font-bold">{summary.top_vendeur.nom}</p>
+                <p className="text-xl font-bold">{enrichedSummary.top_vendeur.nom}</p>
               </div>
               <div>
                 <p className="text-sm opacity-70">Ventes</p>
                 <p className="text-xl font-bold text-green-600">
-                  {summary.top_vendeur.total_ventes.toLocaleString()} FCFA
+                  {enrichedSummary.top_vendeur.total_ventes.toLocaleString()} FCFA
                 </p>
               </div>
               <div>
                 <p className="text-sm opacity-70">Commandes</p>
                 <p className="text-xl font-bold">
-                  {summary.top_vendeur.total_commandes}
+                  {enrichedSummary.top_vendeur.total_commandes}
                 </p>
               </div>
               <div>
                 <p className="text-sm opacity-70">Part du CA</p>
                 <p className="text-xl font-bold text-blue-600">
-                  {summary.top_vendeur.pourcentage_ca.toFixed(1)}%
+                  {enrichedSummary.top_vendeur.pourcentage_ca.toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -205,7 +242,7 @@ const DesktopVendeurs = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {vendeurs.map((vendeur, index) => (
+            {enrichedVendeurs.map((vendeur, index) => (
               <div
                 key={vendeur.userId}
                 className="flex items-center gap-4 p-4 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
@@ -265,7 +302,7 @@ const DesktopVendeurs = () => {
 
       {/* Top Articles par Vendeur (Top 3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {vendeurs.slice(0, 3).map((vendeur, index) => (
+        {enrichedVendeurs.slice(0, 3).map((vendeur, index) => (
           <Card key={vendeur.userId}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">

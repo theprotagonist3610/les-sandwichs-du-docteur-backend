@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useVendeurDetailAnalytics } from "@/toolkits/admin/commandeToolkit";
+import { useUser } from "@/toolkits/admin/userToolkit";
 import KPICard from "@/components/statistics/cards/KPICard";
 import SalesLineChart from "@/components/statistics/charts/SalesLineChart";
 import SalesBarChart from "@/components/statistics/charts/SalesBarChart";
@@ -40,27 +41,38 @@ const DesktopVendeurId = () => {
     vendeurId,
     daysCount
   );
+  const { user, loading: loadingUser } = useUser(vendeurId);
+
+  // Enrichir vendeurStats avec le nom réel
+  const enrichedVendeurStats = useMemo(() => {
+    if (!vendeurStats || !user) return vendeurStats;
+    const fullName = `${user.nom} ${user.prenoms?.join(" ") || ""}`.trim();
+    return {
+      ...vendeurStats,
+      nom: fullName,
+    };
+  }, [vendeurStats, user]);
 
   // Export CSV
   const exportCSV = () => {
-    if (!vendeurStats) return;
+    if (!enrichedVendeurStats) return;
 
     const rows = [
-      [`Statistiques du Vendeur: ${vendeurStats.nom}`, `Période: ${period} derniers jours`],
+      [`Statistiques du Vendeur: ${enrichedVendeurStats.nom}`, `Période: ${period} derniers jours`],
       [],
       ["Résumé"],
-      ["Total Ventes", `${vendeurStats.total_ventes.toFixed(0)} FCFA`],
-      ["Total Commandes", vendeurStats.total_commandes],
-      ["Panier Moyen", `${vendeurStats.panier_moyen.toFixed(0)} FCFA`],
-      ["Part du CA Global", `${vendeurStats.pourcentage_ca_global.toFixed(1)}%`],
-      ["Tendance", vendeurStats.trend],
-      ["Meilleur Jour", vendeurStats.meilleur_jour],
+      ["Total Ventes", `${enrichedVendeurStats.total_ventes.toFixed(0)} FCFA`],
+      ["Total Commandes", enrichedVendeurStats.total_commandes],
+      ["Panier Moyen", `${enrichedVendeurStats.panier_moyen.toFixed(0)} FCFA`],
+      ["Part du CA Global", `${enrichedVendeurStats.pourcentage_ca_global.toFixed(1)}%`],
+      ["Tendance", enrichedVendeurStats.trend],
+      ["Meilleur Jour", enrichedVendeurStats.meilleur_jour],
       [],
       ["Évolution Quotidienne"],
       ["Date", "Commandes", "Ventes (FCFA)", "Panier Moyen", "% CA Jour"],
     ];
 
-    vendeurStats.evolution.forEach((day) => {
+    enrichedVendeurStats.evolution.forEach((day) => {
       rows.push([
         day.dateFormatted,
         day.commandes,
@@ -74,7 +86,7 @@ const DesktopVendeurId = () => {
     rows.push(["Articles Vendus"]);
     rows.push(["Article", "Quantité", "Ventes (FCFA)"]);
 
-    vendeurStats.articles_vendus.forEach((article) => {
+    enrichedVendeurStats.articles_vendus.forEach((article) => {
       rows.push([
         article.denomination,
         article.quantite,
@@ -86,11 +98,11 @@ const DesktopVendeurId = () => {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `vendeur_${vendeurStats.nom}_${period}j.csv`;
+    link.download = `vendeur_${enrichedVendeurStats.nom}_${period}j.csv`;
     link.click();
   };
 
-  if (loading) {
+  if (loading || loadingUser) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg">Chargement des statistiques...</div>
@@ -108,7 +120,7 @@ const DesktopVendeurId = () => {
     );
   }
 
-  if (!vendeurStats) {
+  if (!enrichedVendeurStats) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg opacity-70">Aucune donnée disponible</div>
@@ -117,7 +129,7 @@ const DesktopVendeurId = () => {
   }
 
   // Préparer les données pour les graphiques
-  const evolutionLineData = vendeurStats.evolution.map((day) => ({
+  const evolutionLineData = enrichedVendeurStats.evolution.map((day) => ({
     date: day.dateFormatted,
     ventes: day.ventes,
   }));
@@ -125,22 +137,22 @@ const DesktopVendeurId = () => {
   const joursOrdre = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
   const joursBarData = joursOrdre.map((jour) => ({
     jour: jour.charAt(0).toUpperCase() + jour.slice(1).slice(0, 3),
-    ventes: vendeurStats.jours_semaine[jour].ventes,
-    commandes: vendeurStats.jours_semaine[jour].commandes,
+    ventes: enrichedVendeurStats.jours_semaine[jour].ventes,
+    commandes: enrichedVendeurStats.jours_semaine[jour].commandes,
   }));
 
   // Icône de tendance
   const TrendIcon =
-    vendeurStats.trend === "hausse"
+    enrichedVendeurStats.trend === "hausse"
       ? TrendingUp
-      : vendeurStats.trend === "baisse"
+      : enrichedVendeurStats.trend === "baisse"
       ? TrendingDown
       : Minus;
 
   const trendColor =
-    vendeurStats.trend === "hausse"
+    enrichedVendeurStats.trend === "hausse"
       ? "text-green-600"
-      : vendeurStats.trend === "baisse"
+      : enrichedVendeurStats.trend === "baisse"
       ? "text-red-600"
       : "text-gray-600";
 
@@ -158,7 +170,7 @@ const DesktopVendeurId = () => {
           </Button>
 
           <div>
-            <h1 className="text-3xl font-bold">{vendeurStats.nom}</h1>
+            <h1 className="text-3xl font-bold">{enrichedVendeurStats.nom}</h1>
             <p className="opacity-70 mt-1">
               Analyse détaillée des performances
             </p>
@@ -190,12 +202,12 @@ const DesktopVendeurId = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Chiffre d'Affaires"
-          value={`${vendeurStats.total_ventes.toLocaleString()} FCFA`}
+          value={`${enrichedVendeurStats.total_ventes.toLocaleString()} FCFA`}
           icon={DollarSign}
-          trend={vendeurStats.trend}
+          trend={enrichedVendeurStats.trend}
           trendValue={
-            vendeurStats.trendPercentage !== 0
-              ? `${vendeurStats.trendPercentage > 0 ? "+" : ""}${vendeurStats.trendPercentage.toFixed(1)}%`
+            enrichedVendeurStats.trendPercentage !== 0
+              ? `${enrichedVendeurStats.trendPercentage > 0 ? "+" : ""}${enrichedVendeurStats.trendPercentage.toFixed(1)}%`
               : undefined
           }
           description={`${period} derniers jours`}
@@ -203,7 +215,7 @@ const DesktopVendeurId = () => {
 
         <KPICard
           title="Total Commandes"
-          value={vendeurStats.total_commandes}
+          value={enrichedVendeurStats.total_commandes}
           icon={ShoppingCart}
           trend="neutral"
           description="Nombre de commandes"
@@ -211,7 +223,7 @@ const DesktopVendeurId = () => {
 
         <KPICard
           title="Panier Moyen"
-          value={`${vendeurStats.panier_moyen.toFixed(0)} FCFA`}
+          value={`${enrichedVendeurStats.panier_moyen.toFixed(0)} FCFA`}
           icon={TrendingUp}
           trend="neutral"
           description="Par commande"
@@ -219,7 +231,7 @@ const DesktopVendeurId = () => {
 
         <KPICard
           title="Part du CA Global"
-          value={`${vendeurStats.pourcentage_ca_global.toFixed(1)}%`}
+          value={`${enrichedVendeurStats.pourcentage_ca_global.toFixed(1)}%`}
           icon={BarChart3}
           trend="neutral"
           description={`Sur ${period} jours`}
@@ -239,12 +251,12 @@ const DesktopVendeurId = () => {
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <p className="text-2xl font-bold capitalize">
-                  {vendeurStats.trend}
+                  {enrichedVendeurStats.trend}
                 </p>
-                {vendeurStats.trendPercentage !== 0 && (
+                {enrichedVendeurStats.trendPercentage !== 0 && (
                   <p className={`text-sm font-semibold ${trendColor}`}>
-                    {vendeurStats.trendPercentage > 0 ? "+" : ""}
-                    {vendeurStats.trendPercentage.toFixed(1)}%
+                    {enrichedVendeurStats.trendPercentage > 0 ? "+" : ""}
+                    {enrichedVendeurStats.trendPercentage.toFixed(1)}%
                   </p>
                 )}
               </div>
@@ -265,12 +277,12 @@ const DesktopVendeurId = () => {
           <CardContent>
             <div className="flex items-center gap-4">
               <p className="text-2xl font-bold capitalize">
-                {vendeurStats.meilleur_jour}
+                {enrichedVendeurStats.meilleur_jour}
               </p>
               <p className="text-sm opacity-70">
-                {vendeurStats.jours_semaine[vendeurStats.meilleur_jour]?.ventes.toLocaleString()}{" "}
+                {enrichedVendeurStats.jours_semaine[enrichedVendeurStats.meilleur_jour]?.ventes.toLocaleString()}{" "}
                 FCFA •{" "}
-                {vendeurStats.jours_semaine[vendeurStats.meilleur_jour]?.commandes} commande(s)
+                {enrichedVendeurStats.jours_semaine[enrichedVendeurStats.meilleur_jour]?.commandes} commande(s)
               </p>
             </div>
           </CardContent>
@@ -317,13 +329,13 @@ const DesktopVendeurId = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Articles Vendus ({vendeurStats.articles_vendus.length})
+            Articles Vendus ({enrichedVendeurStats.articles_vendus.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {vendeurStats.articles_vendus.length > 0 ? (
+          {enrichedVendeurStats.articles_vendus.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {vendeurStats.articles_vendus.map((article) => (
+              {enrichedVendeurStats.articles_vendus.map((article) => (
                 <div
                   key={article.id}
                   className="flex items-center justify-between p-4 rounded-lg border bg-muted/30"
@@ -370,7 +382,7 @@ const DesktopVendeurId = () => {
                 </tr>
               </thead>
               <tbody>
-                {vendeurStats.evolution.slice().reverse().map((day) => (
+                {enrichedVendeurStats.evolution.slice().reverse().map((day) => (
                   <tr key={day.date} className="border-b hover:bg-muted/30">
                     <td className="p-3">{day.dateFormatted}</td>
                     <td className="text-right p-3">{day.commandes}</td>
