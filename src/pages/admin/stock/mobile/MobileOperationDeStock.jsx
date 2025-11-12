@@ -66,7 +66,7 @@ const MobileOperationDeStock = () => {
   const sourceEmplacement = useOperationStockStore((state) => state.sourceEmplacement);
   const destEmplacement = useOperationStockStore((state) => state.destEmplacement);
   const quantite = useOperationStockStore((state) => state.quantite);
-  const prixUnitaire = useOperationStockStore((state) => state.prixUnitaire);
+  const coutTotal = useOperationStockStore((state) => state.coutTotal);
   const motif = useOperationStockStore((state) => state.motif);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -162,7 +162,10 @@ const MobileOperationDeStock = () => {
 
       if (operationType === TRANSACTION_TYPES.ENTREE) {
         payload.emplacement_id = destEmplacement.id;
-        payload.prix_unitaire = parseFloat(prixUnitaire) || 0;
+        // Calcul du prix unitaire à partir du coût total
+        payload.prix_unitaire = parseFloat(quantite) > 0
+          ? parseFloat(coutTotal) / parseFloat(quantite)
+          : 0;
       } else if (operationType === TRANSACTION_TYPES.SORTIE) {
         payload.emplacement_id = sourceEmplacement.id;
       } else if (operationType === TRANSACTION_TYPES.TRANSFERT) {

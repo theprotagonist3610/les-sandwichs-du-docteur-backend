@@ -32,7 +32,7 @@ import {
   selectSourceEmplacement,
   selectDestEmplacement,
   selectQuantite,
-  selectPrixUnitaire,
+  selectCoutTotal,
   selectMotif,
   selectErrors,
   selectAvailableStock,
@@ -47,7 +47,7 @@ const Step3ConfigureOperation = () => {
   const sourceEmplacement = useOperationStockStore(selectSourceEmplacement);
   const destEmplacement = useOperationStockStore(selectDestEmplacement);
   const quantite = useOperationStockStore(selectQuantite);
-  const prixUnitaire = useOperationStockStore(selectPrixUnitaire);
+  const coutTotal = useOperationStockStore(selectCoutTotal);
   const motif = useOperationStockStore(selectMotif);
   const errors = useOperationStockStore(selectErrors);
   const availableStock = useOperationStockStore(selectAvailableStock);
@@ -55,9 +55,15 @@ const Step3ConfigureOperation = () => {
   const setSourceEmplacement = useOperationStockStore((state) => state.setSourceEmplacement);
   const setDestEmplacement = useOperationStockStore((state) => state.setDestEmplacement);
   const setQuantite = useOperationStockStore((state) => state.setQuantite);
-  const setPrixUnitaire = useOperationStockStore((state) => state.setPrixUnitaire);
+  const setCoutTotal = useOperationStockStore((state) => state.setCoutTotal);
   const setMotif = useOperationStockStore((state) => state.setMotif);
   const clearError = useOperationStockStore((state) => state.clearError);
+
+  // Calcul automatique du prix unitaire
+  const prixUnitaire = useMemo(() => {
+    if (!quantite || quantite <= 0 || !coutTotal) return 0;
+    return coutTotal / quantite;
+  }, [quantite, coutTotal]);
 
   // Récupérer les emplacements
   const { emplacements, loading: loadingEmplacements } = useEmplacements({ status: true });
@@ -124,9 +130,9 @@ const Step3ConfigureOperation = () => {
     clearError("quantite");
   };
 
-  const handlePrixUnitaireChange = (e) => {
-    setPrixUnitaire(e.target.value);
-    clearError("prixUnitaire");
+  const handleCoutTotalChange = (e) => {
+    setCoutTotal(e.target.value);
+    clearError("coutTotal");
   };
 
   const handleMotifChange = (e) => {
@@ -301,36 +307,36 @@ const Step3ConfigureOperation = () => {
               )}
           </div>
 
-          {/* Prix unitaire (uniquement pour les entrées) */}
+          {/* Coût total (uniquement pour les entrées) */}
           {operationType === TRANSACTION_TYPES.ENTREE && (
             <div className="space-y-2">
-              <Label htmlFor="prix-unitaire">
+              <Label htmlFor="cout-total">
                 <DollarSign className="h-4 w-4 inline mr-2" />
-                Prix unitaire (FCFA)
+                Coût total d'achat (FCFA)
               </Label>
               <Input
-                id="prix-unitaire"
+                id="cout-total"
                 type="number"
                 min="0"
                 step="1"
-                value={prixUnitaire}
-                onChange={handlePrixUnitaireChange}
-                placeholder="Entrez le prix unitaire"
-                className={cn(errors.prixUnitaire && "border-red-500")}
+                value={coutTotal}
+                onChange={handleCoutTotalChange}
+                placeholder="Entrez le coût total d'achat"
+                className={cn(errors.coutTotal && "border-red-500")}
               />
-              {errors.prixUnitaire && (
-                <p className="text-sm text-red-500">{errors.prixUnitaire}</p>
+              {errors.coutTotal && (
+                <p className="text-sm text-red-500">{errors.coutTotal}</p>
               )}
 
-              {/* Calcul du coût total */}
-              {quantite > 0 && prixUnitaire > 0 && (
+              {/* Calcul automatique du prix unitaire */}
+              {quantite > 0 && coutTotal > 0 && (
                 <Alert>
                   <TrendingUp className="h-4 w-4" />
                   <AlertDescription>
-                    Coût total:{" "}
+                    Prix unitaire calculé:{" "}
                     <strong>
-                      {(parseFloat(quantite) * parseFloat(prixUnitaire)).toLocaleString()}{" "}
-                      FCFA
+                      {prixUnitaire.toLocaleString()}{" "}
+                      FCFA/{selectedElement?.unite?.symbol || "unité"}
                     </strong>
                   </AlertDescription>
                 </Alert>

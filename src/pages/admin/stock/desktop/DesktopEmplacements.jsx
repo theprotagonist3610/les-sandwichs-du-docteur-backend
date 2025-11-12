@@ -167,20 +167,14 @@ const DesktopEmplacements = () => {
             Gestion de tous les emplacements de stock
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Actualiser
-          </Button>
-          <Button onClick={() => navigate("/admin/stock/emplacements/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvel emplacement
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Actualiser
+        </Button>
       </div>
 
       {/* KPIs */}

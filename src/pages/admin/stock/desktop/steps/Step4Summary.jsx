@@ -74,10 +74,15 @@ const Step4Summary = () => {
   const willBeInAlert = seuil > 0 && newStock <= seuil && newStock > 0;
   const willBeInRupture = newStock === 0;
 
-  // Calcul du coût total pour les entrées
+  // Coût total et prix unitaire pour les entrées
   const coutTotal =
-    operationType === TRANSACTION_TYPES.ENTREE && summary.prixUnitaire
-      ? parseFloat(summary.quantite) * parseFloat(summary.prixUnitaire)
+    operationType === TRANSACTION_TYPES.ENTREE && summary.coutTotal
+      ? parseFloat(summary.coutTotal)
+      : 0;
+
+  const prixUnitaire =
+    operationType === TRANSACTION_TYPES.ENTREE && coutTotal > 0 && summary.quantite > 0
+      ? coutTotal / parseFloat(summary.quantite)
       : 0;
 
   return (
@@ -243,26 +248,26 @@ const Step4Summary = () => {
 
             <Separator />
 
-            {/* Prix unitaire et coût total (pour entrées) */}
+            {/* Coût total et prix unitaire calculé (pour entrées) */}
             {operationType === TRANSACTION_TYPES.ENTREE &&
-              summary.prixUnitaire && (
+              summary.coutTotal && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Prix unitaire
-                    </span>
-                    <span className="font-medium">
-                      {parseFloat(summary.prixUnitaire).toLocaleString()} FCFA
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Coût total</span>
+                    <span className="text-sm font-semibold">Coût total d'achat</span>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-green-600" />
                       <span className="font-bold text-green-600 text-lg">
                         {coutTotal.toLocaleString()} FCFA
                       </span>
                     </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Prix unitaire (calculé)
+                    </span>
+                    <span className="font-medium">
+                      {prixUnitaire.toLocaleString()} FCFA/{summary.element?.unite?.symbol || "unité"}
+                    </span>
                   </div>
                 </div>
               )}
