@@ -2311,17 +2311,17 @@ export function usePaymentMethodAnalysis(methodId, days = 7) {
 
         // Essayer d'abord les archives
         if (i > 0) {
-          const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, dayKey);
+          const archiveRef = doc(db, `${VENTES_PATH}/${ARCHIVES_PATH}/${dayKey}`);
           const archiveDoc = await getDoc(archiveRef);
           if (archiveDoc.exists()) {
-            commandes = archiveDoc.data()?.commandes || [];
+            commandes = archiveDoc.data()?.liste || [];
           }
         } else {
           // Aujourd'hui
           const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
           const todayDoc = await getDoc(todayRef);
           if (todayDoc.exists()) {
-            commandes = todayDoc.data()?.commandes || [];
+            commandes = todayDoc.data()?.liste || [];
           }
         }
 
