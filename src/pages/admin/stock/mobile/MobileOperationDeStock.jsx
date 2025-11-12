@@ -1,10 +1,11 @@
 /**
  * MobileOperationDeStock.jsx
  * Wizard multi-étapes pour les opérations de stock (Mobile)
+ * Avec détection intelligente du contexte depuis les query params
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,8 +19,14 @@ import {
   RotateCcw,
   Eye,
 } from "lucide-react";
-import { useOperationStockStore, selectCurrentStep, selectCanProceed } from "@/stores/operationStockStore";
-import { makeTransaction, TRANSACTION_TYPES } from "@/toolkits/admin/stockToolkit";
+import {
+  useOperationStockStore,
+  selectCurrentStep,
+  selectInitialStep,
+  selectSkippedSteps,
+  selectCanProceed,
+} from "@/stores/operationStockStore";
+import { makeTransaction, TRANSACTION_TYPES, getElement } from "@/toolkits/admin/stockToolkit";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,7 +36,7 @@ import Step2SelectElement from "../desktop/steps/Step2SelectElement";
 import Step3ConfigureOperation from "../desktop/steps/Step3ConfigureOperation";
 import Step4Summary from "../desktop/steps/Step4Summary";
 
-const steps = [
+const allSteps = [
   { number: 1, title: "Type", shortTitle: "Type" },
   { number: 2, title: "Article", shortTitle: "Article" },
   { number: 3, title: "Config", shortTitle: "Config" },
@@ -39,7 +46,11 @@ const steps = [
 const MobileOperationDeStock = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
   const currentStep = useOperationStockStore(selectCurrentStep);
+  const initialStep = useOperationStockStore(selectInitialStep);
+  const skippedSteps = useOperationStockStore(selectSkippedSteps);
   const canProceed = useOperationStockStore(selectCanProceed);
 
   const setStep = useOperationStockStore((state) => state.setStep);
@@ -48,6 +59,7 @@ const MobileOperationDeStock = () => {
   const validateStep = useOperationStockStore((state) => state.validateStep);
   const reset = useOperationStockStore((state) => state.reset);
   const resetForNewOperation = useOperationStockStore((state) => state.resetForNewOperation);
+  const initializeFromContext = useOperationStockStore((state) => state.initializeFromContext);
 
   const operationType = useOperationStockStore((state) => state.operationType);
   const selectedElement = useOperationStockStore((state) => state.selectedElement);
@@ -60,11 +72,54 @@ const MobileOperationDeStock = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [operationId, setOperationId] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
-  // Reset au montage
+  // Initialisation intelligente depuis les query params
   useEffect(() => {
-    reset();
-  }, [reset]);
+    const initializeWizard = async () => {
+      setIsInitializing(true);
+
+      const type = searchParams.get('type');
+      const elementId = searchParams.get('elementId');
+      const emplacementId = searchParams.get('emplacementId');
+
+      try {
+        let element = null;
+
+        // Charger l'élément si l'ID est fourni
+        if (elementId) {
+          element = await getElement(elementId);
+          if (!element) {
+            toast({
+              title: "Article introuvable",
+              description: "L'article spécifié n'existe pas",
+              variant: "destructive",
+            });
+          }
+        }
+
+        // Initialiser le wizard avec le contexte
+        initializeFromContext({
+          type,
+          element,
+          emplacementId,
+        });
+      } catch (error) {
+        console.error("Erreur initialisation wizard:", error);
+        toast({
+          title: "Erreur d'initialisation",
+          description: error.message,
+          variant: "destructive",
+        });
+        // Fallback: wizard complet
+        reset();
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeWizard();
+  }, [searchParams, reset, initializeFromContext, toast]);
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
@@ -151,6 +206,18 @@ const MobileOperationDeStock = () => {
     navigate("/admin/stock");
   };
 
+  // Affichage du chargement initial
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground text-sm">Initialisation...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Affichage du succès
   if (submitSuccess) {
     return (
@@ -200,6 +267,9 @@ const MobileOperationDeStock = () => {
     );
   }
 
+  // Filtrer les étapes à afficher (exclure les étapes skippées)
+  const visibleSteps = allSteps.filter(step => !skippedSteps.includes(step.number));
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header fixe */}
@@ -209,7 +279,7 @@ const MobileOperationDeStock = () => {
             <div>
               <h1 className="text-lg font-bold">Nouvelle opération</h1>
               <p className="text-xs text-muted-foreground">
-                Étape {currentStep}/4
+                Étape {currentStep - initialStep + 1}/{visibleSteps.length}
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={handleCancel}>
@@ -219,7 +289,7 @@ const MobileOperationDeStock = () => {
 
           {/* Stepper horizontal compact */}
           <div className="flex items-center justify-between gap-1">
-            {steps.map((step, index) => {
+            {visibleSteps.map((step, index) => {
               const isActive = currentStep === step.number;
               const isCompleted = currentStep > step.number;
 
@@ -253,7 +323,7 @@ const MobileOperationDeStock = () => {
                     </p>
                   </div>
 
-                  {index !== steps.length - 1 && (
+                  {index !== visibleSteps.length - 1 && (
                     <div
                       className={cn(
                         "h-0.5 flex-1 mx-1",
@@ -281,7 +351,7 @@ const MobileOperationDeStock = () => {
       {/* Navigation fixe en bas */}
       <div className="sticky bottom-0 z-10 bg-background border-t p-4">
         <div className="flex items-center gap-2">
-          {currentStep > 1 && (
+          {currentStep > initialStep && (
             <Button
               variant="outline"
               onClick={handlePrev}
@@ -293,7 +363,7 @@ const MobileOperationDeStock = () => {
             </Button>
           )}
 
-          {currentStep < steps.length ? (
+          {currentStep < 4 ? (
             <Button
               onClick={handleNext}
               disabled={!canProceed || isSubmitting}

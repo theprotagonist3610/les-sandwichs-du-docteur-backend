@@ -1,13 +1,13 @@
 /**
  * DesktopOperationDeStock.jsx
  * Wizard multi-étapes pour les opérations de stock (Desktop)
+ * Avec détection intelligente du contexte depuis les query params
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -20,8 +20,14 @@ import {
   RotateCcw,
   Eye,
 } from "lucide-react";
-import { useOperationStockStore, selectCurrentStep, selectCanProceed } from "@/stores/operationStockStore";
-import { makeTransaction, TRANSACTION_TYPES } from "@/toolkits/admin/stockToolkit";
+import {
+  useOperationStockStore,
+  selectCurrentStep,
+  selectInitialStep,
+  selectSkippedSteps,
+  selectCanProceed,
+} from "@/stores/operationStockStore";
+import { makeTransaction, TRANSACTION_TYPES, getElement } from "@/toolkits/admin/stockToolkit";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,7 +37,7 @@ import Step2SelectElement from "./steps/Step2SelectElement";
 import Step3ConfigureOperation from "./steps/Step3ConfigureOperation";
 import Step4Summary from "./steps/Step4Summary";
 
-const steps = [
+const allSteps = [
   {
     number: 1,
     title: "Type d'opération",
@@ -57,7 +63,11 @@ const steps = [
 const DesktopOperationDeStock = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
   const currentStep = useOperationStockStore(selectCurrentStep);
+  const initialStep = useOperationStockStore(selectInitialStep);
+  const skippedSteps = useOperationStockStore(selectSkippedSteps);
   const canProceed = useOperationStockStore(selectCanProceed);
 
   const setStep = useOperationStockStore((state) => state.setStep);
@@ -66,6 +76,7 @@ const DesktopOperationDeStock = () => {
   const validateStep = useOperationStockStore((state) => state.validateStep);
   const reset = useOperationStockStore((state) => state.reset);
   const resetForNewOperation = useOperationStockStore((state) => state.resetForNewOperation);
+  const initializeFromContext = useOperationStockStore((state) => state.initializeFromContext);
 
   const operationType = useOperationStockStore((state) => state.operationType);
   const selectedElement = useOperationStockStore((state) => state.selectedElement);
@@ -78,11 +89,54 @@ const DesktopOperationDeStock = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [operationId, setOperationId] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
-  // Reset au montage
+  // Initialisation intelligente depuis les query params
   useEffect(() => {
-    reset();
-  }, [reset]);
+    const initializeWizard = async () => {
+      setIsInitializing(true);
+
+      const type = searchParams.get('type');
+      const elementId = searchParams.get('elementId');
+      const emplacementId = searchParams.get('emplacementId');
+
+      try {
+        let element = null;
+
+        // Charger l'élément si l'ID est fourni
+        if (elementId) {
+          element = await getElement(elementId);
+          if (!element) {
+            toast({
+              title: "Article introuvable",
+              description: "L'article spécifié n'existe pas",
+              variant: "destructive",
+            });
+          }
+        }
+
+        // Initialiser le wizard avec le contexte
+        initializeFromContext({
+          type,
+          element,
+          emplacementId,
+        });
+      } catch (error) {
+        console.error("Erreur initialisation wizard:", error);
+        toast({
+          title: "Erreur d'initialisation",
+          description: error.message,
+          variant: "destructive",
+        });
+        // Fallback: wizard complet
+        reset();
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeWizard();
+  }, [searchParams, reset, initializeFromContext, toast]);
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
@@ -101,8 +155,8 @@ const DesktopOperationDeStock = () => {
   };
 
   const handleStepClick = (stepNumber) => {
-    // Permettre de revenir en arrière uniquement
-    if (stepNumber < currentStep) {
+    // Permettre de naviguer uniquement vers les étapes déjà visitées (non skippées)
+    if (stepNumber < currentStep && !skippedSteps.includes(stepNumber)) {
       setStep(stepNumber);
     }
   };
@@ -120,12 +174,11 @@ const DesktopOperationDeStock = () => {
     setIsSubmitting(true);
 
     try {
-      // Préparer le payload selon le type d'opération
       const payload = {
         element_id: selectedElement.id,
         quantite: parseFloat(quantite),
         motif: motif || "",
-        user_id: "current_user", // Sera remplacé par auth.currentUser.uid dans makeTransaction
+        user_id: "current_user",
       };
 
       if (operationType === TRANSACTION_TYPES.ENTREE) {
@@ -138,7 +191,6 @@ const DesktopOperationDeStock = () => {
         payload.emplacement_dest_id = destEmplacement.id;
       }
 
-      // Créer la transaction
       const operation = await makeTransaction(operationType, payload);
 
       setOperationId(operation.id);
@@ -174,6 +226,18 @@ const DesktopOperationDeStock = () => {
     reset();
     navigate("/admin/stock");
   };
+
+  // Affichage du chargement initial
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Initialisation...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Affichage du succès
   if (submitSuccess) {
@@ -220,153 +284,151 @@ const DesktopOperationDeStock = () => {
     );
   }
 
-  const progress = (currentStep / steps.length) * 100;
+  // Filtrer les étapes à afficher (exclure les étapes skippées)
+  const visibleSteps = allSteps.filter(step => !skippedSteps.includes(step.number));
+  const progress = ((currentStep - initialStep + 1) / (4 - skippedSteps.length + 1)) * 100;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Nouvelle opération de stock</h1>
-          <p className="text-muted-foreground mt-1">
-            Suivez les étapes pour créer une opération
-          </p>
+    <div className="min-h-screen flex flex-col">
+      {/* Sticky Navigation Bar en haut */}
+      <div className="sticky top-0 z-20 bg-background border-b shadow-sm">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold">Nouvelle opération de stock</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Étape {currentStep - initialStep + 1} sur {visibleSteps.length}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleCancel} size="sm">
+                <XCircle className="h-4 w-4 mr-2" />
+                Annuler
+              </Button>
+
+              {currentStep > initialStep && (
+                <Button onClick={handlePrev} disabled={isSubmitting} size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Précédent
+                </Button>
+              )}
+
+              {currentStep < 4 ? (
+                <Button
+                  onClick={handleNext}
+                  disabled={!canProceed || isSubmitting}
+                  size="sm"
+                >
+                  Suivant
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!canProceed || isSubmitting}
+                  size="sm"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Création...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Valider
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <Progress value={progress} className="h-2" />
         </div>
-        <Button variant="outline" onClick={handleCancel}>
-          <XCircle className="h-4 w-4 mr-2" />
-          Annuler
-        </Button>
-      </div>
 
-      {/* Stepper */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <Progress value={progress} className="h-2" />
+        {/* Stepper horizontal compact */}
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-between">
+            {visibleSteps.map((step, index) => {
+              const isActive = currentStep === step.number;
+              const isCompleted = currentStep > step.number;
+              const isAccessible = step.number <= currentStep && step.number >= initialStep;
 
-            <div className="flex items-center justify-between">
-              {steps.map((step, index) => {
-                const isActive = currentStep === step.number;
-                const isCompleted = currentStep > step.number;
-                const isAccessible = step.number <= currentStep;
-
-                return (
+              return (
+                <div
+                  key={step.number}
+                  className={cn(
+                    "flex-1 flex items-center",
+                    index !== visibleSteps.length - 1 && "relative"
+                  )}
+                >
                   <div
-                    key={step.number}
                     className={cn(
-                      "flex-1 flex items-center",
-                      index !== steps.length - 1 && "relative"
+                      "flex items-center gap-3 cursor-pointer transition-opacity",
+                      isAccessible ? "opacity-100" : "opacity-40",
+                      !isAccessible && "cursor-not-allowed"
                     )}
+                    onClick={() => isAccessible && handleStepClick(step.number)}
                   >
                     <div
                       className={cn(
-                        "flex items-center gap-3 cursor-pointer transition-opacity",
-                        isAccessible ? "opacity-100" : "opacity-40",
-                        !isAccessible && "cursor-not-allowed"
+                        "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors text-sm font-semibold",
+                        isActive &&
+                          "border-primary bg-primary text-primary-foreground",
+                        isCompleted &&
+                          "border-green-600 bg-green-600 text-white",
+                        !isActive && !isCompleted && "border-muted"
                       )}
-                      onClick={() => isAccessible && handleStepClick(step.number)}
                     >
-                      <div
+                      {isCompleted ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <span>{step.number}</span>
+                      )}
+                    </div>
+                    <div className="hidden md:block">
+                      <p
                         className={cn(
-                          "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
-                          isActive &&
-                            "border-primary bg-primary text-primary-foreground",
-                          isCompleted &&
-                            "border-green-600 bg-green-600 text-white",
-                          !isActive && !isCompleted && "border-muted"
+                          "font-medium text-xs",
+                          isActive && "text-primary"
                         )}
                       >
-                        {isCompleted ? (
-                          <Check className="h-5 w-5" />
-                        ) : (
-                          <span className="font-semibold">{step.number}</span>
-                        )}
-                      </div>
-                      <div className="hidden md:block">
-                        <p
-                          className={cn(
-                            "font-medium text-sm",
-                            isActive && "text-primary"
-                          )}
-                        >
-                          {step.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {step.description}
-                        </p>
-                      </div>
+                        {step.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {step.description}
+                      </p>
                     </div>
-
-                    {index !== steps.length - 1 && (
-                      <div
-                        className={cn(
-                          "hidden md:block flex-1 h-0.5 mx-4",
-                          currentStep > step.number ? "bg-green-600" : "bg-muted"
-                        )}
-                      />
-                    )}
                   </div>
-                );
-              })}
-            </div>
+
+                  {index !== visibleSteps.length - 1 && (
+                    <div
+                      className={cn(
+                        "hidden md:block flex-1 h-0.5 mx-4",
+                        currentStep > step.number ? "bg-green-600" : "bg-muted"
+                      )}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Contenu de l'étape */}
-      <Card>
-        <CardContent className="pt-6">
-          {currentStep === 1 && <Step1SelectOperation />}
-          {currentStep === 2 && <Step2SelectElement />}
-          {currentStep === 3 && <Step3ConfigureOperation />}
-          {currentStep === 4 && <Step4Summary />}
-        </CardContent>
-      </Card>
-
-      {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={handlePrev}
-          disabled={currentStep === 1 || isSubmitting}
-          size="lg"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Précédent
-        </Button>
-
-        <div className="text-center text-sm text-muted-foreground">
-          Étape {currentStep} sur {steps.length}
         </div>
+      </div>
 
-        {currentStep < steps.length ? (
-          <Button
-            onClick={handleNext}
-            disabled={!canProceed || isSubmitting}
-            size="lg"
-          >
-            Suivant
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        ) : (
-          <Button
-            onClick={handleSubmit}
-            disabled={!canProceed || isSubmitting}
-            size="lg"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Création...
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Valider l'opération
-              </>
-            )}
-          </Button>
-        )}
+      {/* Contenu scrollable */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            {currentStep === 1 && <Step1SelectOperation />}
+            {currentStep === 2 && <Step2SelectElement />}
+            {currentStep === 3 && <Step3ConfigureOperation />}
+            {currentStep === 4 && <Step4Summary />}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
