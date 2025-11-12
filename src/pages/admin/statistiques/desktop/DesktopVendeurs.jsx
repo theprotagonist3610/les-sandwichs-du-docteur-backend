@@ -322,7 +322,7 @@ const DesktopVendeurs = () => {
                       <p className="text-xs opacity-70">Qté: {article.quantite}</p>
                     </div>
                     <p className="text-sm font-semibold text-green-600">
-                      {article.total_ventes.toLocaleString()}
+                      {(article.total_ventes || 0).toLocaleString()}
                     </p>
                   </div>
                 ))}
