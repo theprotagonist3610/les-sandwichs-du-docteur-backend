@@ -136,7 +136,7 @@ const MobileVendeurId = () => {
           trend={enrichedVendeurStats.trend}
           trendValue={
             enrichedVendeurStats.trendPercentage !== 0
-              ? `${enrichedVendeurStats.trendPercentage > 0 ? "+" : ""}${enrichedVendeurStats.trendPercentage.toFixed(1)}%`
+              ? enrichedVendeurStats.trendPercentage
               : undefined
           }
           description="FCFA"
