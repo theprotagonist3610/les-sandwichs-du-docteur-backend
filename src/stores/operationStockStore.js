@@ -11,6 +11,8 @@ const initialState = {
   // Navigation
   currentStep: 1,
   maxStepReached: 1,
+  initialStep: 1, // Étape initiale selon le contexte (query params)
+  skippedSteps: [], // Étapes à ignorer dans le stepper
 
   // Données de l'opération
   operationType: null, // 'entree', 'sortie', 'transfert'
@@ -30,6 +32,7 @@ const initialState = {
 
   // Données contextuelles
   availableStock: 0, // Stock disponible à l'emplacement source
+  prefilledEmplacementId: null, // Emplacement pré-rempli depuis URL
 };
 
 export const useOperationStockStore = create((set, get) => ({
@@ -223,6 +226,43 @@ export const useOperationStockStore = create((set, get) => ({
       operationType: get().operationType,
     }),
 
+  /**
+   * Initialise le wizard depuis le contexte (query params)
+   * @param {Object} context - { type?, elementId?, element?, emplacementId? }
+   */
+  initializeFromContext: (context) => {
+    const { type, element, emplacementId } = context;
+
+    const skippedSteps = [];
+    let initialStep = 1;
+
+    // Déterminer les étapes à sauter et l'étape initiale
+    if (type && element) {
+      // Scénario A: Type + Element connus → Commencer à l'étape 3 (Configuration)
+      skippedSteps.push(1, 2);
+      initialStep = 3;
+    } else if (type && emplacementId) {
+      // Scénario B: Type + Emplacement connus → Commencer à l'étape 2 (Sélection article)
+      skippedSteps.push(1);
+      initialStep = 2;
+    } else if (type) {
+      // Scénario C: Seulement le type → Commencer à l'étape 2 (Sélection article)
+      skippedSteps.push(1);
+      initialStep = 2;
+    }
+    // Sinon: wizard complet (initialStep = 1)
+
+    set({
+      operationType: type || null,
+      selectedElement: element || null,
+      prefilledEmplacementId: emplacementId || null,
+      currentStep: initialStep,
+      initialStep,
+      skippedSteps,
+      maxStepReached: initialStep,
+    });
+  },
+
   // ============================================================================
   // SELECTORS OPTIMISÉS (pour éviter les rerenders)
   // ============================================================================
@@ -233,6 +273,8 @@ export const useOperationStockStore = create((set, get) => ({
 
 // Selectors externes pour optimisation maximale
 export const selectCurrentStep = (state) => state.currentStep;
+export const selectInitialStep = (state) => state.initialStep;
+export const selectSkippedSteps = (state) => state.skippedSteps;
 export const selectOperationType = (state) => state.operationType;
 export const selectSelectedElement = (state) => state.selectedElement;
 export const selectSourceEmplacement = (state) => state.sourceEmplacement;
@@ -244,6 +286,7 @@ export const selectErrors = (state) => state.errors;
 export const selectIsValidating = (state) => state.isValidating;
 export const selectIsSubmitting = (state) => state.isSubmitting;
 export const selectAvailableStock = (state) => state.availableStock;
+export const selectPrefilledEmplacementId = (state) => state.prefilledEmplacementId;
 
 // Selector composé pour le récapitulatif
 export const selectSummary = (state) => ({
