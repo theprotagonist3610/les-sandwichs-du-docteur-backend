@@ -130,7 +130,7 @@ const DesktopVendeurs = () => {
         <KPICard
           title="Total Vendeurs"
           value={summary.total_vendeurs}
-          icon={Users}
+          icon={<Users className="h-5 w-5" />}
           trend="neutral"
           description={`${period} derniers jours`}
         />
@@ -138,7 +138,7 @@ const DesktopVendeurs = () => {
         <KPICard
           title="Chiffre d'Affaires Total"
           value={`${summary.total_ventes.toLocaleString()} FCFA`}
-          icon={DollarSign}
+          icon={<DollarSign className="h-5 w-5" />}
           trend="neutral"
           description="Toutes ventes cumulées"
         />
@@ -146,7 +146,7 @@ const DesktopVendeurs = () => {
         <KPICard
           title="Total Commandes"
           value={summary.total_commandes}
-          icon={ShoppingCart}
+          icon={<ShoppingCart className="h-5 w-5" />}
           trend="neutral"
           description="Toutes commandes"
         />
@@ -154,7 +154,7 @@ const DesktopVendeurs = () => {
         <KPICard
           title="Panier Moyen Global"
           value={`${summary.panier_moyen_global.toFixed(0)} FCFA`}
-          icon={TrendingUp}
+          icon={<TrendingUp className="h-5 w-5" />}
           trend="neutral"
           description="Moyenne générale"
         />

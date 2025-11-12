@@ -191,7 +191,7 @@ const DesktopVendeurId = () => {
         <KPICard
           title="Chiffre d'Affaires"
           value={`${vendeurStats.total_ventes.toLocaleString()} FCFA`}
-          icon={DollarSign}
+          icon={<DollarSign className="h-5 w-5" />}
           trend={vendeurStats.trend}
           trendValue={
             vendeurStats.trendPercentage !== 0
@@ -204,7 +204,7 @@ const DesktopVendeurId = () => {
         <KPICard
           title="Total Commandes"
           value={vendeurStats.total_commandes}
-          icon={ShoppingCart}
+          icon={<ShoppingCart className="h-5 w-5" />}
           trend="neutral"
           description="Nombre de commandes"
         />
@@ -212,7 +212,7 @@ const DesktopVendeurId = () => {
         <KPICard
           title="Panier Moyen"
           value={`${vendeurStats.panier_moyen.toFixed(0)} FCFA`}
-          icon={TrendingUp}
+          icon={<TrendingUp className="h-5 w-5" />}
           trend="neutral"
           description="Par commande"
         />
@@ -220,7 +220,7 @@ const DesktopVendeurId = () => {
         <KPICard
           title="Part du CA Global"
           value={`${vendeurStats.pourcentage_ca_global.toFixed(1)}%`}
-          icon={BarChart3}
+          icon={<BarChart3 className="h-5 w-5" />}
           trend="neutral"
           description={`Sur ${period} jours`}
         />
