@@ -26,6 +26,8 @@ import VendeurId from "@/pages/admin/statistiques/VendeurId";
 import Vendeurs from "@/pages/admin/statistiques/Vendeurs";
 import VenteId from "@/pages/admin/statistiques/VenteId";
 import Ventes from "@/pages/admin/statistiques/Ventes";
+import ComptabiliteId from "@/pages/admin/statistiques/ComptabiliteId";
+import Comptabilite from "@/pages/admin/statistiques/Comptabilite";
 
 // Import des composants pour chaque section
 // À décommenter et créer au fur et à mesure
@@ -59,7 +61,7 @@ export const statistiqueSubRoutes = [
     component: Vendeurs, // ✅ Composant activé
     children: [
       {
-        path: ":id",
+        path: ":vendeurId",
         nom: "Analyse statistique d'un vendeur",
         component: VendeurId, // ✅ Composant activé
       },
@@ -132,6 +134,20 @@ export const statistiqueSubRoutes = [
         path: ":id",
         nom: "Analyse statistique du flux commercial d'un emplacement",
         component: EmplacementId, // ✅ Composant activé
+      },
+    ],
+  },
+  {
+    path: "comptabilite",
+    nom: "Comptabilité",
+    description: "Analyse du flux comptable",
+    url: "/users.svg",
+    component: Comptabilite, // ✅ Composant activé
+    children: [
+      {
+        path: ":id",
+        nom: "Analyse statistique du flux commercial d'un emplacement",
+        component: ComptabiliteId, // ✅ Composant activé
       },
     ],
   },

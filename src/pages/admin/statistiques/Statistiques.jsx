@@ -8,6 +8,7 @@ import {
   Factory,
   HandCoins,
   Bike,
+  Wallet,
 } from "lucide-react";
 
 const Statistiques = () => {
@@ -59,6 +60,12 @@ const Statistiques = () => {
       description: "Analyses statistiques du flux commercial des emplacements",
       to: "/admin/statistiques/emplacements",
       icon: Building2,
+    },
+    {
+      nom: "Comptabilité",
+      description: "Analyses statistiques du flux comptable",
+      to: "/admin/statistiques/comptabilite",
+      icon: Wallet,
     },
   ];
   return (
