@@ -61,10 +61,10 @@ const DesktopVendeurId = () => {
       [`Statistiques du Vendeur: ${enrichedVendeurStats.nom}`, `Période: ${period} derniers jours`],
       [],
       ["Résumé"],
-      ["Total Ventes", `${enrichedVendeurStats.total_ventes.toFixed(0)} FCFA`],
+      ["Total Ventes", `${(enrichedVendeurStats.total_ventes || 0).toFixed(0)} FCFA`],
       ["Total Commandes", enrichedVendeurStats.total_commandes],
-      ["Panier Moyen", `${enrichedVendeurStats.panier_moyen.toFixed(0)} FCFA`],
-      ["Part du CA Global", `${enrichedVendeurStats.pourcentage_ca_global.toFixed(1)}%`],
+      ["Panier Moyen", `${(enrichedVendeurStats.panier_moyen || 0).toFixed(0)} FCFA`],
+      ["Part du CA Global", `${(enrichedVendeurStats.pourcentage_ca_global || 0).toFixed(1)}%`],
       ["Tendance", enrichedVendeurStats.trend],
       ["Meilleur Jour", enrichedVendeurStats.meilleur_jour],
       [],
@@ -76,9 +76,9 @@ const DesktopVendeurId = () => {
       rows.push([
         day.dateFormatted,
         day.commandes,
-        day.ventes.toFixed(0),
-        day.panier_moyen.toFixed(0),
-        day.pourcentage.toFixed(1) + "%",
+        (day.ventes || 0).toFixed(0),
+        (day.panier_moyen || 0).toFixed(0),
+        (day.pourcentage || 0).toFixed(1) + "%",
       ]);
     });
 
@@ -90,7 +90,7 @@ const DesktopVendeurId = () => {
       rows.push([
         article.denomination,
         article.quantite,
-        article.total_ventes.toFixed(0),
+        (article.total_ventes || 0).toFixed(0),
       ]);
     });
 
@@ -348,7 +348,7 @@ const DesktopVendeurId = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-green-600">
-                      {article.total_ventes.toLocaleString()}
+                      {(article.total_ventes || 0).toLocaleString()}
                     </p>
                     <p className="text-xs opacity-70">FCFA</p>
                   </div>

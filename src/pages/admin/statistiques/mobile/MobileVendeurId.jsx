@@ -131,7 +131,7 @@ const MobileVendeurId = () => {
       <div className="grid grid-cols-2 gap-3">
         <KPICard
           title="CA Total"
-          value={`${(enrichedVendeurStats.total_ventes / 1000).toFixed(0)}k`}
+          value={`${((enrichedVendeurStats.total_ventes || 0) / 1000).toFixed(0)}k`}
           icon={<DollarSign className="h-5 w-5" />}
           trend={enrichedVendeurStats.trend}
           trendValue={
@@ -152,7 +152,7 @@ const MobileVendeurId = () => {
 
         <KPICard
           title="Panier Moy."
-          value={`${(enrichedVendeurStats.panier_moyen / 1000).toFixed(1)}k`}
+          value={`${((enrichedVendeurStats.panier_moyen || 0) / 1000).toFixed(1)}k`}
           icon={<TrendingUp className="h-5 w-5" />}
           trend="neutral"
           description="FCFA"
@@ -160,7 +160,7 @@ const MobileVendeurId = () => {
 
         <KPICard
           title="Part CA"
-          value={`${enrichedVendeurStats.pourcentage_ca_global.toFixed(1)}%`}
+          value={`${(enrichedVendeurStats.pourcentage_ca_global || 0).toFixed(1)}%`}
           icon={<BarChart3 className="h-5 w-5" />}
           trend="neutral"
           description="Global"
@@ -210,10 +210,10 @@ const MobileVendeurId = () => {
               </p>
               <div className="text-right text-sm">
                 <p className="font-semibold">
-                  {(enrichedVendeurStats.jours_semaine[enrichedVendeurStats.meilleur_jour]?.ventes / 1000).toFixed(0)}k
+                  {((enrichedVendeurStats.jours_semaine[enrichedVendeurStats.meilleur_jour]?.ventes || 0) / 1000).toFixed(0)}k
                 </p>
                 <p className="text-xs opacity-70">
-                  {enrichedVendeurStats.jours_semaine[enrichedVendeurStats.meilleur_jour]?.commandes} cmd
+                  {enrichedVendeurStats.jours_semaine[enrichedVendeurStats.meilleur_jour]?.commandes || 0} cmd
                 </p>
               </div>
             </div>
@@ -263,7 +263,7 @@ const MobileVendeurId = () => {
                   </div>
                   <div className="text-right ml-2">
                     <p className="font-bold text-green-600 text-sm">
-                      {(article.total_ventes / 1000).toFixed(0)}k
+                      {((article.total_ventes || 0) / 1000).toFixed(0)}k
                     </p>
                     <p className="text-[10px] opacity-70">FCFA</p>
                   </div>
@@ -293,15 +293,15 @@ const MobileVendeurId = () => {
                 <div>
                   <p className="font-semibold text-sm">{day.dateFormatted}</p>
                   <p className="text-xs opacity-70 mt-0.5">
-                    {day.commandes} cmd • {(day.panier_moyen / 1000).toFixed(1)}k moy.
+                    {day.commandes} cmd • {((day.panier_moyen || 0) / 1000).toFixed(1)}k moy.
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-green-600 text-sm">
-                    {(day.ventes / 1000).toFixed(0)}k
+                    {((day.ventes || 0) / 1000).toFixed(0)}k
                   </p>
                   <Badge variant="outline" className="text-[10px] mt-1">
-                    {day.pourcentage.toFixed(1)}%
+                    {(day.pourcentage || 0).toFixed(1)}%
                   </Badge>
                 </div>
               </div>
