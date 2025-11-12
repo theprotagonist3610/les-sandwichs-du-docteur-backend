@@ -971,6 +971,350 @@ export function useEmplacements(filter = {}) {
 }
 
 // ============================================================================
+// HOOKS D'ANALYSE STATISTIQUE
+// ============================================================================
+
+/**
+ * Hook pour analyser tous les emplacements et obtenir des statistiques globales
+ * @param {number} days - Nombre de jours pour l'analyse (non utilisé pour l'instant, prévu pour futures évolutions)
+ * @returns {Object} { stats, loading, error }
+ *
+ * @example
+ * function EmplacementsDashboard() {
+ *   const { stats, loading, error } = useEmplacementsAnalytics(30);
+ *
+ *   if (loading) return <div>Chargement...</div>;
+ *   if (error) return <div>Erreur: {error}</div>;
+ *
+ *   return <div>Total: {stats.total_emplacements}</div>;
+ * }
+ */
+export function useEmplacementsAnalytics(days = 30) {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Récupérer tous les emplacements
+      const emplacements = await listEmplacements();
+
+      // Initialiser les statistiques
+      const analytics = {
+        total_emplacements: emplacements.length,
+        emplacements_actifs: 0,
+        emplacements_inactifs: 0,
+        emplacements_par_type: {
+          [EMPLACEMENT_TYPES.ENTREPOT]: 0,
+          [EMPLACEMENT_TYPES.POINT_DE_VENTE]: 0,
+          [EMPLACEMENT_TYPES.STAND]: 0,
+        },
+        distribution_geographique: new Map(),
+        vendeurs_actifs: 0,
+        emplacements_avec_vendeur: 0,
+        emplacements_sans_vendeur: 0,
+        emplacements_avec_stock: 0,
+        valeur_totale_stock: 0,
+        liste_emplacements: [],
+      };
+
+      // Analyser chaque emplacement
+      emplacements.forEach((emplacement) => {
+        // Statut
+        if (emplacement.status) {
+          analytics.emplacements_actifs++;
+        } else {
+          analytics.emplacements_inactifs++;
+        }
+
+        // Type
+        const typeFamille = emplacement.type?.famille || EMPLACEMENT_TYPES.STAND;
+        if (analytics.emplacements_par_type[typeFamille] !== undefined) {
+          analytics.emplacements_par_type[typeFamille]++;
+        }
+
+        // Distribution géographique
+        const commune = emplacement.position?.actuelle?.commune || "Non spécifié";
+        const departement = emplacement.position?.actuelle?.departement || "Non spécifié";
+        const locKey = `${departement} - ${commune}`;
+
+        if (!analytics.distribution_geographique.has(locKey)) {
+          analytics.distribution_geographique.set(locKey, {
+            departement,
+            commune,
+            count: 0,
+            emplacements: [],
+          });
+        }
+        const locData = analytics.distribution_geographique.get(locKey);
+        locData.count++;
+        locData.emplacements.push({
+          id: emplacement.id,
+          denomination: emplacement.denomination,
+        });
+
+        // Vendeur
+        if (emplacement.vendeur_actuel) {
+          analytics.emplacements_avec_vendeur++;
+          analytics.vendeurs_actifs++;
+        } else {
+          analytics.emplacements_sans_vendeur++;
+        }
+
+        // Stock
+        const stockActuel = emplacement.stock_actuel || {};
+        const stockKeys = Object.keys(stockActuel);
+        if (stockKeys.length > 0) {
+          analytics.emplacements_avec_stock++;
+
+          // Calculer la valeur totale du stock (si prix disponible)
+          stockKeys.forEach((key) => {
+            const item = stockActuel[key];
+            if (item.prix_unitaire && item.quantite_actuelle) {
+              analytics.valeur_totale_stock += item.prix_unitaire * item.quantite_actuelle;
+            }
+          });
+        }
+
+        // Ajouter à la liste pour affichage
+        analytics.liste_emplacements.push({
+          id: emplacement.id,
+          denomination: emplacement.denomination,
+          type: emplacement.type?.famille || EMPLACEMENT_TYPES.STAND,
+          status: emplacement.status,
+          vendeur: emplacement.vendeur_actuel?.nom || "Non assigné",
+          commune: commune,
+          departement: departement,
+          nb_articles_stock: stockKeys.length,
+          theme: emplacement.theme_central?.theme || "",
+        });
+      });
+
+      // Convertir la Map en array pour faciliter l'affichage
+      analytics.distribution_geographique = Array.from(
+        analytics.distribution_geographique.values()
+      ).sort((a, b) => b.count - a.count);
+
+      setStats(analytics);
+    } catch (err) {
+      console.error("❌ Erreur useEmplacementsAnalytics:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  return { stats, loading, error, refetch: fetchAnalytics };
+}
+
+/**
+ * Hook pour analyser un emplacement spécifique en détail
+ * @param {string} emplacementId - ID de l'emplacement
+ * @param {number} days - Nombre de jours pour l'analyse (prévu pour futures évolutions)
+ * @returns {Object} { emplacementStats, loading, error }
+ *
+ * @example
+ * function EmplacementDetail({ id }) {
+ *   const { emplacementStats, loading, error } = useEmplacementDetailAnalytics(id, 30);
+ *
+ *   if (loading) return <div>Chargement...</div>;
+ *   if (error) return <div>Erreur: {error}</div>;
+ *
+ *   return <div>{emplacementStats.denomination}</div>;
+ * }
+ */
+export function useEmplacementDetailAnalytics(emplacementId, days = 30) {
+  const [emplacementStats, setEmplacementStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAnalytics = useCallback(async () => {
+    if (!emplacementId) {
+      setEmplacementStats(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Récupérer l'emplacement
+      const stockEmplacementsRef = doc(db, STOCK_EMPLACEMENTS_PATH);
+      const stockDoc = await getDoc(stockEmplacementsRef);
+
+      if (!stockDoc.exists()) {
+        throw new Error("Document stock/emplacements non trouvé");
+      }
+
+      const emplacements = stockDoc.data();
+      const emplacement = emplacements[emplacementId];
+
+      if (!emplacement) {
+        throw new Error("Emplacement non trouvé");
+      }
+
+      // Analyser le stock actuel
+      const stockActuel = emplacement.stock_actuel || {};
+      const stockKeys = Object.keys(stockActuel);
+      let valeurTotaleStock = 0;
+      const articlesStock = [];
+
+      stockKeys.forEach((key) => {
+        const item = stockActuel[key];
+        const quantite = item.quantite_actuelle || 0;
+        const prix = item.prix_unitaire || 0;
+        const valeur = quantite * prix;
+
+        valeurTotaleStock += valeur;
+
+        articlesStock.push({
+          id: key,
+          denomination: item.denomination || key,
+          quantite_actuelle: quantite,
+          prix_unitaire: prix,
+          valeur_totale: valeur,
+          unite: item.unite || { nom: "unité", symbol: "" },
+        });
+      });
+
+      // Trier les articles par valeur décroissante
+      articlesStock.sort((a, b) => b.valeur_totale - a.valeur_totale);
+
+      // Analyser les positions historiques
+      const historique_positions = emplacement.position?.historique || [];
+      const nb_changements_position = historique_positions.length;
+
+      // Calculer depuis combien de temps à la position actuelle
+      let jours_position_actuelle = 0;
+      if (historique_positions.length > 0) {
+        const dernierePosition = historique_positions[historique_positions.length - 1];
+        if (dernierePosition.dateDebut) {
+          jours_position_actuelle = Math.floor(
+            (Date.now() - dernierePosition.dateDebut) / (1000 * 60 * 60 * 24)
+          );
+        }
+      } else {
+        // Si pas d'historique, calculer depuis la création
+        jours_position_actuelle = Math.floor(
+          (Date.now() - emplacement.createdAt) / (1000 * 60 * 60 * 24)
+        );
+      }
+
+      // Calculer l'âge de l'emplacement
+      const jours_depuis_creation = Math.floor(
+        (Date.now() - emplacement.createdAt) / (1000 * 60 * 60 * 24)
+      );
+
+      // Analyser les horaires
+      const horaires = emplacement.horaires || {};
+      const jours_ouverture = Object.values(horaires).filter(
+        (h) => h.ouvert === true
+      ).length;
+
+      // Construire les statistiques détaillées
+      const analytics = {
+        // Informations de base
+        id: emplacement.id,
+        denomination: emplacement.denomination,
+        type: emplacement.type?.famille || EMPLACEMENT_TYPES.STAND,
+        sous_type: emplacement.type?.sous_type || "",
+        theme: emplacement.theme_central?.theme || "",
+        theme_description: emplacement.theme_central?.description || "",
+        status: emplacement.status,
+
+        // Position
+        position_actuelle: emplacement.position?.actuelle || {},
+        historique_positions: historique_positions.map((pos) => ({
+          departement: pos.position?.departement || "",
+          commune: pos.position?.commune || "",
+          quartier: pos.position?.quartier || "",
+          dateDebut: pos.dateDebut,
+          dateFin: pos.dateFin || null,
+        })),
+        nb_changements_position,
+        jours_position_actuelle,
+
+        // Vendeur
+        vendeur_actuel: emplacement.vendeur_actuel || null,
+        a_vendeur: !!emplacement.vendeur_actuel,
+
+        // Horaires
+        horaires,
+        jours_ouverture,
+
+        // Stock
+        nb_articles_stock: stockKeys.length,
+        valeur_totale_stock: valeurTotaleStock,
+        articles_stock: articlesStock,
+        top_5_articles: articlesStock.slice(0, 5),
+
+        // Métriques temporelles
+        jours_depuis_creation,
+        createdAt: emplacement.createdAt,
+        updatedAt: emplacement.updatedAt,
+
+        // Recommandations
+        recommandations: [],
+      };
+
+      // Générer des recommandations
+      if (!analytics.a_vendeur) {
+        analytics.recommandations.push({
+          type: "warning",
+          titre: "Pas de vendeur assigné",
+          description: "Cet emplacement n'a pas de vendeur assigné.",
+        });
+      }
+
+      if (jours_ouverture < 5) {
+        analytics.recommandations.push({
+          type: "info",
+          titre: "Horaires limités",
+          description: `Seulement ${jours_ouverture} jours d'ouverture par semaine.`,
+        });
+      }
+
+      if (analytics.nb_articles_stock === 0) {
+        analytics.recommandations.push({
+          type: "warning",
+          titre: "Stock vide",
+          description: "Aucun article en stock pour cet emplacement.",
+        });
+      }
+
+      if (!analytics.status) {
+        analytics.recommandations.push({
+          type: "error",
+          titre: "Emplacement inactif",
+          description: "Cet emplacement est actuellement désactivé.",
+        });
+      }
+
+      setEmplacementStats(analytics);
+    } catch (err) {
+      console.error("❌ Erreur useEmplacementDetailAnalytics:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [emplacementId, days]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  return { emplacementStats, loading, error, refetch: fetchAnalytics };
+}
+
+// ============================================================================
 // ALIAS EXPORTS
 // ============================================================================
 
