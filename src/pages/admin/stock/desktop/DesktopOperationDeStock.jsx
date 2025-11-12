@@ -23,7 +23,7 @@ import {
 import { useOperationStockStore, selectCurrentStep, selectCanProceed } from "@/stores/operationStockStore";
 import { makeTransaction, TRANSACTION_TYPES } from "@/toolkits/admin/stockToolkit";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // Import des étapes
 import Step1SelectOperation from "./steps/Step1SelectOperation";
@@ -56,7 +56,6 @@ const steps = [
 
 const DesktopOperationDeStock = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const currentStep = useOperationStockStore(selectCurrentStep);
   const canProceed = useOperationStockStore(selectCanProceed);
 
@@ -88,10 +87,8 @@ const DesktopOperationDeStock = () => {
     if (validateStep(currentStep)) {
       nextStep();
     } else {
-      toast({
-        title: "Validation échouée",
-        description: "Veuillez remplir tous les champs requis",
-        variant: "destructive",
+      toast.error("Veuillez remplir tous les champs requis", {
+        description: "Validation échouée",
       });
     }
   };
@@ -109,10 +106,8 @@ const DesktopOperationDeStock = () => {
 
   const handleSubmit = async () => {
     if (!validateStep(4)) {
-      toast({
-        title: "Validation échouée",
-        description: "Les données de l'opération sont incomplètes",
-        variant: "destructive",
+      toast.error("Les données de l'opération sont incomplètes", {
+        description: "Validation échouée",
       });
       return;
     }
@@ -144,16 +139,13 @@ const DesktopOperationDeStock = () => {
       setOperationId(operation.id);
       setSubmitSuccess(true);
 
-      toast({
-        title: "Opération créée avec succès",
+      toast.success("Opération créée avec succès", {
         description: `L'opération ${operation.id} a été ajoutée à la file d'attente`,
       });
     } catch (error) {
       console.error("Erreur lors de la création de l'opération:", error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer l'opération",
-        variant: "destructive",
+      toast.error(error.message || "Impossible de créer l'opération", {
+        description: "Erreur",
       });
     } finally {
       setIsSubmitting(false);
