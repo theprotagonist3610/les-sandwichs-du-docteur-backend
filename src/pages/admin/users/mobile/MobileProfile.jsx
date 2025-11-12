@@ -5,7 +5,11 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useUser, useUserPresence, isUserActive } from "@/toolkits/admin/userToolkit";
+import {
+  useUser,
+  useUserPresence,
+  isUserActive,
+} from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +35,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 const MobileProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user, loading: loadingUser, error: errorUser, refetch } = useUser(userId);
+  const {
+    user,
+    loading: loadingUser,
+    error: errorUser,
+    refetch,
+  } = useUser(userId);
   const { presence, loading: loadingPresence } = useUserPresence(userId);
   const [activeTab, setActiveTab] = useState("infos");
 
@@ -40,6 +49,7 @@ const MobileProfile = () => {
     if (userId && refetch) {
       refetch();
     }
+    console.log(userId);
   }, [userId, refetch]);
 
   const active = isUserActive(presence, 90000);
@@ -122,7 +132,9 @@ const MobileProfile = () => {
           <CardContent className="pt-6 text-center py-12">
             <UserX className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">Utilisateur non trouvé</p>
-            <Button className="mt-4" onClick={() => navigate("/admin/users/profil")}>
+            <Button
+              className="mt-4"
+              onClick={() => navigate("/admin/users/profil")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Retour
             </Button>
@@ -139,11 +151,17 @@ const MobileProfile = () => {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin/users/profil")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/admin/users/profil")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-bold">Profil</h1>
-        <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/users/profil/${userId}/edit`)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => navigate(`/admin/users/profil/${userId}/edit`)}>
           <Edit className="h-4 w-4" />
         </Button>
       </div>
@@ -158,15 +176,14 @@ const MobileProfile = () => {
                   active
                     ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
                     : "bg-gradient-to-br from-blue-400 to-blue-600"
-                }`}
-              >
+                }`}>
                 {user.nom?.charAt(0)}
                 {user.prenoms?.[0]?.charAt(0)}
               </div>
               <div
-                className={`absolute bottom-1 right-1 w-6 h-6 rounded-full border-4 border-white ${statusConfig.color} ${
-                  active ? "animate-pulse" : ""
-                }`}
+                className={`absolute bottom-1 right-1 w-6 h-6 rounded-full border-4 border-white ${
+                  statusConfig.color
+                } ${active ? "animate-pulse" : ""}`}
               />
             </div>
 
@@ -177,8 +194,7 @@ const MobileProfile = () => {
             <div className="flex gap-2 mb-2">
               <Badge
                 variant="outline"
-                className={`${statusConfig.bgColor} ${statusConfig.textColor}`}
-              >
+                className={`${statusConfig.bgColor} ${statusConfig.textColor}`}>
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {statusConfig.label}
               </Badge>
@@ -195,8 +211,7 @@ const MobileProfile = () => {
                     : user.role === "livreur"
                     ? "bg-cyan-50 text-cyan-700 border-cyan-200"
                     : ""
-                }
-              >
+                }>
                 <Shield className="h-3 w-3 mr-1" />
                 {user.role === "admin"
                   ? "Admin"
@@ -215,7 +230,9 @@ const MobileProfile = () => {
             {active && (
               <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-xs text-emerald-700 font-medium">Connexion active</span>
+                <span className="text-xs text-emerald-700 font-medium">
+                  Connexion active
+                </span>
               </div>
             )}
           </div>
@@ -256,7 +273,9 @@ const MobileProfile = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Informations personnelles</CardTitle>
+              <CardTitle className="text-base">
+                Informations personnelles
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
@@ -267,14 +286,18 @@ const MobileProfile = () => {
                 )}
                 <div>
                   <p className="text-xs text-muted-foreground">Sexe</p>
-                  <p className="text-sm">{user.sexe === "m" ? "Homme" : "Femme"}</p>
+                  <p className="text-sm">
+                    {user.sexe === "m" ? "Homme" : "Femme"}
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Date de naissance</p>
+                  <p className="text-xs text-muted-foreground">
+                    Date de naissance
+                  </p>
                   <p className="text-sm">{formatDate(user.date_naissance)}</p>
                 </div>
               </div>
@@ -295,7 +318,11 @@ const MobileProfile = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                {active ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                {active ? (
+                  <Wifi className="h-4 w-4" />
+                ) : (
+                  <WifiOff className="h-4 w-4" />
+                )}
                 État de la connexion
               </CardTitle>
             </CardHeader>
@@ -304,23 +331,30 @@ const MobileProfile = () => {
                 <span className="text-sm text-muted-foreground">Statut</span>
                 <Badge
                   variant="outline"
-                  className={`${statusConfig.bgColor} ${statusConfig.textColor}`}
-                >
+                  className={`${statusConfig.bgColor} ${statusConfig.textColor}`}>
                   {statusConfig.label}
                 </Badge>
               </div>
 
               {presence?.lastSeen && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Dernier heartbeat</span>
-                  <span className="text-sm font-medium">{formatRelativeTime(presence.lastSeen)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Dernier heartbeat
+                  </span>
+                  <span className="text-sm font-medium">
+                    {formatRelativeTime(presence.lastSeen)}
+                  </span>
                 </div>
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Dernière activité</span>
+                <span className="text-sm text-muted-foreground">
+                  Dernière activité
+                </span>
                 <span className="text-sm font-medium">
-                  {formatRelativeTime(presence?.lastSeen || presence?.updatedAt)}
+                  {formatRelativeTime(
+                    presence?.lastSeen || presence?.updatedAt
+                  )}
                 </span>
               </div>
 
@@ -329,10 +363,15 @@ const MobileProfile = () => {
                   <div className="flex items-start gap-2">
                     <Wifi className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-emerald-900">Connexion active</p>
+                      <p className="text-sm font-medium text-emerald-900">
+                        Connexion active
+                      </p>
                       <p className="text-xs text-emerald-700 mt-1">
                         Heartbeat toutes les 30s. Dernier signal il y a{" "}
-                        {Math.floor((Date.now() - (presence?.lastSeen || 0)) / 1000)}s.
+                        {Math.floor(
+                          (Date.now() - (presence?.lastSeen || 0)) / 1000
+                        )}
+                        s.
                       </p>
                     </div>
                   </div>

@@ -18,7 +18,7 @@ const Stock = () => {
     {
       nom: "Stock",
       description: "Surveillez le stock",
-      to: "/admin/stock/stock",
+      to: "/admin/stock/elements",
       icon: Layers,
     },
   ];

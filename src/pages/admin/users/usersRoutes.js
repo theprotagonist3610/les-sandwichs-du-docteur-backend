@@ -41,7 +41,7 @@ export const userSubRoutes = [
     // Sous-routes de profils
     children: [
       {
-        path: ":id",
+        path: ":userId",
         nom: "Surveiller la presence des utilisateurs",
         component: Profile, // ✅ Composant activé
       },

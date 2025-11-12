@@ -55,14 +55,14 @@ const TYPE_LABELS = {
 
 const MobileStockElements = () => {
   const navigate = useNavigate();
-  const [filtreType, setFiltreType] = useState("");
+  const [filtreType, setFiltreType] = useState("all");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
   const [filtreAlerte, setFiltreAlerte] = useState(false);
   const [tri, setTri] = useState("nom");
 
   const { elements, loading, error, refetch } = useStockElements({
-    type: filtreType || undefined,
+    type: filtreType !== "all" ? filtreType : undefined,
     status: filtreStatus === "true" ? true : filtreStatus === "false" ? false : undefined,
     search: recherche || undefined,
   });
@@ -226,7 +226,7 @@ const MobileStockElements = () => {
                       <SelectValue placeholder="Tous" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       {Object.entries(STOCK_TYPES).map(([key, value]) => (
                         <SelectItem key={value} value={value}>
                           {TYPE_LABELS[value]}
@@ -244,7 +244,7 @@ const MobileStockElements = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="true">Actifs</SelectItem>
                       <SelectItem value="false">Inactifs</SelectItem>
                     </SelectContent>

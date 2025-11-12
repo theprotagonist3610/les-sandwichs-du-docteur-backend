@@ -48,7 +48,7 @@ const TYPE_LABELS = {
 
 const DesktopStockElements = () => {
   const navigate = useNavigate();
-  const [filtreType, setFiltreType] = useState("");
+  const [filtreType, setFiltreType] = useState("all");
   const [filtreStatus, setFiltreStatus] = useState("true");
   const [recherche, setRecherche] = useState("");
   const [filtreAlerte, setFiltreAlerte] = useState(false);
@@ -56,7 +56,7 @@ const DesktopStockElements = () => {
 
   // Charger les éléments avec cache
   const { elements, loading, error, refetch } = useStockElements({
-    type: filtreType || undefined,
+    type: filtreType !== "all" ? filtreType : undefined,
     status: filtreStatus === "true" ? true : filtreStatus === "false" ? false : undefined,
     search: recherche || undefined,
   });
@@ -270,7 +270,7 @@ const DesktopStockElements = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les types</SelectItem>
+                <SelectItem value="all">Tous les types</SelectItem>
                 {Object.entries(STOCK_TYPES).map(([key, value]) => (
                   <SelectItem key={value} value={value}>
                     {TYPE_LABELS[value]}
@@ -283,7 +283,7 @@ const DesktopStockElements = () => {
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 <SelectItem value="true">Actifs</SelectItem>
                 <SelectItem value="false">Inactifs</SelectItem>
               </SelectContent>
