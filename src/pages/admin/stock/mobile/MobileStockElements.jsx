@@ -67,9 +67,18 @@ const MobileStockElements = () => {
     search: recherche || undefined,
   });
 
-  // Appliquer filtre alerte et tri
+  // Appliquer filtre recherche, alerte et tri
   const elementsFiltres = useMemo(() => {
     let filtered = elements;
+
+    // Filtre recherche locale
+    if (recherche && recherche.trim() !== "") {
+      const searchLower = recherche.toLowerCase().trim();
+      filtered = filtered.filter((el) =>
+        el.denomination.toLowerCase().includes(searchLower) ||
+        el.id.toLowerCase().includes(searchLower)
+      );
+    }
 
     if (filtreAlerte) {
       filtered = filtered.filter(
@@ -93,7 +102,7 @@ const MobileStockElements = () => {
       default:
         return filtered;
     }
-  }, [elements, filtreAlerte, tri]);
+  }, [elements, recherche, filtreAlerte, tri]);
 
   const stats = useMemo(() => {
     const actifs = elements.filter((e) => e.status);

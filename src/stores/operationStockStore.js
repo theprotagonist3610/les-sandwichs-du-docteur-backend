@@ -20,7 +20,7 @@ const initialState = {
   sourceEmplacement: null,
   destEmplacement: null,
   quantite: "",
-  prixUnitaire: "",
+  coutTotal: "", // Coût total d'achat (quantite * prix unitaire)
   motif: "",
 
   // État UI
@@ -92,9 +92,9 @@ export const useOperationStockStore = create((set, get) => ({
     set({ quantite });
   },
 
-  setPrixUnitaire: (value) => {
-    const prixUnitaire = value === "" ? "" : parseFloat(value) || 0;
-    set({ prixUnitaire });
+  setCoutTotal: (value) => {
+    const coutTotal = value === "" ? "" : parseFloat(value) || 0;
+    set({ coutTotal });
   },
 
   setMotif: (motif) => set({ motif }),
@@ -165,12 +165,12 @@ export const useOperationStockStore = create((set, get) => ({
           errors.quantite = `Stock insuffisant (${state.availableStock} disponible)`;
         }
 
-        // Validation prix unitaire pour entrée
+        // Validation coût total pour entrée
         if (
           state.operationType === TRANSACTION_TYPES.ENTREE &&
-          (!state.prixUnitaire || state.prixUnitaire < 0)
+          (!state.coutTotal || state.coutTotal < 0)
         ) {
-          errors.prixUnitaire = "Le prix unitaire doit être positif";
+          errors.coutTotal = "Le coût total doit être positif";
         }
 
         break;
@@ -280,7 +280,7 @@ export const selectSelectedElement = (state) => state.selectedElement;
 export const selectSourceEmplacement = (state) => state.sourceEmplacement;
 export const selectDestEmplacement = (state) => state.destEmplacement;
 export const selectQuantite = (state) => state.quantite;
-export const selectPrixUnitaire = (state) => state.prixUnitaire;
+export const selectCoutTotal = (state) => state.coutTotal;
 export const selectMotif = (state) => state.motif;
 export const selectErrors = (state) => state.errors;
 export const selectIsValidating = (state) => state.isValidating;
@@ -295,7 +295,7 @@ export const selectSummary = (state) => ({
   source: state.sourceEmplacement,
   destination: state.destEmplacement,
   quantite: state.quantite,
-  prixUnitaire: state.prixUnitaire,
+  coutTotal: state.coutTotal,
   motif: state.motif,
 });
 
@@ -316,7 +316,7 @@ export const selectCanProceed = (state) => {
         return (
           !!state.destEmplacement &&
           state.quantite > 0 &&
-          state.prixUnitaire >= 0
+          state.coutTotal >= 0
         );
       } else if (state.operationType === TRANSACTION_TYPES.SORTIE) {
         return (
