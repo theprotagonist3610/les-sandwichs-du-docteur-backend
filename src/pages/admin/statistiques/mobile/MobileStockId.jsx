@@ -144,19 +144,19 @@ const MobileStockId = () => {
             <div className="text-center p-2 rounded border">
               <p className="text-xs opacity-70">Moyen</p>
               <p className="text-sm font-bold">
-                {articleStats.prix_achat_moyen?.toFixed(2) || "0.00"} €
+                {articleStats.prix_achat_moyen?.toLocaleString() || "0"} FCFA
               </p>
             </div>
             <div className="text-center p-2 rounded border">
               <p className="text-xs opacity-70">Min</p>
               <p className="text-sm font-bold">
-                {articleStats.prix_achat_min?.toFixed(2) || "0.00"} €
+                {articleStats.prix_achat_min?.toLocaleString() || "0"} FCFA
               </p>
             </div>
             <div className="text-center p-2 rounded border">
               <p className="text-xs opacity-70">Max</p>
               <p className="text-sm font-bold">
-                {articleStats.prix_achat_max?.toFixed(2) || "0.00"} €
+                {articleStats.prix_achat_max?.toLocaleString() || "0"} FCFA
               </p>
             </div>
           </div>
@@ -168,7 +168,7 @@ const MobileStockId = () => {
                 <p className="font-semibold">Période Optimale</p>
               </div>
               <p className="opacity-90">
-                {articleStats.periode_optimale_achat.mois} - {articleStats.periode_optimale_achat.prix_moyen?.toFixed(2)} €
+                {articleStats.periode_optimale_achat.mois} - {articleStats.periode_optimale_achat.prix_moyen?.toLocaleString()} FCFA
               </p>
             </div>
           )}
@@ -250,7 +250,7 @@ const MobileStockId = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">{transaction.prix_unitaire?.toFixed(2)} €</p>
+                    <p className="font-bold">{transaction.prix_unitaire?.toLocaleString()} FCFA</p>
                     <p className="opacity-70">Qté: {transaction.quantite}</p>
                   </div>
                 </div>

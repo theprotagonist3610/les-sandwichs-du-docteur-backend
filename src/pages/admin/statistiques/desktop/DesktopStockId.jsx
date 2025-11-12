@@ -156,19 +156,19 @@ const DesktopStockId = () => {
             <div className="text-center p-3 rounded-lg border">
               <p className="text-sm opacity-70">Prix Moyen</p>
               <p className="text-2xl font-bold">
-                {articleStats.prix_achat_moyen?.toFixed(2) || "0.00"} €
+                {articleStats.prix_achat_moyen?.toLocaleString() || "0"} FCFA
               </p>
             </div>
             <div className="text-center p-3 rounded-lg border">
               <p className="text-sm opacity-70">Prix Minimum</p>
               <p className="text-2xl font-bold">
-                {articleStats.prix_achat_min?.toFixed(2) || "0.00"} €
+                {articleStats.prix_achat_min?.toLocaleString() || "0"} FCFA
               </p>
             </div>
             <div className="text-center p-3 rounded-lg border">
               <p className="text-sm opacity-70">Prix Maximum</p>
               <p className="text-2xl font-bold">
-                {articleStats.prix_achat_max?.toFixed(2) || "0.00"} €
+                {articleStats.prix_achat_max?.toLocaleString() || "0"} FCFA
               </p>
             </div>
           </div>
@@ -182,7 +182,7 @@ const DesktopStockId = () => {
               <p className="text-sm opacity-90">
                 Meilleure période : <strong>{articleStats.periode_optimale_achat.mois}</strong>
                 <br />
-                Prix moyen durant cette période : <strong>{articleStats.periode_optimale_achat.prix_moyen?.toFixed(2)} €</strong>
+                Prix moyen durant cette période : <strong>{articleStats.periode_optimale_achat.prix_moyen?.toLocaleString()} FCFA</strong>
               </p>
             </div>
           )}
@@ -272,7 +272,7 @@ const DesktopStockId = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-bold">
-                      {transaction.prix_unitaire?.toFixed(2)} €
+                      {transaction.prix_unitaire?.toLocaleString()} FCFA
                     </p>
                     <p className="text-xs opacity-70">
                       Qté: {transaction.quantite}
@@ -322,7 +322,7 @@ const DesktopStockId = () => {
                 <p className="text-sm font-semibold mb-1">💡 Période Optimale</p>
                 <p className="text-sm opacity-90">
                   Acheter durant le mois de <strong>{articleStats.periode_optimale_achat.mois}</strong> pour économiser
-                  (prix moyen: {articleStats.periode_optimale_achat.prix_moyen?.toFixed(2)} € vs {articleStats.prix_achat_moyen?.toFixed(2)} € actuellement).
+                  (prix moyen: {articleStats.periode_optimale_achat.prix_moyen?.toLocaleString()} FCFA vs {articleStats.prix_achat_moyen?.toLocaleString()} FCFA actuellement).
                 </p>
               </div>
             )}
