@@ -2066,6 +2066,394 @@ export function useABCAnalysis() {
   return { analysis, loading, error };
 }
 
+/**
+ * Hook pour analyser les finances en profondeur (paiements, crédit, tarifs moyens)
+ * @param {number} days - Nombre de jours à analyser (défaut: 7)
+ */
+export function useFinanceAnalysis(days = 7) {
+  const [financeStats, setFinanceStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchFinanceAnalysis = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const stats = {
+        totalCA: 0,
+        totalCommandes: 0,
+        tarif_moyen: 0,
+        modes_paiement: {
+          especes: 0,
+          momo: 0,
+          credit: 0,
+        },
+        evolution_tarif_moyen: [],
+        evolution_ca: [],
+        jours_semaine: {
+          lundi: { ca: 0, commandes: 0, tarif_moyen: 0 },
+          mardi: { ca: 0, commandes: 0, tarif_moyen: 0 },
+          mercredi: { ca: 0, commandes: 0, tarif_moyen: 0 },
+          jeudi: { ca: 0, commandes: 0, tarif_moyen: 0 },
+          vendredi: { ca: 0, commandes: 0, tarif_moyen: 0 },
+          samedi: { ca: 0, commandes: 0, tarif_moyen: 0 },
+          dimanche: { ca: 0, commandes: 0, tarif_moyen: 0 },
+        },
+        meilleur_jour: "",
+        pic_ca: { date: "", montant: 0 },
+        trend: "stable",
+        trendPercentage: 0,
+        days,
+      };
+
+      const today = new Date();
+      const dailyData = [];
+      const joursNoms = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+
+      // Récupérer les données des N derniers jours
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dayKey = getDateKey(date);
+        const jourSemaine = joursNoms[date.getDay()];
+
+        // Essayer d'abord les archives
+        let commandes = [];
+        const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, dayKey);
+        const archiveDoc = await getDoc(archiveRef);
+
+        if (archiveDoc.exists()) {
+          commandes = archiveDoc.data().liste || [];
+        } else if (i === 0) {
+          // Si c'est aujourd'hui, récupérer depuis today
+          const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+          const todayDoc = await getDoc(todayRef);
+          if (todayDoc.exists()) {
+            commandes = todayDoc.data().liste || [];
+          }
+        }
+
+        // Analyser les commandes du jour
+        let caJour = 0;
+        let nbCommandes = commandes.length;
+        let especes = 0;
+        let momo = 0;
+        let credit = 0;
+
+        commandes.forEach((cmd) => {
+          const total = cmd.paiement?.total || 0;
+          caJour += total;
+
+          especes += cmd.paiement?.montant_espece_recu || 0;
+          momo += cmd.paiement?.montant_momo_recu || 0;
+          credit += cmd.paiement?.dette || 0;
+        });
+
+        stats.totalCA += caJour;
+        stats.totalCommandes += nbCommandes;
+        stats.modes_paiement.especes += especes;
+        stats.modes_paiement.momo += momo;
+        stats.modes_paiement.credit += credit;
+
+        // Mettre à jour les stats par jour de la semaine
+        if (stats.jours_semaine[jourSemaine]) {
+          stats.jours_semaine[jourSemaine].ca += caJour;
+          stats.jours_semaine[jourSemaine].commandes += nbCommandes;
+        }
+
+        const tarifMoyen = nbCommandes > 0 ? caJour / nbCommandes : 0;
+
+        dailyData.push({
+          date: dayKey,
+          ca: caJour,
+          commandes: nbCommandes,
+          tarif_moyen: tarifMoyen,
+          especes,
+          momo,
+          credit,
+        });
+
+        // Tracker le pic de CA
+        if (caJour > stats.pic_ca.montant) {
+          stats.pic_ca.montant = caJour;
+          stats.pic_ca.date = dayKey;
+        }
+      }
+
+      stats.evolution_tarif_moyen = dailyData.map(d => ({ date: d.date, value: d.tarif_moyen }));
+      stats.evolution_ca = dailyData.map(d => ({ date: d.date, value: d.ca }));
+
+      // Calculer le tarif moyen global
+      stats.tarif_moyen = stats.totalCommandes > 0
+        ? stats.totalCA / stats.totalCommandes
+        : 0;
+
+      // Calculer tarif moyen par jour de semaine
+      Object.keys(stats.jours_semaine).forEach(jour => {
+        const j = stats.jours_semaine[jour];
+        j.tarif_moyen = j.commandes > 0 ? j.ca / j.commandes : 0;
+      });
+
+      // Trouver le meilleur jour de la semaine
+      let maxCA = 0;
+      Object.entries(stats.jours_semaine).forEach(([jour, data]) => {
+        if (data.ca > maxCA) {
+          maxCA = data.ca;
+          stats.meilleur_jour = jour;
+        }
+      });
+
+      // Calculer la tendance (première moitié vs deuxième moitié)
+      const midPoint = Math.floor(dailyData.length / 2);
+      const firstHalf = dailyData.slice(0, midPoint);
+      const secondHalf = dailyData.slice(midPoint);
+
+      const avgFirst = firstHalf.reduce((sum, d) => sum + d.ca, 0) / firstHalf.length;
+      const avgSecond = secondHalf.reduce((sum, d) => sum + d.ca, 0) / secondHalf.length;
+
+      if (avgSecond > avgFirst * 1.1) {
+        stats.trend = "hausse";
+      } else if (avgSecond < avgFirst * 0.9) {
+        stats.trend = "baisse";
+      }
+
+      stats.trendPercentage = avgFirst > 0
+        ? ((avgSecond - avgFirst) / avgFirst) * 100
+        : 0;
+
+      setFinanceStats(stats);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur fetch finance analysis:", err);
+      setError(err.message);
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    fetchFinanceAnalysis();
+  }, [fetchFinanceAnalysis]);
+
+  return {
+    financeStats,
+    loading,
+    error,
+    refetch: fetchFinanceAnalysis,
+  };
+}
+
+/**
+ * Hook pour analyser un mode de paiement spécifique
+ * @param {string} methodId - "especes" | "momo" | "credit"
+ * @param {number} days - Nombre de jours à analyser
+ */
+export function usePaymentMethodAnalysis(methodId, days = 7) {
+  const [methodStats, setMethodStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchMethodAnalysis = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const stats = {
+        methodId,
+        methodName:
+          methodId === "especes"
+            ? "Espèces"
+            : methodId === "momo"
+            ? "Mobile Money"
+            : "Crédit",
+        totalMontant: 0,
+        totalCommandes: 0,
+        pourcentageTotal: 0,
+        evolution: [], // { date, montant, pourcentage }
+        jours_semaine: {
+          lundi: { montant: 0, commandes: 0, pourcentage: 0 },
+          mardi: { montant: 0, commandes: 0, pourcentage: 0 },
+          mercredi: { montant: 0, commandes: 0, pourcentage: 0 },
+          jeudi: { montant: 0, commandes: 0, pourcentage: 0 },
+          vendredi: { montant: 0, commandes: 0, pourcentage: 0 },
+          samedi: { montant: 0, commandes: 0, pourcentage: 0 },
+          dimanche: { montant: 0, commandes: 0, pourcentage: 0 },
+        },
+        meilleur_jour: "",
+        pic: { date: "", montant: 0, pourcentage: 0 },
+        trend: "stable",
+        trendPercentage: 0,
+        days,
+      };
+
+      const joursNoms = [
+        "dimanche",
+        "lundi",
+        "mardi",
+        "mercredi",
+        "jeudi",
+        "vendredi",
+        "samedi",
+      ];
+      const today = new Date();
+      let totalCA = 0;
+
+      // Collecter les données sur N jours
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+
+        const dayKey = `${String(date.getDate()).padStart(2, "0")}${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}${date.getFullYear()}`;
+
+        let commandes = [];
+
+        // Essayer d'abord les archives
+        if (i > 0) {
+          const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, dayKey);
+          const archiveDoc = await getDoc(archiveRef);
+          if (archiveDoc.exists()) {
+            commandes = archiveDoc.data()?.commandes || [];
+          }
+        } else {
+          // Aujourd'hui
+          const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+          const todayDoc = await getDoc(todayRef);
+          if (todayDoc.exists()) {
+            commandes = todayDoc.data()?.commandes || [];
+          }
+        }
+
+        // Analyser les commandes du jour
+        let montantJour = 0;
+        let caJour = 0;
+        let commandesJour = 0;
+
+        commandes.forEach((cmd) => {
+          const paiement = cmd.paiement || {};
+          const total = paiement.total || 0;
+          caJour += total;
+          commandesJour++;
+
+          if (methodId === "especes") {
+            montantJour += paiement.montant_espece_recu || 0;
+          } else if (methodId === "momo") {
+            montantJour += paiement.montant_momo_recu || 0;
+          } else if (methodId === "credit") {
+            montantJour += paiement.dette || 0;
+          }
+        });
+
+        stats.totalMontant += montantJour;
+        stats.totalCommandes += commandesJour;
+        totalCA += caJour;
+
+        // Calculer le pourcentage du jour
+        const pourcentageJour = caJour > 0 ? (montantJour / caJour) * 100 : 0;
+
+        // Ajouter à l'évolution
+        stats.evolution.push({
+          date: `${String(date.getDate()).padStart(2, "0")}/${String(
+            date.getMonth() + 1
+          ).padStart(2, "0")}`,
+          montant: montantJour,
+          pourcentage: pourcentageJour,
+        });
+
+        // Mettre à jour le pic
+        if (montantJour > stats.pic.montant) {
+          stats.pic = {
+            date: `${String(date.getDate()).padStart(2, "0")}/${String(
+              date.getMonth() + 1
+            ).padStart(2, "0")}`,
+            montant: montantJour,
+            pourcentage: pourcentageJour,
+          };
+        }
+
+        // Mettre à jour les statistiques par jour de semaine
+        const jourNom = joursNoms[date.getDay()];
+        stats.jours_semaine[jourNom].montant += montantJour;
+        stats.jours_semaine[jourNom].commandes += commandesJour;
+      }
+
+      // Calculer le pourcentage total
+      stats.pourcentageTotal =
+        totalCA > 0 ? (stats.totalMontant / totalCA) * 100 : 0;
+
+      // Calculer le pourcentage par jour de semaine
+      Object.keys(stats.jours_semaine).forEach((jour) => {
+        const jourStats = stats.jours_semaine[jour];
+        // Le pourcentage est déjà inclus dans l'évolution quotidienne
+        // Ici on calcule juste la moyenne
+        const joursData = stats.evolution.filter((e) => {
+          const date = new Date();
+          const [day, month] = e.date.split("/");
+          date.setDate(parseInt(day));
+          date.setMonth(parseInt(month) - 1);
+          return joursNoms[date.getDay()] === jour;
+        });
+
+        if (joursData.length > 0) {
+          jourStats.pourcentage =
+            joursData.reduce((sum, d) => sum + d.pourcentage, 0) /
+            joursData.length;
+        }
+      });
+
+      // Trouver le meilleur jour
+      let maxMontant = 0;
+      Object.keys(stats.jours_semaine).forEach((jour) => {
+        if (stats.jours_semaine[jour].montant > maxMontant) {
+          maxMontant = stats.jours_semaine[jour].montant;
+          stats.meilleur_jour = jour;
+        }
+      });
+
+      // Calculer la tendance (première moitié vs seconde moitié)
+      if (stats.evolution.length > 1) {
+        const mid = Math.floor(stats.evolution.length / 2);
+        const firstHalf = stats.evolution
+          .slice(0, mid)
+          .reduce((sum, d) => sum + d.montant, 0);
+        const secondHalf = stats.evolution
+          .slice(mid)
+          .reduce((sum, d) => sum + d.montant, 0);
+
+        const avgFirst = firstHalf / mid;
+        const avgSecond = secondHalf / (stats.evolution.length - mid);
+
+        if (avgSecond > avgFirst * 1.05) {
+          stats.trend = "hausse";
+          stats.trendPercentage = ((avgSecond - avgFirst) / avgFirst) * 100;
+        } else if (avgSecond < avgFirst * 0.95) {
+          stats.trend = "baisse";
+          stats.trendPercentage = ((avgSecond - avgFirst) / avgFirst) * 100;
+        }
+      }
+
+      setMethodStats(stats);
+    } catch (err) {
+      console.error("Erreur lors de l'analyse du mode de paiement:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [methodId, days]);
+
+  useEffect(() => {
+    fetchMethodAnalysis();
+  }, [fetchMethodAnalysis]);
+
+  return {
+    methodStats,
+    loading,
+    error,
+    refetch: fetchMethodAnalysis,
+  };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
