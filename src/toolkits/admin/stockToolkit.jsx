@@ -1900,6 +1900,511 @@ export function useStockByEmplacement(elementId) {
   return { stockByEmplacement, loading, error, refetch: fetchData };
 }
 
+/**
+ * Hook pour les statistiques globales du stock
+ * @param {number} days - Nombre de jours à analyser
+ * @returns {Object} { stats, loading, error, refetch }
+ */
+export function useStockAnalytics(days = 30) {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Récupérer tous les éléments de stock
+      const elements = await listElements();
+
+      // Récupérer toutes les transactions des N derniers jours
+      const transactionsArray = [];
+      const now = new Date();
+
+      for (let i = 0; i < days; i++) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateKey = formatDateKey(date);
+
+        const transactionRef = doc(db, STOCK_TRANSACTIONS_BASE_PATH, dateKey);
+        const transactionDoc = await getDoc(transactionRef);
+
+        if (transactionDoc.exists()) {
+          const dayTransactions = transactionDoc.data().transactions || [];
+          transactionsArray.push(...dayTransactions);
+        }
+      }
+
+      // Initialiser les statistiques
+      const analytics = {
+        total_articles: elements.length,
+        articles_en_alerte: 0,
+        articles_en_rupture: 0,
+        valeur_totale_stock: 0,
+        articles_par_type: {
+          [STOCK_TYPES.INGREDIENT]: 0,
+          [STOCK_TYPES.CONSOMMABLE]: 0,
+          [STOCK_TYPES.PERISSABLE]: 0,
+          [STOCK_TYPES.MATERIEL]: 0,
+          [STOCK_TYPES.EMBALLAGE]: 0,
+        },
+        transactions_par_type: {
+          [TRANSACTION_TYPES.ENTREE]: 0,
+          [TRANSACTION_TYPES.SORTIE]: 0,
+          [TRANSACTION_TYPES.TRANSFERT]: 0,
+        },
+        evolution_stock: [], // { date, valeur_totale, nb_articles_alerte }
+        articles_critiques: [], // Articles en alerte avec prévision rupture
+        top_consommation: [], // Top 10 des articles les plus consommés
+        days,
+      };
+
+      // Analyser les éléments
+      const consommationMap = new Map();
+
+      elements.forEach((element) => {
+        // Compter par type
+        analytics.articles_par_type[element.type]++;
+
+        // Calculer valeur du stock
+        const valeur = (element.quantite_actuelle || 0) * (element.prix_unitaire || 0);
+        analytics.valeur_totale_stock += valeur;
+
+        // Détecter alertes et ruptures
+        const quantite = element.quantite_actuelle || 0;
+        const seuil = element.seuil_alerte || 0;
+
+        if (quantite === 0) {
+          analytics.articles_en_rupture++;
+        } else if (seuil > 0 && quantite <= seuil) {
+          analytics.articles_en_alerte++;
+        }
+
+        // Initialiser la consommation
+        consommationMap.set(element.id, {
+          element,
+          quantite_sortie: 0,
+          nb_sorties: 0,
+        });
+      });
+
+      // Analyser les transactions
+      transactionsArray.forEach((transaction) => {
+        // Compter par type
+        analytics.transactions_par_type[transaction.type]++;
+
+        // Analyser la consommation (sorties)
+        if (transaction.type === TRANSACTION_TYPES.SORTIE && transaction.element) {
+          const elementId = transaction.element.id;
+          if (consommationMap.has(elementId)) {
+            const consomData = consommationMap.get(elementId);
+            consomData.quantite_sortie += transaction.quantite || 0;
+            consomData.nb_sorties++;
+          }
+        }
+      });
+
+      // Créer le top consommation
+      const consommationArray = Array.from(consommationMap.values())
+        .filter((c) => c.quantite_sortie > 0)
+        .sort((a, b) => b.quantite_sortie - a.quantite_sortie)
+        .slice(0, 10);
+
+      analytics.top_consommation = consommationArray.map((c) => ({
+        id: c.element.id,
+        denomination: c.element.denomination,
+        unite: c.element.unite,
+        quantite_sortie: c.quantite_sortie,
+        nb_sorties: c.nb_sorties,
+        quantite_actuelle: c.element.quantite_actuelle,
+        seuil_alerte: c.element.seuil_alerte,
+        type: c.element.type,
+        imgURL: c.element.imgURL,
+      }));
+
+      // Identifier les articles critiques avec prévision de rupture
+      const critiques = [];
+
+      consommationArray.forEach((c) => {
+        const element = c.element;
+        const quantite_actuelle = element.quantite_actuelle || 0;
+        const seuil = element.seuil_alerte || 0;
+
+        // Calculer la consommation moyenne par jour
+        const consommation_moyenne_jour = c.quantite_sortie / days;
+
+        // Prévision de rupture (en jours)
+        const jours_avant_rupture = consommation_moyenne_jour > 0
+          ? Math.floor(quantite_actuelle / consommation_moyenne_jour)
+          : Infinity;
+
+        // Article critique si rupture prévue dans moins de 7 jours ou en alerte
+        if (
+          quantite_actuelle === 0 ||
+          jours_avant_rupture < 7 ||
+          (seuil > 0 && quantite_actuelle <= seuil)
+        ) {
+          critiques.push({
+            id: element.id,
+            denomination: element.denomination,
+            unite: element.unite,
+            quantite_actuelle,
+            seuil_alerte: seuil,
+            consommation_moyenne_jour: parseFloat(consommation_moyenne_jour.toFixed(2)),
+            jours_avant_rupture: jours_avant_rupture === Infinity ? null : jours_avant_rupture,
+            statut: quantite_actuelle === 0
+              ? "rupture"
+              : jours_avant_rupture < 7
+              ? "critique"
+              : "alerte",
+            type: element.type,
+            imgURL: element.imgURL,
+          });
+        }
+      });
+
+      analytics.articles_critiques = critiques.sort((a, b) => {
+        // Trier par statut (rupture > critique > alerte) puis par jours avant rupture
+        const statutOrder = { rupture: 0, critique: 1, alerte: 2 };
+        if (statutOrder[a.statut] !== statutOrder[b.statut]) {
+          return statutOrder[a.statut] - statutOrder[b.statut];
+        }
+        const aJours = a.jours_avant_rupture === null ? Infinity : a.jours_avant_rupture;
+        const bJours = b.jours_avant_rupture === null ? Infinity : b.jours_avant_rupture;
+        return aJours - bJours;
+      });
+
+      // Calculer l'évolution du stock par jour (simulée avec les transactions)
+      // Pour chaque jour, on calcule le nombre d'articles en alerte
+      const evolutionMap = new Map();
+
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        evolutionMap.set(dateKey, {
+          date: dateKey,
+          valeur_totale: 0,
+          nb_articles_alerte: 0,
+          nb_entrees: 0,
+          nb_sorties: 0,
+        });
+      }
+
+      // Remplir avec les données de transactions
+      transactionsArray.forEach((transaction) => {
+        const date = new Date(transaction.date);
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        if (evolutionMap.has(dateKey)) {
+          const dayData = evolutionMap.get(dateKey);
+          if (transaction.type === TRANSACTION_TYPES.ENTREE) {
+            dayData.nb_entrees++;
+          } else if (transaction.type === TRANSACTION_TYPES.SORTIE) {
+            dayData.nb_sorties++;
+          }
+        }
+      });
+
+      analytics.evolution_stock = Array.from(evolutionMap.values());
+
+      setStats(analytics);
+    } catch (err) {
+      console.error("❌ Erreur useStockAnalytics:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  return { stats, loading, error, refetch: fetchAnalytics };
+}
+
+/**
+ * Hook pour l'analyse détaillée d'un article
+ * @param {string} articleId - ID de l'article
+ * @param {number} days - Nombre de jours à analyser
+ * @returns {Object} { articleStats, loading, error, refetch }
+ */
+export function useArticleAnalytics(articleId, days = 30) {
+  const [articleStats, setArticleStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchArticleAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Récupérer l'élément
+      const element = await getElement(articleId);
+      if (!element) {
+        throw new Error("Article non trouvé");
+      }
+
+      // Récupérer toutes les transactions pour cet article
+      const transactionsArray = [];
+      const now = new Date();
+
+      for (let i = 0; i < days; i++) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateKey = formatDateKey(date);
+
+        const transactionRef = doc(db, STOCK_TRANSACTIONS_BASE_PATH, dateKey);
+        const transactionDoc = await getDoc(transactionRef);
+
+        if (transactionDoc.exists()) {
+          const dayTransactions = transactionDoc.data().transactions || [];
+          const filtered = dayTransactions.filter((t) => t.element?.id === articleId);
+          transactionsArray.push(...filtered);
+        }
+      }
+
+      // Initialiser les statistiques
+      const analytics = {
+        id: element.id,
+        denomination: element.denomination,
+        unite: element.unite,
+        type: element.type,
+        quantite_actuelle: element.quantite_actuelle || 0,
+        seuil_alerte: element.seuil_alerte || 0,
+        prix_unitaire_actuel: element.prix_unitaire || 0,
+        imgURL: element.imgURL || "",
+        description: element.description || "",
+
+        // Statistiques des transactions
+        total_entrees: 0,
+        total_sorties: 0,
+        total_transferts: 0,
+        quantite_entree: 0,
+        quantite_sortie: 0,
+
+        // Analyse des prix
+        prix_moyen_achat: 0,
+        prix_min_achat: Infinity,
+        prix_max_achat: 0,
+        historique_prix: [], // { date, prix, quantite, type }
+
+        // Evolution
+        evolution_quantite: [], // { date, quantite_entree, quantite_sortie, solde }
+        evolution_prix: [], // { date, prix_moyen }
+
+        // Consommation
+        consommation_moyenne_jour: 0,
+        consommation_totale: 0,
+        jours_avant_rupture: null,
+
+        // Tendance
+        trend: "stable", // "hausse", "baisse", "stable"
+        trendPercentage: 0,
+
+        // Recommandations
+        periode_optimale_achat: null, // { mois, prix_moyen }
+        quantite_recommandee: 0,
+
+        days,
+      };
+
+      // Analyser les transactions
+      const prixArray = [];
+      const evolutionMap = new Map();
+
+      // Initialiser l'évolution pour chaque jour
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+        evolutionMap.set(dateKey, {
+          date: dateKey,
+          quantite_entree: 0,
+          quantite_sortie: 0,
+          solde: 0,
+          prix_moyen: 0,
+          nb_achats: 0,
+          somme_prix: 0,
+        });
+      }
+
+      transactionsArray.forEach((transaction) => {
+        const date = new Date(transaction.date);
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const prix = transaction.prix_unitaire || 0;
+        const quantite = transaction.quantite || 0;
+
+        // Compter les transactions par type
+        if (transaction.type === TRANSACTION_TYPES.ENTREE) {
+          analytics.total_entrees++;
+          analytics.quantite_entree += quantite;
+
+          // Analyser les prix d'achat (uniquement pour les entrées)
+          if (prix > 0) {
+            prixArray.push(prix);
+            analytics.prix_min_achat = Math.min(analytics.prix_min_achat, prix);
+            analytics.prix_max_achat = Math.max(analytics.prix_max_achat, prix);
+
+            analytics.historique_prix.push({
+              date: dateKey,
+              prix,
+              quantite,
+              type: transaction.type,
+              motif: transaction.motif || "",
+            });
+          }
+
+          // Mettre à jour l'évolution
+          if (evolutionMap.has(dateKey)) {
+            const dayData = evolutionMap.get(dateKey);
+            dayData.quantite_entree += quantite;
+            dayData.solde += quantite;
+
+            if (prix > 0) {
+              dayData.nb_achats++;
+              dayData.somme_prix += prix;
+            }
+          }
+        } else if (transaction.type === TRANSACTION_TYPES.SORTIE) {
+          analytics.total_sorties++;
+          analytics.quantite_sortie += quantite;
+          analytics.consommation_totale += quantite;
+
+          // Mettre à jour l'évolution
+          if (evolutionMap.has(dateKey)) {
+            const dayData = evolutionMap.get(dateKey);
+            dayData.quantite_sortie += quantite;
+            dayData.solde -= quantite;
+          }
+        } else if (transaction.type === TRANSACTION_TYPES.TRANSFERT) {
+          analytics.total_transferts++;
+        }
+      });
+
+      // Calculer le prix moyen d'achat
+      if (prixArray.length > 0) {
+        analytics.prix_moyen_achat = prixArray.reduce((a, b) => a + b, 0) / prixArray.length;
+      }
+      if (analytics.prix_min_achat === Infinity) {
+        analytics.prix_min_achat = 0;
+      }
+
+      // Calculer l'évolution
+      analytics.evolution_quantite = Array.from(evolutionMap.values()).map((day) => ({
+        date: day.date,
+        quantite_entree: day.quantite_entree,
+        quantite_sortie: day.quantite_sortie,
+        solde: day.solde,
+      }));
+
+      analytics.evolution_prix = Array.from(evolutionMap.values())
+        .filter((day) => day.nb_achats > 0)
+        .map((day) => ({
+          date: day.date,
+          prix_moyen: day.somme_prix / day.nb_achats,
+        }));
+
+      // Calculer la consommation moyenne par jour
+      analytics.consommation_moyenne_jour = analytics.quantite_sortie / days;
+
+      // Prévision de rupture
+      if (analytics.consommation_moyenne_jour > 0 && analytics.quantite_actuelle > 0) {
+        analytics.jours_avant_rupture = Math.floor(
+          analytics.quantite_actuelle / analytics.consommation_moyenne_jour
+        );
+      }
+
+      // Calculer la tendance (première moitié vs seconde moitié)
+      if (analytics.evolution_quantite.length > 1) {
+        const mid = Math.floor(analytics.evolution_quantite.length / 2);
+        const firstHalf = analytics.evolution_quantite
+          .slice(0, mid)
+          .reduce((sum, d) => sum + d.quantite_sortie, 0);
+        const secondHalf = analytics.evolution_quantite
+          .slice(mid)
+          .reduce((sum, d) => sum + d.quantite_sortie, 0);
+
+        const avgFirst = firstHalf / mid;
+        const avgSecond = secondHalf / (analytics.evolution_quantite.length - mid);
+
+        if (avgSecond > avgFirst * 1.1) {
+          analytics.trend = "hausse";
+          analytics.trendPercentage = ((avgSecond - avgFirst) / avgFirst) * 100;
+        } else if (avgSecond < avgFirst * 0.9) {
+          analytics.trend = "baisse";
+          analytics.trendPercentage = ((avgSecond - avgFirst) / avgFirst) * 100;
+        }
+      }
+
+      // Trouver la période optimale d'achat (mois avec prix moyen le plus bas)
+      const prixParMois = new Map();
+
+      analytics.historique_prix.forEach((entry) => {
+        const [day, month] = entry.date.split("/");
+        const moisKey = month; // Juste le numéro du mois
+
+        if (!prixParMois.has(moisKey)) {
+          prixParMois.set(moisKey, { prix_total: 0, nb_achats: 0 });
+        }
+
+        const moisData = prixParMois.get(moisKey);
+        moisData.prix_total += entry.prix;
+        moisData.nb_achats++;
+      });
+
+      if (prixParMois.size > 0) {
+        let meilleurMois = null;
+        let prixMin = Infinity;
+
+        prixParMois.forEach((data, mois) => {
+          const prixMoyen = data.prix_total / data.nb_achats;
+          if (prixMoyen < prixMin) {
+            prixMin = prixMoyen;
+            meilleurMois = mois;
+          }
+        });
+
+        if (meilleurMois) {
+          const nomsMois = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                           "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+          analytics.periode_optimale_achat = {
+            mois: nomsMois[parseInt(meilleurMois)],
+            prix_moyen: prixMin,
+          };
+        }
+      }
+
+      // Quantité recommandée à commander (basée sur consommation + marge de sécurité)
+      if (analytics.consommation_moyenne_jour > 0) {
+        // Commander pour 14 jours avec 20% de marge de sécurité
+        analytics.quantite_recommandee = Math.ceil(
+          analytics.consommation_moyenne_jour * 14 * 1.2
+        );
+      }
+
+      setArticleStats(analytics);
+    } catch (err) {
+      console.error("❌ Erreur useArticleAnalytics:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [articleId, days]);
+
+  useEffect(() => {
+    if (articleId) {
+      fetchArticleAnalytics();
+    }
+  }, [articleId, fetchArticleAnalytics]);
+
+  return { articleStats, loading, error, refetch: fetchArticleAnalytics };
+}
+
 // ============================================================================
 // ALIAS EXPORTS
 // ============================================================================

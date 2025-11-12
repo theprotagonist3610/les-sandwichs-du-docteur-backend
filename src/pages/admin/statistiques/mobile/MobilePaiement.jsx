@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useFinanceAnalysis } from "@/toolkits/admin/commandeToolkit";
 import KPICard from "@/components/statistics/cards/KPICard";
 import SalesLineChart from "@/components/statistics/charts/SalesLineChart";
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 const MobilePaiement = () => {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState("7");
 
   // Convertir period en nombre pour le hook
@@ -194,7 +196,10 @@ const MobilePaiement = () => {
           <SalesDonutChart data={paiementDonutData} height={200} />
 
           <div className="grid grid-cols-3 gap-2 mt-4">
-            <div className="text-center p-2 border rounded-lg">
+            <div
+              className="text-center p-2 border rounded-lg cursor-pointer transition-all active:scale-95"
+              onClick={() => navigate("/admin/statistiques/paiement/especes")}
+            >
               <Banknote className="h-4 w-4 mx-auto mb-1 opacity-70" />
               <p className="text-xs font-medium opacity-70">Espèces</p>
               <p className="text-sm font-bold">
@@ -202,7 +207,10 @@ const MobilePaiement = () => {
               </p>
               <p className="text-xs opacity-70">{pourcentageEspeces}%</p>
             </div>
-            <div className="text-center p-2 border rounded-lg">
+            <div
+              className="text-center p-2 border rounded-lg cursor-pointer transition-all active:scale-95"
+              onClick={() => navigate("/admin/statistiques/paiement/momo")}
+            >
               <Smartphone className="h-4 w-4 mx-auto mb-1 opacity-70" />
               <p className="text-xs font-medium opacity-70">MoMo</p>
               <p className="text-sm font-bold">
@@ -210,7 +218,10 @@ const MobilePaiement = () => {
               </p>
               <p className="text-xs opacity-70">{pourcentageMomo}%</p>
             </div>
-            <div className="text-center p-2 border rounded-lg">
+            <div
+              className="text-center p-2 border rounded-lg cursor-pointer transition-all active:scale-95"
+              onClick={() => navigate("/admin/statistiques/paiement/credit")}
+            >
               <CreditCard className="h-4 w-4 mx-auto mb-1 opacity-70" />
               <p className="text-xs font-medium opacity-70">Crédit</p>
               <p className="text-sm font-bold">
