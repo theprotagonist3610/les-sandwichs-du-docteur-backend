@@ -14,6 +14,8 @@ import {
   Warehouse,
   ShoppingBag,
   TrendingUp,
+  DollarSign,
+  ShoppingCart as ShoppingCartIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEmplacementsAnalytics, EMPLACEMENT_TYPES } from "@/toolkits/admin/emplacementToolkit";
@@ -113,7 +115,7 @@ const DesktopEmplacements = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard
           title="Total Emplacements"
           value={stats.total_emplacements}
@@ -122,10 +124,17 @@ const DesktopEmplacements = () => {
         />
 
         <KPICard
-          title="Avec Vendeur"
-          value={stats.emplacements_avec_vendeur}
-          icon={<Users className="h-6 w-6" />}
-          subtitle={`${stats.emplacements_sans_vendeur} sans vendeur`}
+          title="Ventes Totales"
+          value={`${(stats.total_ventes_tous_emplacements / 1000).toFixed(0)}k`}
+          icon={<DollarSign className="h-6 w-6" />}
+          subtitle="FCFA"
+        />
+
+        <KPICard
+          title="Commandes"
+          value={stats.total_commandes_tous_emplacements}
+          icon={<ShoppingCartIcon className="h-6 w-6" />}
+          subtitle={`${stats.total_emplacements} emplacements`}
         />
 
         <KPICard
@@ -136,7 +145,7 @@ const DesktopEmplacements = () => {
         />
 
         <KPICard
-          title="Valeur Stock Total"
+          title="Valeur Stock"
           value={`${(stats.valeur_totale_stock / 1000).toFixed(0)}k`}
           icon={<TrendingUp className="h-6 w-6" />}
           subtitle="FCFA"
@@ -271,10 +280,20 @@ const DesktopEmplacements = () => {
                     </div>
 
                     <div className="text-right">
-                      <p className="text-sm font-medium">{emplacement.vendeur}</p>
-                      <p className="text-xs opacity-70">
-                        {emplacement.nb_articles_stock} articles
-                      </p>
+                      <div className="mb-2">
+                        <p className="text-sm font-bold text-green-600">
+                          {(emplacement.total_ventes / 1000).toFixed(1)}k FCFA
+                        </p>
+                        <p className="text-xs opacity-70">
+                          {emplacement.nombre_commandes} commandes
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs opacity-70">{emplacement.vendeur}</p>
+                        <p className="text-xs opacity-70">
+                          {emplacement.nb_articles_stock} articles
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -287,6 +306,48 @@ const DesktopEmplacements = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Top Emplacements par Ventes */}
+      {stats.top_emplacements_ventes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Top Emplacements par Ventes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stats.top_emplacements_ventes.map((emplacement, idx) => (
+                <div
+                  key={emplacement.id}
+                  className="flex items-center justify-between p-4 rounded-lg border cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate(`/admin/statistiques/emplacements/${emplacement.id}`)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600 font-bold">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="font-semibold">{emplacement.denomination}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {emplacement.nombre_commandes} commandes • Moy:{" "}
+                        {(emplacement.ventes_moyennes_par_jour / 1000).toFixed(1)}k FCFA/jour
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-green-600">
+                      {(emplacement.total_ventes / 1000).toFixed(1)}k
+                    </p>
+                    <p className="text-xs opacity-70">FCFA</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Zones prioritaires */}
       {stats.distribution_geographique.length > 0 && (

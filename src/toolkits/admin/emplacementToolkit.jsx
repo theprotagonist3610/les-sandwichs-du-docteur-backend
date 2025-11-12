@@ -22,6 +22,9 @@ import { db, rtdb } from "@/firebase.js";
 import { nanoid } from "nanoid";
 import { auth } from "@/firebase.js";
 
+// Import pour accéder aux commandes
+import { GetCommandes } from "./commandeToolkit";
+
 // ============================================================================
 // CONSTANTES
 // ============================================================================
@@ -971,6 +974,58 @@ export function useEmplacements(filter = {}) {
 }
 
 // ============================================================================
+// HELPERS POUR STATISTIQUES DE VENTES
+// ============================================================================
+
+/**
+ * Récupère les commandes sur plusieurs jours (aujourd'hui + archives)
+ * @param {number} days - Nombre de jours à récupérer
+ * @returns {Promise<Array>} Liste de toutes les commandes
+ */
+async function getCommandesSurPlusieursJours(days = 30) {
+  try {
+    const allCommandes = [];
+    const now = new Date();
+
+    // Récupérer les commandes d'aujourd'hui
+    try {
+      const commandesToday = await GetCommandes();
+      allCommandes.push(...commandesToday);
+    } catch (err) {
+      console.warn("⚠️ Erreur récupération commandes du jour:", err);
+    }
+
+    // Récupérer les commandes des jours précédents depuis les archives
+    for (let i = 1; i < days; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      const dateKey = `${day}${month}${year}`;
+
+      try {
+        const archiveRef = doc(db, `ventes/archives/liste/${dateKey}`);
+        const archiveDoc = await getDoc(archiveRef);
+
+        if (archiveDoc.exists()) {
+          const commandesArchive = archiveDoc.data().liste || [];
+          allCommandes.push(...commandesArchive);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Erreur récupération archives ${dateKey}:`, err);
+      }
+    }
+
+    return allCommandes;
+  } catch (error) {
+    console.error("❌ Erreur getCommandesSurPlusieursJours:", error);
+    return [];
+  }
+}
+
+// ============================================================================
 // HOOKS D'ANALYSE STATISTIQUE
 // ============================================================================
 
@@ -1002,6 +1057,26 @@ export function useEmplacementsAnalytics(days = 30) {
       // Récupérer tous les emplacements
       const emplacements = await listEmplacements();
 
+      // Récupérer les commandes sur N jours
+      const commandes = await getCommandesSurPlusieursJours(days);
+
+      // Calculer les ventes par emplacement
+      const ventesParEmplacement = new Map();
+      commandes.forEach((commande) => {
+        const emplacementId = commande.point_de_vente?.id;
+        if (emplacementId) {
+          if (!ventesParEmplacement.has(emplacementId)) {
+            ventesParEmplacement.set(emplacementId, {
+              nombre_commandes: 0,
+              total_ventes: 0,
+            });
+          }
+          const stats = ventesParEmplacement.get(emplacementId);
+          stats.nombre_commandes++;
+          stats.total_ventes += commande.paiement?.total || 0;
+        }
+      });
+
       // Initialiser les statistiques
       const analytics = {
         total_emplacements: emplacements.length,
@@ -1018,7 +1093,10 @@ export function useEmplacementsAnalytics(days = 30) {
         emplacements_sans_vendeur: 0,
         emplacements_avec_stock: 0,
         valeur_totale_stock: 0,
+        total_ventes_tous_emplacements: 0,
+        total_commandes_tous_emplacements: 0,
         liste_emplacements: [],
+        top_emplacements_ventes: [],
       };
 
       // Analyser chaque emplacement
@@ -1079,6 +1157,16 @@ export function useEmplacementsAnalytics(days = 30) {
           });
         }
 
+        // Récupérer les ventes de cet emplacement
+        const ventesEmplacement = ventesParEmplacement.get(emplacement.id) || {
+          nombre_commandes: 0,
+          total_ventes: 0,
+        };
+
+        // Calculer les totaux globaux
+        analytics.total_ventes_tous_emplacements += ventesEmplacement.total_ventes;
+        analytics.total_commandes_tous_emplacements += ventesEmplacement.nombre_commandes;
+
         // Ajouter à la liste pour affichage
         analytics.liste_emplacements.push({
           id: emplacement.id,
@@ -1090,6 +1178,10 @@ export function useEmplacementsAnalytics(days = 30) {
           departement: departement,
           nb_articles_stock: stockKeys.length,
           theme: emplacement.theme_central?.theme || "",
+          // Statistiques de ventes
+          nombre_commandes: ventesEmplacement.nombre_commandes,
+          total_ventes: ventesEmplacement.total_ventes,
+          ventes_moyennes_par_jour: ventesEmplacement.total_ventes / days,
         });
       });
 
@@ -1097,6 +1189,19 @@ export function useEmplacementsAnalytics(days = 30) {
       analytics.distribution_geographique = Array.from(
         analytics.distribution_geographique.values()
       ).sort((a, b) => b.count - a.count);
+
+      // Calculer le top des emplacements par ventes
+      analytics.top_emplacements_ventes = analytics.liste_emplacements
+        .filter((emp) => emp.total_ventes > 0)
+        .sort((a, b) => b.total_ventes - a.total_ventes)
+        .slice(0, 10)
+        .map((emp) => ({
+          id: emp.id,
+          denomination: emp.denomination,
+          total_ventes: emp.total_ventes,
+          nombre_commandes: emp.nombre_commandes,
+          ventes_moyennes_par_jour: emp.ventes_moyennes_par_jour,
+        }));
 
       setStats(analytics);
     } catch (err) {
@@ -1161,6 +1266,55 @@ export function useEmplacementDetailAnalytics(emplacementId, days = 30) {
         throw new Error("Emplacement non trouvé");
       }
 
+      // Récupérer les commandes sur N jours pour cet emplacement
+      const toutesCommandes = await getCommandesSurPlusieursJours(days);
+      const commandesEmplacement = toutesCommandes.filter(
+        (cmd) => cmd.point_de_vente?.id === emplacementId
+      );
+
+      // Analyser les ventes
+      let totalVentes = 0;
+      let nombreCommandes = commandesEmplacement.length;
+      const evolutionVentes = new Map();
+      const articlesVendus = new Map();
+
+      commandesEmplacement.forEach((commande) => {
+        totalVentes += commande.paiement?.total || 0;
+
+        // Evolution par jour
+        const createdAt = commande.createdAt;
+        const date = new Date(createdAt);
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
+
+        if (!evolutionVentes.has(dateKey)) {
+          evolutionVentes.set(dateKey, {
+            date: dateKey,
+            ventes: 0,
+            commandes: 0,
+          });
+        }
+        const dayStats = evolutionVentes.get(dateKey);
+        dayStats.ventes += commande.paiement?.total || 0;
+        dayStats.commandes++;
+
+        // Articles vendus
+        commande.details?.forEach((detail) => {
+          if (!articlesVendus.has(detail.id)) {
+            articlesVendus.set(detail.id, {
+              id: detail.id,
+              denomination: detail.denomination,
+              quantite_vendue: 0,
+              total_ventes: 0,
+            });
+          }
+          const articleStats = articlesVendus.get(detail.id);
+          articleStats.quantite_vendue += detail.quantite;
+          articleStats.total_ventes += detail.prix * detail.quantite;
+        });
+      });
+
       // Analyser le stock actuel
       const stockActuel = emplacement.stock_actuel || {};
       const stockKeys = Object.keys(stockActuel);
@@ -1219,6 +1373,19 @@ export function useEmplacementDetailAnalytics(emplacementId, days = 30) {
         (h) => h.ouvert === true
       ).length;
 
+      // Convertir les données de ventes en arrays
+      const evolutionVentesArray = Array.from(evolutionVentes.values()).sort(
+        (a, b) => {
+          const [dayA, monthA] = a.date.split("/").map(Number);
+          const [dayB, monthB] = b.date.split("/").map(Number);
+          return monthA === monthB ? dayA - dayB : monthA - monthB;
+        }
+      );
+
+      const articlesVendusArray = Array.from(articlesVendus.values()).sort(
+        (a, b) => b.total_ventes - a.total_ventes
+      );
+
       // Construire les statistiques détaillées
       const analytics = {
         // Informations de base
@@ -1255,6 +1422,15 @@ export function useEmplacementDetailAnalytics(emplacementId, days = 30) {
         valeur_totale_stock: valeurTotaleStock,
         articles_stock: articlesStock,
         top_5_articles: articlesStock.slice(0, 5),
+
+        // Statistiques de ventes
+        total_ventes: totalVentes,
+        nombre_commandes: nombreCommandes,
+        ventes_moyennes_par_jour: totalVentes / days,
+        commandes_moyennes_par_jour: nombreCommandes / days,
+        evolution_ventes: evolutionVentesArray,
+        top_articles_vendus: articlesVendusArray.slice(0, 10),
+        top_5_articles_vendus: articlesVendusArray.slice(0, 5),
 
         // Métriques temporelles
         jours_depuis_creation,
@@ -1295,6 +1471,27 @@ export function useEmplacementDetailAnalytics(emplacementId, days = 30) {
           type: "error",
           titre: "Emplacement inactif",
           description: "Cet emplacement est actuellement désactivé.",
+        });
+      }
+
+      // Recommandations basées sur les ventes
+      if (analytics.nombre_commandes === 0) {
+        analytics.recommandations.push({
+          type: "warning",
+          titre: "Aucune vente",
+          description: `Aucune vente enregistrée sur les ${days} derniers jours.`,
+        });
+      } else if (analytics.ventes_moyennes_par_jour < 1000) {
+        analytics.recommandations.push({
+          type: "info",
+          titre: "Ventes faibles",
+          description: `Ventes moyennes de ${analytics.ventes_moyennes_par_jour.toFixed(0)} FCFA/jour. Envisager des actions promotionnelles.`,
+        });
+      } else if (analytics.ventes_moyennes_par_jour > 10000) {
+        analytics.recommandations.push({
+          type: "success",
+          titre: "Emplacement performant",
+          description: `Excellentes ventes moyennes de ${(analytics.ventes_moyennes_par_jour / 1000).toFixed(1)}k FCFA/jour. À promouvoir!`,
         });
       }
 

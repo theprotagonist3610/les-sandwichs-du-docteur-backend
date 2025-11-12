@@ -13,6 +13,8 @@ import {
   Warehouse,
   ShoppingBag,
   TrendingUp,
+  DollarSign,
+  ShoppingCart as ShoppingCartIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEmplacementsAnalytics, EMPLACEMENT_TYPES } from "@/toolkits/admin/emplacementToolkit";
@@ -102,24 +104,24 @@ const MobileEmplacements = () => {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
         <KPICard
-          title="Total"
+          title="Emplacements"
           value={stats.total_emplacements}
           icon={<Store className="h-5 w-5" />}
           subtitle={`${stats.emplacements_actifs} actifs`}
         />
 
         <KPICard
-          title="Avec Vendeur"
-          value={stats.emplacements_avec_vendeur}
-          icon={<Users className="h-5 w-5" />}
-          subtitle={`${stats.emplacements_sans_vendeur} sans`}
+          title="Ventes"
+          value={`${(stats.total_ventes_tous_emplacements / 1000).toFixed(0)}k`}
+          icon={<DollarSign className="h-5 w-5" />}
+          subtitle="FCFA"
         />
 
         <KPICard
-          title="Avec Stock"
-          value={stats.emplacements_avec_stock}
-          icon={<Package className="h-5 w-5" />}
-          subtitle={`${stats.total_emplacements - stats.emplacements_avec_stock} sans`}
+          title="Commandes"
+          value={stats.total_commandes_tous_emplacements}
+          icon={<ShoppingCartIcon className="h-5 w-5" />}
+          subtitle="total"
         />
 
         <KPICard
@@ -204,10 +206,10 @@ const MobileEmplacements = () => {
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <p className="text-xs font-medium">{emplacement.vendeur}</p>
-                      <p className="text-xs opacity-70 mt-1">
-                        {emplacement.nb_articles_stock} art.
+                      <p className="text-xs font-bold text-green-600">
+                        {(emplacement.total_ventes / 1000).toFixed(1)}k
                       </p>
+                      <p className="text-xs opacity-70">{emplacement.nombre_commandes} cmd</p>
                     </div>
                   </div>
                 </div>
@@ -220,6 +222,47 @@ const MobileEmplacements = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Top Emplacements par Ventes */}
+      {stats.top_emplacements_ventes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Top Ventes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {stats.top_emplacements_ventes.slice(0, 5).map((emplacement, idx) => (
+                <div
+                  key={emplacement.id}
+                  className="flex items-center justify-between p-2 rounded border text-xs active:scale-95 transition-transform"
+                  onClick={() => navigate(`/admin/statistiques/emplacements/${emplacement.id}`)}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-600 font-bold flex-shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{emplacement.denomination}</p>
+                      <p className="opacity-70 mt-1">
+                        {emplacement.nombre_commandes} cmd
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-bold text-green-600">
+                      {(emplacement.total_ventes / 1000).toFixed(1)}k
+                    </p>
+                    <p className="opacity-70">FCFA</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Zones prioritaires */}
       {stats.distribution_geographique.length > 0 && (

@@ -12,10 +12,13 @@ import {
   CheckCircle,
   XCircle,
   TrendingUp,
+  DollarSign,
+  ShoppingCart,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEmplacementDetailAnalytics } from "@/toolkits/admin/emplacementToolkit";
 import KPICard from "@/components/statistics/cards/KPICard";
+import SalesLineChart from "@/components/statistics/charts/SalesLineChart";
 
 const MobileEmplacementId = () => {
   const { id } = useParams();
@@ -94,6 +97,20 @@ const MobileEmplacementId = () => {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
         <KPICard
+          title="Total Ventes"
+          value={`${(emplacementStats.total_ventes / 1000).toFixed(0)}k`}
+          icon={<DollarSign className="h-5 w-5" />}
+          subtitle="FCFA"
+        />
+
+        <KPICard
+          title="Commandes"
+          value={emplacementStats.nombre_commandes}
+          icon={<ShoppingCart className="h-5 w-5" />}
+          subtitle="total"
+        />
+
+        <KPICard
           title="Articles Stock"
           value={emplacementStats.nb_articles_stock}
           icon={<Package className="h-5 w-5" />}
@@ -105,20 +122,6 @@ const MobileEmplacementId = () => {
           value={`${(emplacementStats.valeur_totale_stock / 1000).toFixed(0)}k`}
           icon={<TrendingUp className="h-5 w-5" />}
           subtitle="FCFA"
-        />
-
-        <KPICard
-          title="Depuis création"
-          value={emplacementStats.jours_depuis_creation}
-          icon={<Calendar className="h-5 w-5" />}
-          subtitle="jours"
-        />
-
-        <KPICard
-          title="Ouverture"
-          value={emplacementStats.jours_ouverture}
-          icon={<Clock className="h-5 w-5" />}
-          subtitle="j/semaine"
         />
       </div>
 
@@ -245,6 +248,81 @@ const MobileEmplacementId = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Statistiques de Ventes */}
+      {emplacementStats.nombre_commandes > 0 && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Évolution Ventes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-3 text-xs opacity-70">
+                Moy: {(emplacementStats.ventes_moyennes_par_jour / 1000).toFixed(1)}k FCFA/jour
+                • {emplacementStats.commandes_moyennes_par_jour.toFixed(1)} cmd/jour
+              </div>
+              {emplacementStats.evolution_ventes.length > 0 ? (
+                <SalesLineChart
+                  data={emplacementStats.evolution_ventes}
+                  xKey="date"
+                  yKey="ventes"
+                  height={200}
+                />
+              ) : (
+                <div className="text-center py-6 opacity-70 text-xs">
+                  Pas assez de données
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Top Articles Vendus
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {emplacementStats.top_5_articles_vendus.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {emplacementStats.top_5_articles_vendus.length > 0 ? (
+                <div className="space-y-2">
+                  {emplacementStats.top_5_articles_vendus.slice(0, 3).map((article, idx) => (
+                    <div
+                      key={article.id}
+                      className="flex items-center justify-between p-2 rounded border text-xs"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-600 font-bold flex-shrink-0">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{article.denomination}</p>
+                          <p className="opacity-70 mt-1">{article.quantite_vendue} vendus</p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-green-600 flex-shrink-0">
+                        {(article.total_ventes / 1000).toFixed(1)}k
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 opacity-70 text-xs">
+                  Aucun article vendu
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Stock */}
       <Card>
