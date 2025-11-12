@@ -2488,6 +2488,141 @@ export function useProductionStatistiquesWeek() {
   };
 }
 
+/**
+ * Hook pour récupérer les détails d'une recette spécifique avec analyses sur plusieurs jours
+ * @param {string} recetteId - ID ou denomination de la recette
+ * @param {number} days - Nombre de jours à analyser (défaut: 7)
+ */
+export function useRecetteDetails(recetteId, days = 7) {
+  const [recetteStats, setRecetteStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchRecetteDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!recetteId) {
+        throw new Error("recetteId est requis");
+      }
+
+      const stats = {
+        id: recetteId,
+        denomination: "",
+        type: "menu",
+        totalQuantite: 0,
+        totalProductions: 0,
+        avgQuantite: 0,
+        maxQuantite: 0,
+        minQuantite: Infinity,
+        dailyProductions: [],
+        trend: "stable",
+        trendPercentage: 0,
+        days,
+      };
+
+      const today = new Date();
+      const dailyData = [];
+
+      // Récupérer les données des N derniers jours
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dayKey = formatDayKey(date);
+
+        const dayRef = doc(db, `${PRODUCTIONS_DAYS_COLLECTION}/${dayKey}`);
+        const daySnap = await getDoc(dayRef);
+
+        if (daySnap.exists()) {
+          const productions = daySnap.data().items || [];
+
+          // Filtrer les productions de cette recette
+          const recetteProductions = productions.filter(
+            (p) => p.id === recetteId || p.denomination === recetteId || p.definitionId === recetteId
+          );
+
+          let quantiteJour = 0;
+          recetteProductions.forEach((prod) => {
+            if (!stats.denomination && prod.denomination) {
+              stats.denomination = prod.denomination;
+              stats.type = prod.type || "menu";
+            }
+
+            if (prod.resultat?.quantite) {
+              quantiteJour += prod.resultat.quantite;
+            } else if (prod.principal_cible?.quantite) {
+              quantiteJour += prod.principal_cible.quantite;
+            }
+          });
+
+          stats.totalQuantite += quantiteJour;
+          stats.totalProductions += recetteProductions.length;
+
+          if (quantiteJour > stats.maxQuantite) stats.maxQuantite = quantiteJour;
+          if (quantiteJour < stats.minQuantite && quantiteJour > 0) stats.minQuantite = quantiteJour;
+
+          dailyData.push({
+            date: dayKey,
+            quantite: quantiteJour,
+            productions: recetteProductions.length,
+          });
+        } else {
+          dailyData.push({
+            date: dayKey,
+            quantite: 0,
+            productions: 0,
+          });
+        }
+      }
+
+      stats.dailyProductions = dailyData;
+      stats.avgQuantite = stats.totalProductions > 0 ? stats.totalQuantite / days : 0;
+
+      if (stats.minQuantite === Infinity) stats.minQuantite = 0;
+
+      // Calculer la tendance (comparer première moitié vs deuxième moitié)
+      const midPoint = Math.floor(dailyData.length / 2);
+      const firstHalf = dailyData.slice(0, midPoint);
+      const secondHalf = dailyData.slice(midPoint);
+
+      const avgFirst =
+        firstHalf.reduce((sum, d) => sum + d.quantite, 0) / firstHalf.length;
+      const avgSecond =
+        secondHalf.reduce((sum, d) => sum + d.quantite, 0) / secondHalf.length;
+
+      if (avgSecond > avgFirst * 1.1) {
+        stats.trend = "hausse";
+      } else if (avgSecond < avgFirst * 0.9) {
+        stats.trend = "baisse";
+      } else {
+        stats.trend = "stable";
+      }
+
+      stats.trendPercentage =
+        avgFirst > 0 ? ((avgSecond - avgFirst) / avgFirst) * 100 : 0;
+
+      setRecetteStats(stats);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur fetch recette details:", err);
+      setError(err.message);
+      setLoading(false);
+    }
+  }, [recetteId, days]);
+
+  useEffect(() => {
+    fetchRecetteDetails();
+  }, [fetchRecetteDetails]);
+
+  return {
+    recetteStats,
+    loading,
+    error,
+    refetch: fetchRecetteDetails,
+  };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -2541,6 +2676,7 @@ export default {
   useProductionStatistiques,
   useProductionStatistiquesJour,
   useProductionStatistiquesWeek,
+  useRecetteDetails,
 
   // Statistiques enrichies
   StatistiquesProductionJourSchema,
