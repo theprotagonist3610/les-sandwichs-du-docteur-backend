@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStockAnalytics, STOCK_TYPES } from "@/toolkits/admin/stockToolkit";
+import { useStockAnalytics, useStockElements, STOCK_TYPES } from "@/toolkits/admin/stockToolkit";
 import KPICard from "@/components/statistics/cards/KPICard";
 import SalesLineChart from "@/components/statistics/charts/SalesLineChart";
 import SalesDonutChart from "@/components/statistics/charts/SalesDonutChart";
@@ -25,14 +25,18 @@ import {
   AlertCircle,
   ChevronRight,
   ShoppingCart,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const DesktopStock = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState("30");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const daysCount = parseInt(period);
   const { stats, loading, error } = useStockAnalytics(daysCount);
+  const { elements, loading: loadingElements } = useStockElements();
 
   // Formater les données pour l'export CSV
   const exportCSV = () => {
@@ -126,6 +130,14 @@ const DesktopStock = () => {
     { name: "Matériel", value: stats.articles_par_type[STOCK_TYPES.MATERIEL] },
     { name: "Emballage", value: stats.articles_par_type[STOCK_TYPES.EMBALLAGE] },
   ].filter((item) => item.value > 0);
+
+  // Couleurs distinctes pour chaque type
+  const typesColors = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+  // Filtrer les articles selon la recherche
+  const filteredElements = elements.filter((element) =>
+    element.denomination?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Badge de statut pour les articles critiques
   const getStatutBadge = (statut) => {
@@ -262,7 +274,7 @@ const DesktopStock = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <SalesDonutChart data={typesDonutData} height={280} />
+            <SalesDonutChart data={typesDonutData} colors={typesColors} height={280} />
             <div className="grid grid-cols-2 gap-2 mt-4">
               {typesDonutData.map((item) => (
                 <div key={item.name} className="text-center p-2 border rounded-lg">
@@ -367,6 +379,77 @@ const DesktopStock = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tous les Articles */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Tous les Articles
+            <Badge variant="outline">{filteredElements.length}</Badge>
+          </CardTitle>
+          <div className="relative mt-3">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 opacity-70" />
+            <Input
+              type="text"
+              placeholder="Rechercher un article..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {filteredElements.length === 0 ? (
+              <div className="text-center p-8 opacity-70">
+                Aucun article trouvé
+              </div>
+            ) : (
+              filteredElements.map((article) => {
+                // Déterminer le statut de l'article
+                const quantite = article.quantite_actuelle || 0;
+                const seuil = article.seuil_alerte || 0;
+                let statut = null;
+
+                if (quantite === 0) {
+                  statut = "rupture";
+                } else if (seuil > 0 && quantite <= seuil) {
+                  statut = "alerte";
+                }
+
+                return (
+                  <div
+                    key={article.id}
+                    className="flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md"
+                    onClick={() => navigate(`/admin/statistiques/stock/${article.id}`)}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-10 h-10 rounded-lg border flex items-center justify-center">
+                        <Package className="h-5 w-5 opacity-70" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{article.denomination}</p>
+                          {statut && getStatutBadge(statut)}
+                          <Badge variant="outline" className="text-xs">
+                            {article.type}
+                          </Badge>
+                        </div>
+                        <p className="text-sm opacity-70">
+                          Stock: {quantite} {article.unite?.symbol || ""} •
+                          Prix: {(article.prix_unitaire || 0).toLocaleString()} FCFA
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 opacity-70" />
+                  </div>
+                );
+              })
+            )}
           </div>
         </CardContent>
       </Card>
