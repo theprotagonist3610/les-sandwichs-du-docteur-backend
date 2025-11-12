@@ -104,7 +104,7 @@ const DesktopStockId = () => {
           title="Stock Actuel"
           value={stockActuel}
           icon={<Package className="h-6 w-6" />}
-          subtitle={articleStats.unite || "unités"}
+          subtitle={articleStats.unite?.symbol || "unités"}
         />
 
         <KPICard
@@ -139,7 +139,7 @@ const DesktopStockId = () => {
           <AlertDescription>
             Le stock actuel ne permet de tenir que <strong>{joursAvantRupture} jour{joursAvantRupture > 1 ? 's' : ''}</strong>.
             <br />
-            💡 <strong>Action Urgente :</strong> Commander immédiatement {quantiteRecommandee} {articleStats.unite || "unités"}.
+            💡 <strong>Action Urgente :</strong> Commander immédiatement {quantiteRecommandee} {articleStats.unite?.symbol || "unités"}.
           </AlertDescription>
         </Alert>
       )}
@@ -303,7 +303,7 @@ const DesktopStockId = () => {
               <div className="p-3 rounded-lg border-l-4 border-red-500">
                 <p className="text-sm font-semibold mb-1">🚨 Commander en Urgence</p>
                 <p className="text-sm opacity-90">
-                  Stock critique! Commander {quantiteRecommandee} {articleStats.unite || "unités"} immédiatement.
+                  Stock critique! Commander {quantiteRecommandee} {articleStats.unite?.symbol || "unités"} immédiatement.
                 </p>
               </div>
             )}
@@ -312,7 +312,7 @@ const DesktopStockId = () => {
               <div className="p-3 rounded-lg border-l-4 border-orange-500">
                 <p className="text-sm font-semibold mb-1">⚠️ Prévoir une Commande</p>
                 <p className="text-sm opacity-90">
-                  Stock faible. Prévoir une commande de {quantiteRecommandee} {articleStats.unite || "unités"} sous peu.
+                  Stock faible. Prévoir une commande de {quantiteRecommandee} {articleStats.unite?.symbol || "unités"} sous peu.
                 </p>
               </div>
             )}
@@ -330,7 +330,7 @@ const DesktopStockId = () => {
             <div className="p-3 rounded-lg border-l-4 border">
               <p className="text-sm font-semibold mb-1">📦 Quantité Recommandée</p>
               <p className="text-sm opacity-90">
-                Commandez {quantiteRecommandee} {articleStats.unite || "unités"} pour couvrir environ 7 jours de consommation.
+                Commandez {quantiteRecommandee} {articleStats.unite?.symbol || "unités"} pour couvrir environ 7 jours de consommation.
               </p>
             </div>
           </div>

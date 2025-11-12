@@ -98,7 +98,7 @@ const MobileStockId = () => {
           title="Stock"
           value={stockActuel}
           icon={<Package className="h-5 w-5" />}
-          subtitle={articleStats.unite || "unités"}
+          subtitle={articleStats.unite?.symbol || "unités"}
         />
 
         <KPICard
@@ -119,7 +119,7 @@ const MobileStockId = () => {
           title="À commander"
           value={quantiteRecommandee}
           icon={<ShoppingCart className="h-5 w-5" />}
-          subtitle={articleStats.unite || "unités"}
+          subtitle={articleStats.unite?.symbol || "unités"}
         />
       </div>
 
@@ -129,7 +129,7 @@ const MobileStockId = () => {
           <p className="text-xs font-semibold mb-1">🚨 Rupture imminente!</p>
           <p className="text-xs opacity-90">
             Stock pour {joursAvantRupture} jour{joursAvantRupture > 1 ? 's' : ''}.
-            Commander {quantiteRecommandee} {articleStats.unite || "unités"}.
+            Commander {quantiteRecommandee} {articleStats.unite?.symbol || "unités"}.
           </p>
         </div>
       )}
@@ -275,7 +275,7 @@ const MobileStockId = () => {
               <div className="p-2 rounded border-l-4 border-red-500 text-xs">
                 <p className="font-semibold mb-1">🚨 Urgence</p>
                 <p className="opacity-90">
-                  Commander {quantiteRecommandee} {articleStats.unite || "unités"}
+                  Commander {quantiteRecommandee} {articleStats.unite?.symbol || "unités"}
                 </p>
               </div>
             )}
@@ -284,7 +284,7 @@ const MobileStockId = () => {
               <div className="p-2 rounded border-l-4 border-orange-500 text-xs">
                 <p className="font-semibold mb-1">⚠️ Prévoir</p>
                 <p className="opacity-90">
-                  Commander {quantiteRecommandee} {articleStats.unite || "unités"}
+                  Commander {quantiteRecommandee} {articleStats.unite?.symbol || "unités"}
                 </p>
               </div>
             )}
@@ -301,7 +301,7 @@ const MobileStockId = () => {
             <div className="p-2 rounded border-l-4 border text-xs">
               <p className="font-semibold mb-1">📦 Quantité</p>
               <p className="opacity-90">
-                {quantiteRecommandee} {articleStats.unite || "unités"} pour 7 jours
+                {quantiteRecommandee} {articleStats.unite?.symbol || "unités"} pour 7 jours
               </p>
             </div>
           </div>
