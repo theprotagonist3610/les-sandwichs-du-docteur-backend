@@ -13,6 +13,13 @@
  *  - ventes/statistiques : document array qui enregistre les statistiques hebdomadaires
  *  - ventes/operationsQueue : document array qui contient la queue des opérations (create, update, delete)
  *
+ * GESTION DES ADRESSES DE LIVRAISON:
+ *  - Pour les commandes "a livrer", le champ adresse_livraison est REQUIS
+ *  - Structure: { id: string, description?: string }
+ *    - id: référence vers une adresse dans adresseToolkit (département, commune, quartier, localisation GPS)
+ *    - description: texte libre pour précisions supplémentaires (ex: "Porte bleue", "3ème étage", etc.)
+ *  - Le livreur récupère l'adresse complète via l'ID et utilise la description pour la précision finale
+ *
  * Consignes respectées:
  *  1. Structure optimisée pour limiter les lectures Firestore (cache local)
  *  2. Triggers RTDB pour synchronisation automatique des hooks
@@ -85,6 +92,11 @@ const PersonneALivrerSchema = z.object({
   contact: z.string().optional(),
 });
 
+const AdresseLivraisonSchema = z.object({
+  id: z.string().min(1, "ID de l'adresse requis"),
+  description: z.string().optional(), // Description libre pour préciser l'adresse
+});
+
 const PaiementSchema = z.object({
   total: z.number().nonnegative("Total doit être positif ou zéro"),
   livraison: z
@@ -145,9 +157,19 @@ export const CommandeSchema = z.object({
   client: ClientSchema,
   date_heure_livraison: DateHeureLivraisonSchema.optional(),
   personne_a_livrer: PersonneALivrerSchema.optional(),
+  adresse_livraison: AdresseLivraisonSchema.optional(),
   paiement: PaiementSchema,
   incident: z.string().optional(),
   commentaire: z.string().optional(),
+}).refine((data) => {
+  // Validation: si type "a livrer", adresse_livraison est requise
+  if (data.type === "a livrer") {
+    return !!data.adresse_livraison;
+  }
+  return true;
+}, {
+  message: "L'adresse de livraison est requise pour les commandes à livrer",
+  path: ["adresse_livraison"]
 });
 
 const StatistiquesJourSchema = z.object({
