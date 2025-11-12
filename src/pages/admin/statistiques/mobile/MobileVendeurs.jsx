@@ -81,7 +81,7 @@ const MobileVendeurs = () => {
         <KPICard
           title="Vendeurs"
           value={summary.total_vendeurs}
-          icon={Users}
+          icon={<Users className="h-5 w-5" />}
           trend="neutral"
           description={`${period}j`}
         />
@@ -89,7 +89,7 @@ const MobileVendeurs = () => {
         <KPICard
           title="CA Total"
           value={`${(summary.total_ventes / 1000).toFixed(0)}k`}
-          icon={DollarSign}
+          icon={<DollarSign className="h-5 w-5" />}
           trend="neutral"
           description="FCFA"
         />
@@ -97,7 +97,7 @@ const MobileVendeurs = () => {
         <KPICard
           title="Commandes"
           value={summary.total_commandes}
-          icon={ShoppingCart}
+          icon={<ShoppingCart className="h-5 w-5" />}
           trend="neutral"
           description="Total"
         />
@@ -105,7 +105,7 @@ const MobileVendeurs = () => {
         <KPICard
           title="Panier Moy."
           value={`${(summary.panier_moyen_global / 1000).toFixed(1)}k`}
-          icon={TrendingUp}
+          icon={<TrendingUp className="h-5 w-5" />}
           trend="neutral"
           description="FCFA"
         />
