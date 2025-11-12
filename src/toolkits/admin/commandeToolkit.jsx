@@ -2454,6 +2454,353 @@ export function usePaymentMethodAnalysis(methodId, days = 7) {
   };
 }
 
+/**
+ * Hook pour analyser les performances globales des vendeurs
+ * @param {number} days - Nombre de jours à analyser (par défaut 30)
+ * @returns {Object} - { vendeurs, loading, error, refetch, summary }
+ */
+export function useVendeursAnalytics(days = 30) {
+  const [vendeurs, setVendeurs] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchVendeursAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const vendeursMap = new Map();
+      const today = new Date();
+      let totalVentes = 0;
+      let totalCommandes = 0;
+
+      // Parcourir les N derniers jours
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+
+        const dayKey = `${String(date.getDate()).padStart(2, "0")}${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}${date.getFullYear()}`;
+
+        let commandes = [];
+
+        // Récupérer les commandes (archives ou today)
+        if (i > 0) {
+          const archiveRef = doc(db, `${VENTES_PATH}/${ARCHIVES_PATH}/${dayKey}`);
+          const archiveDoc = await getDoc(archiveRef);
+          if (archiveDoc.exists()) {
+            commandes = archiveDoc.data()?.liste || [];
+          }
+        } else {
+          const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+          const todayDoc = await getDoc(todayRef);
+          if (todayDoc.exists()) {
+            commandes = todayDoc.data()?.liste || [];
+          }
+        }
+
+        // Agréger par vendeur
+        commandes.forEach((cmd) => {
+          const vendeurId = cmd.createdBy;
+          if (!vendeursMap.has(vendeurId)) {
+            vendeursMap.set(vendeurId, {
+              userId: vendeurId,
+              nom: vendeurId, // Sera enrichi avec le nom réel côté frontend
+              total_commandes: 0,
+              total_ventes: 0,
+              commandes_par_jour: [],
+              articles_vendus: new Map(), // Pour tracker les articles
+            });
+          }
+
+          const vendeur = vendeursMap.get(vendeurId);
+          vendeur.total_commandes += 1;
+          vendeur.total_ventes += cmd.paiement.total;
+
+          // Tracker les articles vendus
+          cmd.details.forEach((detail) => {
+            const articleId = detail.id;
+            if (!vendeur.articles_vendus.has(articleId)) {
+              vendeur.articles_vendus.set(articleId, {
+                id: articleId,
+                denomination: detail.denomination,
+                quantite: 0,
+                total_ventes: 0,
+              });
+            }
+            const article = vendeur.articles_vendus.get(articleId);
+            article.quantite += detail.quantite;
+            article.total_ventes += detail.prixTotal;
+          });
+
+          totalCommandes += 1;
+          totalVentes += cmd.paiement.total;
+        });
+      }
+
+      // Convertir en array et enrichir
+      const vendeursArray = Array.from(vendeursMap.values()).map((vendeur) => ({
+        ...vendeur,
+        articles_vendus: Array.from(vendeur.articles_vendus.values())
+          .sort((a, b) => b.total_ventes - a.total_ventes)
+          .slice(0, 10), // Top 10 articles
+        panier_moyen: vendeur.total_commandes > 0
+          ? vendeur.total_ventes / vendeur.total_commandes
+          : 0,
+        pourcentage_ca: totalVentes > 0
+          ? (vendeur.total_ventes / totalVentes) * 100
+          : 0,
+      }));
+
+      // Trier par total des ventes (du plus grand au plus petit)
+      vendeursArray.sort((a, b) => b.total_ventes - a.total_ventes);
+
+      // Calculer le résumé global
+      const summaryData = {
+        total_vendeurs: vendeursArray.length,
+        total_ventes: totalVentes,
+        total_commandes: totalCommandes,
+        panier_moyen_global: totalCommandes > 0 ? totalVentes / totalCommandes : 0,
+        top_vendeur: vendeursArray.length > 0 ? vendeursArray[0] : null,
+        days,
+      };
+
+      setVendeurs(vendeursArray);
+      setSummary(summaryData);
+    } catch (err) {
+      console.error("❌ Erreur useVendeursAnalytics:", err);
+      setError(err.message);
+      setVendeurs([]);
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    fetchVendeursAnalytics();
+  }, [fetchVendeursAnalytics]);
+
+  return {
+    vendeurs,
+    summary,
+    loading,
+    error,
+    refetch: fetchVendeursAnalytics,
+  };
+}
+
+/**
+ * Hook pour analyser les performances détaillées d'un vendeur spécifique
+ * @param {string} vendeurId - ID du vendeur
+ * @param {number} days - Nombre de jours à analyser (par défaut 30)
+ * @returns {Object} - { vendeurStats, loading, error, refetch }
+ */
+export function useVendeurDetailAnalytics(vendeurId, days = 30) {
+  const [vendeurStats, setVendeurStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchVendeurDetail = useCallback(async () => {
+    if (!vendeurId) {
+      setVendeurStats(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const stats = {
+        userId: vendeurId,
+        nom: vendeurId,
+        total_commandes: 0,
+        total_ventes: 0,
+        evolution: [], // { date, commandes, ventes, panier_moyen }
+        articles_vendus: new Map(),
+        jours_semaine: {
+          lundi: { commandes: 0, ventes: 0 },
+          mardi: { commandes: 0, ventes: 0 },
+          mercredi: { commandes: 0, ventes: 0 },
+          jeudi: { commandes: 0, ventes: 0 },
+          vendredi: { commandes: 0, ventes: 0 },
+          samedi: { commandes: 0, ventes: 0 },
+          dimanche: { commandes: 0, ventes: 0 },
+        },
+        meilleur_jour: "",
+        trend: "stable",
+        trendPercentage: 0,
+        days,
+      };
+
+      const joursNoms = [
+        "dimanche",
+        "lundi",
+        "mardi",
+        "mercredi",
+        "jeudi",
+        "vendredi",
+        "samedi",
+      ];
+
+      const today = new Date();
+      let totalVentesGlobal = 0; // Pour calculer le pourcentage
+
+      // Parcourir les N derniers jours
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+
+        const dayKey = `${String(date.getDate()).padStart(2, "0")}${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}${date.getFullYear()}`;
+
+        const jourNom = joursNoms[date.getDay()];
+
+        let commandes = [];
+        let commandesJour = [];
+
+        // Récupérer les commandes (archives ou today)
+        if (i > 0) {
+          const archiveRef = doc(db, `${VENTES_PATH}/${ARCHIVES_PATH}/${dayKey}`);
+          const archiveDoc = await getDoc(archiveRef);
+          if (archiveDoc.exists()) {
+            commandes = archiveDoc.data()?.liste || [];
+          }
+        } else {
+          const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+          const todayDoc = await getDoc(todayRef);
+          if (todayDoc.exists()) {
+            commandes = todayDoc.data()?.liste || [];
+          }
+        }
+
+        // Filtrer les commandes du vendeur
+        commandesJour = commandes.filter((cmd) => cmd.createdBy === vendeurId);
+
+        // Calculer les ventes globales du jour (pour le pourcentage)
+        const ventesJourGlobal = commandes.reduce(
+          (sum, cmd) => sum + cmd.paiement.total,
+          0
+        );
+        totalVentesGlobal += ventesJourGlobal;
+
+        // Calculer les ventes du vendeur pour ce jour
+        const ventesJour = commandesJour.reduce(
+          (sum, cmd) => sum + cmd.paiement.total,
+          0
+        );
+
+        stats.total_commandes += commandesJour.length;
+        stats.total_ventes += ventesJour;
+
+        // Évolution quotidienne
+        stats.evolution.push({
+          date: dayKey,
+          dateFormatted: `${String(date.getDate()).padStart(2, "0")}/${String(
+            date.getMonth() + 1
+          ).padStart(2, "0")}`,
+          commandes: commandesJour.length,
+          ventes: ventesJour,
+          panier_moyen:
+            commandesJour.length > 0 ? ventesJour / commandesJour.length : 0,
+          pourcentage: ventesJourGlobal > 0 ? (ventesJour / ventesJourGlobal) * 100 : 0,
+        });
+
+        // Agréger par jour de la semaine
+        stats.jours_semaine[jourNom].commandes += commandesJour.length;
+        stats.jours_semaine[jourNom].ventes += ventesJour;
+
+        // Tracker les articles vendus
+        commandesJour.forEach((cmd) => {
+          cmd.details.forEach((detail) => {
+            const articleId = detail.id;
+            if (!stats.articles_vendus.has(articleId)) {
+              stats.articles_vendus.set(articleId, {
+                id: articleId,
+                denomination: detail.denomination,
+                quantite: 0,
+                total_ventes: 0,
+              });
+            }
+            const article = stats.articles_vendus.get(articleId);
+            article.quantite += detail.quantite;
+            article.total_ventes += detail.prixTotal;
+          });
+        });
+      }
+
+      // Convertir articles en array et trier
+      stats.articles_vendus = Array.from(stats.articles_vendus.values()).sort(
+        (a, b) => b.total_ventes - a.total_ventes
+      );
+
+      // Calculer le panier moyen
+      stats.panier_moyen =
+        stats.total_commandes > 0
+          ? stats.total_ventes / stats.total_commandes
+          : 0;
+
+      // Calculer le pourcentage du CA global
+      stats.pourcentage_ca_global =
+        totalVentesGlobal > 0 ? (stats.total_ventes / totalVentesGlobal) * 100 : 0;
+
+      // Trouver le meilleur jour
+      let maxVentes = 0;
+      Object.keys(stats.jours_semaine).forEach((jour) => {
+        if (stats.jours_semaine[jour].ventes > maxVentes) {
+          maxVentes = stats.jours_semaine[jour].ventes;
+          stats.meilleur_jour = jour;
+        }
+      });
+
+      // Calculer la tendance (première moitié vs seconde moitié)
+      if (stats.evolution.length > 1) {
+        const mid = Math.floor(stats.evolution.length / 2);
+        const firstHalf = stats.evolution
+          .slice(0, mid)
+          .reduce((sum, d) => sum + d.ventes, 0);
+        const secondHalf = stats.evolution
+          .slice(mid)
+          .reduce((sum, d) => sum + d.ventes, 0);
+
+        const avgFirst = firstHalf / mid;
+        const avgSecond = secondHalf / (stats.evolution.length - mid);
+
+        if (avgSecond > avgFirst * 1.05) {
+          stats.trend = "hausse";
+          stats.trendPercentage = ((avgSecond - avgFirst) / avgFirst) * 100;
+        } else if (avgSecond < avgFirst * 0.95) {
+          stats.trend = "baisse";
+          stats.trendPercentage = ((avgSecond - avgFirst) / avgFirst) * 100;
+        }
+      }
+
+      setVendeurStats(stats);
+    } catch (err) {
+      console.error("❌ Erreur useVendeurDetailAnalytics:", err);
+      setError(err.message);
+      setVendeurStats(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [vendeurId, days]);
+
+  useEffect(() => {
+    fetchVendeurDetail();
+  }, [fetchVendeurDetail]);
+
+  return {
+    vendeurStats,
+    loading,
+    error,
+    refetch: fetchVendeurDetail,
+  };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
