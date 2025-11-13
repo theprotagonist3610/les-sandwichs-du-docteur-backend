@@ -12,37 +12,37 @@ const Comptabilite = () => {
   const liste = [
     {
       nom: "Tableau de bord",
-      description: "Analyses statistiques",
+      description: "Tableau de bord des analyses comptables",
       to: "/admin/statistiques/comptabilite/dashboard",
       icon: LayoutDashboard,
     },
     {
       nom: "Budget",
-      description: "Analyses statistiques des ventes",
+      description: "Analyses statistiques du budget",
       to: "/admin/statistiques/comptabilite/budget",
       icon: Wallet,
     },
     {
       nom: "Prévisions",
-      description: "Analyses statistiques des vendeurs",
+      description: "Analyses statistiques prévisionnelle",
       to: "/admin/statistiques/comptabilite/previsions",
       icon: TrendingUpDown,
     },
     {
       nom: "Flux financier",
-      description: "Analyses statistiques du stock",
+      description: "Analyses statistiques du flux",
       to: "/admin/statistiques/comptabilite/analyse-flux",
       icon: ArrowLeftRight,
     },
     {
       nom: "Comparaisons",
-      description: "Analyses statistiques du flux financier",
+      description: "Analyses statistiques comparatives",
       to: "/admin/statistiques/comptabilite/comparaisons",
       icon: Diff,
     },
     {
       nom: "Insights",
-      description: "Analyses statistiques du flux des livraisons",
+      description: "Analyses statistiques et insights",
       to: "/admin/statistiques/comptabilite/insights",
       icon: Lightbulb,
     },
