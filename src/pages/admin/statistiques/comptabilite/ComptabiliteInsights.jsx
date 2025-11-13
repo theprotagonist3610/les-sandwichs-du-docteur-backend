@@ -364,7 +364,7 @@ const ComptabiliteInsights = () => {
 
         <KPICard
           title="Montant Moyen"
-          value={`${(ratios.montant_moyen_operation / 1000).toFixed(0)}k FCFA`}
+          value={`${((ratios.montant_moyen_operation || 0) / 1000).toFixed(0)}k FCFA`}
           icon={<Target className="h-6 w-6" />}
           subtitle="Par opération"
           hint="Montant moyen par transaction comptable. Permet de mesurer la taille typique de vos opérations financières."
