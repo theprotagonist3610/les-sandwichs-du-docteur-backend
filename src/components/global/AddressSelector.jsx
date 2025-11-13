@@ -33,7 +33,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { searchAdresses, createAdresse } from "@/toolkits/admin/adresseToolkit";
+import { createAdresse, useAdresses } from "@/toolkits/admin/adresseToolkit";
 import { toast } from "sonner";
 
 /**
@@ -67,6 +67,9 @@ const AddressSelector = ({
   const [newAddressValue, setNewAddressValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
+  // Charger toutes les adresses avec cache (optimisation)
+  const { adresses: allAdresses, loading: adressesLoading } = useAdresses();
+
   // Formater l'affichage de l'adresse sélectionnée
   const getDisplayValue = () => {
     if (!selectedAddress) return searchQuery;
@@ -80,38 +83,42 @@ const AddressSelector = ({
     return parts.join(", ") || searchQuery;
   };
 
-  // Charger les suggestions en fonction de la recherche
-  const loadSuggestions = useCallback(async (query) => {
-    if (!query || query.trim().length < 2) {
+  // Recherche locale optimisée (plus rapide qu'un appel API)
+  const loadSuggestions = useCallback((query) => {
+    if (!query || query.trim().length < 2 || !allAdresses || allAdresses.length === 0) {
       setSuggestions([]);
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    try {
-      const results = await searchAdresses(query);
+
+    // Recherche locale immédiate
+    const normalizedQuery = query.toLowerCase().trim();
+    const results = allAdresses.filter((addr) => {
       // Filtrer uniquement les adresses actives
-      const activeResults = results.filter((addr) => addr.statut !== false);
-      setSuggestions(activeResults);
+      if (addr.statut === false) return false;
 
-      if (activeResults.length === 0) {
-        setIsOpen(false);
-      }
-    } catch (error) {
-      console.error("Erreur recherche adresses:", error);
-      setSuggestions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      const nomMatch = addr.nom && addr.nom.toLowerCase().includes(normalizedQuery);
+      const deptMatch = addr.departement && addr.departement.toLowerCase().includes(normalizedQuery);
+      const communeMatch = addr.commune && addr.commune.toLowerCase().includes(normalizedQuery);
+      const arrondMatch = addr.arrondissement && addr.arrondissement.toLowerCase().includes(normalizedQuery);
+      const quartierMatch = addr.quartier && addr.quartier.toLowerCase().includes(normalizedQuery);
 
-  // Debounce de la recherche
+      return nomMatch || deptMatch || communeMatch || arrondMatch || quartierMatch;
+    });
+
+    setSuggestions(results);
+    setIsLoading(false);
+  }, [allAdresses]);
+
+  // Debounce de la recherche (réduit à 100ms pour plus de réactivité)
   useEffect(() => {
     if (!isOpen) return;
 
     const timeoutId = setTimeout(() => {
       loadSuggestions(searchQuery);
-    }, 300);
+    }, 100);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, loadSuggestions, isOpen]);
@@ -306,13 +313,13 @@ const AddressSelector = ({
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                if (!isOpen && e.target.value.length >= 2) {
+                if (!isOpen && e.target.value.length >= 1) {
                   setIsOpen(true);
                 }
               }}
               onKeyDown={handleKeyDown}
               onFocus={() => {
-                if (searchQuery.length >= 2) {
+                if (searchQuery.length >= 1) {
                   setIsOpen(true);
                 }
               }}
@@ -320,7 +327,7 @@ const AddressSelector = ({
               autoComplete="off"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {isLoading ? (
+              {isLoading || adressesLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               ) : (
                 <ChevronDown
@@ -334,9 +341,9 @@ const AddressSelector = ({
           </div>
         )}
 
-        {/* Popover de suggestions */}
+        {/* Popover de suggestions amélioré */}
         <AnimatePresence>
-          {isOpen && suggestions.length > 0 && !selectedAddress && (
+          {isOpen && searchQuery.length >= 1 && !selectedAddress && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -346,71 +353,76 @@ const AddressSelector = ({
             >
               <Card className="shadow-lg border-2">
                 <CardContent className="p-0">
-                  <div className="max-h-64 overflow-y-auto">
-                    {suggestions.map((addr, index) => (
-                      <button
-                        key={addr.id}
-                        type="button"
-                        onClick={() => handleSelectAddress(addr)}
-                        onMouseEnter={() => setSelectedIndex(index)}
-                        className={cn(
-                          "w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors border-b border-border last:border-b-0",
-                          "flex items-start justify-between gap-2",
-                          selectedIndex === index && "bg-accent"
-                        )}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                            <div className="font-medium text-sm truncate">
-                              {formatAddressLabel(addr)}
+                  {/* État de chargement */}
+                  {(isLoading || adressesLoading) && (
+                    <div className="px-4 py-6 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        {adressesLoading ? "Chargement des adresses..." : "Recherche en cours..."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Liste des résultats */}
+                  {!isLoading && !adressesLoading && suggestions.length > 0 && (
+                    <div className="max-h-64 overflow-y-auto border-b border-border">
+                      {suggestions.map((addr, index) => (
+                        <button
+                          key={addr.id}
+                          type="button"
+                          onClick={() => handleSelectAddress(addr)}
+                          onMouseEnter={() => setSelectedIndex(index)}
+                          className={cn(
+                            "w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors border-b border-border last:border-b-0",
+                            "flex items-start justify-between gap-2",
+                            selectedIndex === index && "bg-accent"
+                          )}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <div className="font-medium text-sm truncate">
+                                {formatAddressLabel(addr)}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground capitalize">
+                              {addr.departement}
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground capitalize">
-                            {addr.departement}
-                          </div>
-                        </div>
-                        {selectedIndex === index && (
-                          <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                          {selectedIndex === index && (
+                            <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Message aucun résultat */}
+                  {!isLoading && !adressesLoading && suggestions.length === 0 && searchQuery.length >= 2 && (
+                    <div className="px-4 py-3 text-center text-sm text-muted-foreground border-b border-border">
+                      Aucune adresse trouvée pour "{searchQuery}"
+                    </div>
+                  )}
+
+                  {/* Bouton créer nouvelle adresse (toujours visible) */}
+                  {!isLoading && !adressesLoading && searchQuery.length >= 2 && (
+                    <div className="p-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleOpenCreateDialog}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Créer une nouvelle adresse
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Message si aucun résultat + Bouton créer */}
-        {isOpen &&
-          searchQuery.length >= 2 &&
-          suggestions.length === 0 &&
-          !isLoading &&
-          !selectedAddress && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute z-50 w-full mt-1"
-            >
-              <Card className="border-2">
-                <CardContent className="p-4 space-y-3">
-                  <p className="text-center text-sm text-muted-foreground">
-                    Aucune adresse trouvée pour "{searchQuery}"
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleOpenCreateDialog}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Créer cette adresse
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
       </div>
 
       {/* Champ de description (précisions) */}
