@@ -885,3 +885,296 @@ export function useTresorerie() {
     refetch: calculateSoldes,
   };
 }
+
+// ============================================================================
+// HOOKS BUDGETS
+// ============================================================================
+
+/**
+ * Hook pour récupérer la liste de tous les budgets
+ */
+export function useBudgetsList() {
+  const [budgets, setBudgets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchBudgets = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { getAllBudgets } = await import("./budgets");
+      const data = await getAllBudgets();
+      setBudgets(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur récupération budgets:", err);
+      setError(err);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBudgets();
+  }, [fetchBudgets]);
+
+  // Écouter les changements RTDB
+  useEffect(() => {
+    const triggerRef = ref(rtdb, RTDB_COMPTA_TRIGGER_PATH);
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const latestTrigger = Object.values(data).pop();
+        if (
+          latestTrigger &&
+          ["budget_created", "budget_updated", "budget_deleted"].includes(
+            latestTrigger.action
+          )
+        ) {
+          console.log("🔄 Trigger budget détecté, rechargement...");
+          fetchBudgets();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchBudgets]);
+
+  return { budgets, loading, error, refetch: fetchBudgets };
+}
+
+/**
+ * Hook pour récupérer le budget actif d'un mois
+ * @param {string} moisKey - Format MMYYYY
+ */
+export function useBudgetByMois(moisKey) {
+  const [budget, setBudget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchBudget = useCallback(async () => {
+    if (!moisKey) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { getBudgetActif } = await import("./budgets");
+      const data = await getBudgetActif(moisKey);
+      setBudget(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur récupération budget mois:", err);
+      setError(err);
+      setLoading(false);
+    }
+  }, [moisKey]);
+
+  useEffect(() => {
+    fetchBudget();
+  }, [fetchBudget]);
+
+  // Écouter les changements RTDB
+  useEffect(() => {
+    const triggerRef = ref(rtdb, RTDB_COMPTA_TRIGGER_PATH);
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const latestTrigger = Object.values(data).pop();
+        if (
+          latestTrigger &&
+          ["budget_created", "budget_updated", "budget_deleted"].includes(
+            latestTrigger.action
+          )
+        ) {
+          console.log("🔄 Trigger budget détecté, rechargement...");
+          fetchBudget();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchBudget]);
+
+  return { budget, loading, error, refetch: fetchBudget };
+}
+
+/**
+ * Hook pour récupérer un budget par son ID
+ * @param {string} budgetId - ID du budget
+ */
+export function useBudgetById(budgetId) {
+  const [budget, setBudget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchBudget = useCallback(async () => {
+    if (!budgetId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { getBudgetById } = await import("./budgets");
+      const data = await getBudgetById(budgetId);
+      setBudget(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur récupération budget:", err);
+      setError(err);
+      setLoading(false);
+    }
+  }, [budgetId]);
+
+  useEffect(() => {
+    fetchBudget();
+  }, [fetchBudget]);
+
+  // Écouter les changements RTDB
+  useEffect(() => {
+    if (!budgetId) return;
+
+    const triggerRef = ref(rtdb, RTDB_COMPTA_TRIGGER_PATH);
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const latestTrigger = Object.values(data).pop();
+        if (
+          latestTrigger &&
+          latestTrigger.action === "budget_updated" &&
+          latestTrigger.budgetId === budgetId
+        ) {
+          console.log("🔄 Trigger budget détecté, rechargement...");
+          fetchBudget();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [budgetId, fetchBudget]);
+
+  return { budget, loading, error, refetch: fetchBudget };
+}
+
+/**
+ * Hook pour récupérer un budget avec réalisation
+ * @param {string} budgetId - ID du budget
+ */
+export function useBudgetAvecRealisation(budgetId) {
+  const [budget, setBudget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchBudgetRealisation = useCallback(async () => {
+    if (!budgetId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { calculerRealisationBudget } = await import("./budgets");
+      const data = await calculerRealisationBudget(budgetId);
+      setBudget(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur calcul réalisation budget:", err);
+      setError(err);
+      setLoading(false);
+    }
+  }, [budgetId]);
+
+  useEffect(() => {
+    fetchBudgetRealisation();
+  }, [fetchBudgetRealisation]);
+
+  // Écouter les changements RTDB (stats ou budget)
+  useEffect(() => {
+    if (!budgetId) return;
+
+    const triggerRef = ref(rtdb, RTDB_COMPTA_TRIGGER_PATH);
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const latestTrigger = Object.values(data).pop();
+        if (
+          latestTrigger &&
+          (latestTrigger.action === "stats_updated" ||
+            (latestTrigger.action === "budget_updated" &&
+              latestTrigger.budgetId === budgetId))
+        ) {
+          console.log("🔄 Trigger détecté, recalcul réalisation...");
+          fetchBudgetRealisation();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [budgetId, fetchBudgetRealisation]);
+
+  return { budget, loading, error, refetch: fetchBudgetRealisation };
+}
+
+/**
+ * Hook pour récupérer les alertes d'un budget
+ * @param {string} budgetId - ID du budget
+ */
+export function useBudgetAlertes(budgetId) {
+  const [alertes, setAlertes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAlertes = useCallback(async () => {
+    if (!budgetId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { verifierAlertesBudget } = await import("./budgets");
+      const data = await verifierAlertesBudget(budgetId);
+      setAlertes(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Erreur récupération alertes budget:", err);
+      setError(err);
+      setLoading(false);
+    }
+  }, [budgetId]);
+
+  useEffect(() => {
+    fetchAlertes();
+  }, [fetchAlertes]);
+
+  // Écouter les changements RTDB
+  useEffect(() => {
+    if (!budgetId) return;
+
+    const triggerRef = ref(rtdb, RTDB_COMPTA_TRIGGER_PATH);
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const latestTrigger = Object.values(data).pop();
+        if (
+          latestTrigger &&
+          (latestTrigger.action === "stats_updated" ||
+            (latestTrigger.action === "budget_updated" &&
+              latestTrigger.budgetId === budgetId))
+        ) {
+          console.log("🔄 Trigger détecté, recalcul alertes...");
+          fetchAlertes();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [budgetId, fetchAlertes]);
+
+  return { alertes, loading, error, refetch: fetchAlertes };
+}

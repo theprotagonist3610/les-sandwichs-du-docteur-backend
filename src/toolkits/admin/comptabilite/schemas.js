@@ -166,3 +166,65 @@ export const operationsListeSchema = z.object({
   operations: z.array(operationSchema).default([]),
   lastUpdated: z.number().positive(),
 });
+
+// ============================================================================
+// SCHEMAS BUDGETS
+// ============================================================================
+
+/**
+ * Schema pour une ligne de budget
+ */
+export const ligneBudgetSchema = z.object({
+  compte_id: z.string().min(1, "Le compte_id est requis"),
+  code_ohada: z.string().min(1, "Le code OHADA est requis"),
+  denomination: z.string().min(1, "La dénomination est requise"),
+  categorie: z.enum(["entree", "sortie"], {
+    errorMap: () => ({ message: "La catégorie doit être 'entree' ou 'sortie'" }),
+  }),
+  montant_previsionnel: z.number().positive("Le montant prévisionnel doit être positif"),
+  seuil_alerte: z.number().min(0).max(100).default(80), // Pourcentage avant alerte
+});
+
+/**
+ * Schema pour un budget prévisionnel
+ */
+export const budgetSchema = z.object({
+  id: z.string().min(1, "L'ID est requis"), // budget_nano(10)
+  mois: z.string().regex(/^\d{6}$/, "Le mois doit être au format MMYYYY"),
+  nom: z.string().min(1, "Le nom est requis"),
+  description: z.string().optional().default(""),
+  montant_total_previsionnel: z.number().positive("Le montant total doit être positif"),
+  statut: z.enum(["actif", "archive", "depasse"]).default("actif"),
+  lignes_budget: z.array(ligneBudgetSchema).min(1, "Au moins une ligne de budget est requise"),
+  createdBy: z.string().min(1, "createdBy est requis"),
+  updatedBy: z.string().optional(),
+  createdAt: z.number().positive("createdAt doit être positif"),
+  updatedAt: z.number().positive("updatedAt doit être positif"),
+});
+
+/**
+ * Schema pour une ligne de budget avec réalisation
+ */
+export const ligneBudgetAvecRealisationSchema = ligneBudgetSchema.extend({
+  montant_realise: z.number().default(0),
+  nombre_operations: z.number().default(0),
+  taux_realisation: z.number().default(0), // Pourcentage
+  alerte_active: z.boolean().default(false),
+});
+
+/**
+ * Schema pour un budget avec réalisation (pour affichage)
+ */
+export const budgetAvecRealisationSchema = budgetSchema.extend({
+  lignes_budget_avec_realisation: z.array(ligneBudgetAvecRealisationSchema).default([]),
+  montant_total_realise: z.number().default(0),
+  taux_realisation_global: z.number().default(0), // Pourcentage
+});
+
+/**
+ * Schema pour un document de budgets (collection)
+ */
+export const budgetsListeSchema = z.object({
+  budgets: z.array(budgetSchema).default([]),
+  lastUpdated: z.number().positive(),
+});
