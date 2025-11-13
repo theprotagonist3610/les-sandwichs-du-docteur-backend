@@ -1,6 +1,12 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { TrendingUp, TrendingDown, Minus, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,6 +18,7 @@ import { cn } from "@/lib/utils";
  * @param {ReactNode} icon - Icône du KPI
  * @param {string} color - Couleur: "green" | "blue" | "purple" | "orange" | "red"
  * @param {string} subtitle - Sous-titre optionnel
+ * @param {string} hint - Texte d'aide/explication (tooltip)
  */
 const KPICard = ({
   title,
@@ -21,6 +28,7 @@ const KPICard = ({
   icon,
   color = "blue",
   subtitle,
+  hint,
   className,
 }) => {
   const getTrendIcon = () => {
@@ -34,7 +42,21 @@ const KPICard = ({
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium opacity-70">{title}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium opacity-70">{title}</p>
+              {hint && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 opacity-50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">{hint}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <p className="text-2xl font-bold mt-2">{value}</p>
 
             {subtitle && (
