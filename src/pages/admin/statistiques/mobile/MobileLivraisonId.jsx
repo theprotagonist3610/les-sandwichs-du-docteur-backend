@@ -75,9 +75,11 @@ const MobileLivraisonId = () => {
     return zoneData.arrondissements || [];
   }, [zoneData, type]);
 
-  const filteredSousZones = sousZones.filter((zone) =>
-    zone.nom.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSousZones = useMemo(() => {
+    return sousZones.filter((zone) =>
+      zone.nom.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [sousZones, searchTerm]);
 
   if (loading) {
     return (

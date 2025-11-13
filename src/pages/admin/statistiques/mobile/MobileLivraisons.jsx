@@ -48,6 +48,14 @@ const MobileLivraisons = () => {
     adresses
   );
 
+  // Filtrer les communes selon la recherche (calculé même pendant le chargement)
+  const filteredCommunes = useMemo(() => {
+    if (!stats || !stats.zones || !stats.zones.parCommune) return [];
+    return stats.zones.parCommune.filter((zone) =>
+      zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [stats, searchTerm]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
@@ -75,11 +83,6 @@ const MobileLivraisons = () => {
       </div>
     );
   }
-
-  // Filtrer les communes selon la recherche
-  const filteredCommunes = stats.zones.parCommune.filter((zone) =>
-    zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const getPeriodLabel = () => {
     switch (period) {
