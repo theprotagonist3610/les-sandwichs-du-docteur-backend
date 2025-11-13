@@ -40,6 +40,7 @@ import usePanneauDeVenteStore from "@/stores/admin/panneauDeVenteStore";
 import { CreateCommande } from "@/toolkits/admin/commandeToolkit";
 import { useNavigate } from "react-router-dom";
 import { auth } from "@/firebase";
+import AddressSelector from "@/components/global/AddressSelector";
 
 // Composant pavé numérique
 const NumericKeypad = ({ value, onChange, onSubmit, onCancel, label }) => {
@@ -129,6 +130,7 @@ const MobileALivrer = () => {
     contact: "",
   });
   const [fraisLivraison, setFraisLivraison] = useState(0);
+  const [selectedAddressComplete, setSelectedAddressComplete] = useState(null);
 
   // Charger les données depuis le store
   const pointDeVente = usePanneauDeVenteStore((state) => state.pointDeVente);
@@ -152,6 +154,10 @@ const MobileALivrer = () => {
     (state) => state.setCommentaire
   );
   const resetCommande = usePanneauDeVenteStore((state) => state.resetCommande);
+
+  // Adresse de livraison
+  const adresseLivraison = usePanneauDeVenteStore((state) => state.adresseLivraison);
+  const setAdresseLivraison = usePanneauDeVenteStore((state) => state.setAdresseLivraison);
 
   // Calculs automatiques
   const totalAvecLivraison = total + fraisLivraison;
@@ -218,6 +224,11 @@ const MobileALivrer = () => {
       return;
     }
 
+    if (!selectedAddressComplete || !selectedAddressComplete.id) {
+      toast.error("L'adresse de livraison est requise");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -250,6 +261,10 @@ const MobileALivrer = () => {
         statut: "non livree",
         ...(dateHeureLivraison && { date_heure_livraison: dateHeureLivraison }),
         ...(personneALivrerData && { personne_a_livrer: personneALivrerData }),
+        adresse_livraison: {
+          id: selectedAddressComplete.id,
+          description: adresseLivraison?.description || "",
+        },
         paiement: {
           ...paiement,
           livraison: fraisLivraison,
@@ -399,6 +414,37 @@ const MobileALivrer = () => {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Adresse de livraison (REQUIS) */}
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.25 }}>
+            <Card>
+              <CardContent className="p-3">
+                <AddressSelector
+                  selectedAddress={selectedAddressComplete}
+                  onSelectAddress={(addr) => {
+                    setSelectedAddressComplete(addr);
+                    if (addr) {
+                      setAdresseLivraison({ id: addr.id, description: "" });
+                    } else {
+                      setAdresseLivraison(null);
+                    }
+                  }}
+                  description={adresseLivraison?.description || ""}
+                  onDescriptionChange={(desc) => {
+                    setAdresseLivraison({
+                      id: selectedAddressComplete?.id,
+                      description: desc,
+                    });
+                  }}
+                  required
+                  className="[&_label]:text-xs [&_input]:h-8 [&_input]:text-xs [&_button]:h-8 [&_p]:text-xs"
+                />
               </CardContent>
             </Card>
           </motion.div>

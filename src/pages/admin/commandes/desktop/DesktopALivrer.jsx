@@ -33,6 +33,7 @@ import usePanneauDeVenteStore from "@/stores/admin/panneauDeVenteStore";
 import { CreateCommande } from "@/toolkits/admin/commandeToolkit";
 import { useNavigate } from "react-router-dom";
 import { auth } from "@/firebase";
+import AddressSelector from "@/components/global/AddressSelector";
 
 const DesktopALivrer = () => {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ const DesktopALivrer = () => {
     contact: "",
   });
   const [fraisLivraison, setFraisLivraison] = useState(0);
+  const [selectedAddressComplete, setSelectedAddressComplete] = useState(null);
 
   // Charger les données depuis le store
   const pointDeVente = usePanneauDeVenteStore((state) => state.pointDeVente);
@@ -69,6 +71,10 @@ const DesktopALivrer = () => {
     (state) => state.setCommentaire
   );
   const resetCommande = usePanneauDeVenteStore((state) => state.resetCommande);
+
+  // Adresse de livraison
+  const adresseLivraison = usePanneauDeVenteStore((state) => state.adresseLivraison);
+  const setAdresseLivraison = usePanneauDeVenteStore((state) => state.setAdresseLivraison);
 
   // Calculs automatiques
   const totalAvecLivraison = total + fraisLivraison;
@@ -105,6 +111,11 @@ const DesktopALivrer = () => {
       return;
     }
 
+    if (!selectedAddressComplete || !selectedAddressComplete.id) {
+      toast.error("L'adresse de livraison est requise");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -134,6 +145,10 @@ const DesktopALivrer = () => {
         statut: "non livree",
         ...(dateHeureLivraison && { date_heure_livraison: dateHeureLivraison }),
         ...(personneALivrerData && { personne_a_livrer: personneALivrerData }),
+        adresse_livraison: {
+          id: selectedAddressComplete.id,
+          description: adresseLivraison?.description || "",
+        },
         paiement: {
           ...paiement,
           livraison: fraisLivraison,
@@ -367,15 +382,45 @@ const DesktopALivrer = () => {
                 </Card>
               </motion.div>
 
-              {/* Personne à livrer */}
+              {/* Adresse de livraison */}
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3 }}>
                 <Card>
                   <CardContent className="p-4">
+                    <AddressSelector
+                      selectedAddress={selectedAddressComplete}
+                      onSelectAddress={(addr) => {
+                        setSelectedAddressComplete(addr);
+                        if (addr) {
+                          setAdresseLivraison({ id: addr.id, description: "" });
+                        } else {
+                          setAdresseLivraison(null);
+                        }
+                      }}
+                      description={adresseLivraison?.description || ""}
+                      onDescriptionChange={(desc) => {
+                        setAdresseLivraison({
+                          id: selectedAddressComplete?.id,
+                          description: desc
+                        });
+                      }}
+                      required
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Personne à livrer */}
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}>
+                <Card>
+                  <CardContent className="p-4">
                     <h2 className="font-semibold mb-4 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
+                      <User className="w-4 h-4" />
                       Personne à livrer (optionnel)
                     </h2>
                     <div className="grid grid-cols-2 gap-4">
@@ -427,7 +472,7 @@ const DesktopALivrer = () => {
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4 }}>
+                transition={{ delay: 0.5 }}>
                 <Card>
                   <CardContent className="p-4">
                     <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -578,7 +623,7 @@ const DesktopALivrer = () => {
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.5 }}>
+                  transition={{ delay: 0.6 }}>
                   <Card>
                     <CardContent className="p-4">
                       <h2 className="font-semibold mb-3 flex items-center gap-2">
@@ -598,7 +643,7 @@ const DesktopALivrer = () => {
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.6 }}>
+                  transition={{ delay: 0.7 }}>
                   <Card>
                     <CardContent className="p-4">
                       <h2 className="font-semibold mb-3 flex items-center gap-2">

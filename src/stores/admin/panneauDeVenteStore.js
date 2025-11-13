@@ -38,6 +38,9 @@ const usePanneauDeVenteStore = create(
       // Personne à livrer (pour type "a livrer")
       personneALivrer: null, // { nom, contact }
 
+      // Adresse de livraison (pour type "a livrer")
+      adresseLivraison: null, // { id, description } - id référence vers adresseToolkit
+
       // Paiement
       paiement: {
         total: 0,
@@ -215,6 +218,9 @@ const usePanneauDeVenteStore = create(
       setPersonneALivrer: (personneALivrer) =>
         set({ personneALivrer }, false, "setPersonneALivrer"),
 
+      setAdresseLivraison: (adresseLivraison) =>
+        set({ adresseLivraison }, false, "setAdresseLivraison"),
+
       // ========================================
       // Actions - Paiement
       // ========================================
@@ -253,6 +259,7 @@ const usePanneauDeVenteStore = create(
             statut: "non servi",
             dateHeureLivraison: null,
             personneALivrer: null,
+            adresseLivraison: null,
             paiement: {
               total: 0,
               livraison: 0,
