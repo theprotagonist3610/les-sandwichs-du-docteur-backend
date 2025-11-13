@@ -63,6 +63,56 @@ const DesktopLivraisons = () => {
     adresses
   );
 
+  // Filtrer les communes selon la recherche (calculé même pendant le chargement)
+  const filteredCommunes = useMemo(() => {
+    if (!stats || !stats.zones || !stats.zones.parCommune) return [];
+    return stats.zones.parCommune.filter((zone) =>
+      zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [stats, searchTerm]);
+
+  // Préparer les données pour le graphique des délais par tranche horaire
+  const delaisParTrancheData = useMemo(() => {
+    if (!stats || !stats.delais || !stats.delais.parTrancheHoraire) return [];
+    return stats.delais.parTrancheHoraire.map((item) => ({
+      heure: item.heure,
+      delai: item.delaiMoyen,
+      livraisons: item.nombreLivraisons,
+    }));
+  }, [stats]);
+
+  // Préparer les données pour le graphique des horaires courtants
+  const horairesData = useMemo(() => {
+    if (!stats || !stats.horairesCourtants) return [];
+
+    // Combiner les commandes et livraisons
+    const horaireMap = new Map();
+
+    stats.horairesCourtants.commandes.forEach((item) => {
+      horaireMap.set(item.heure, {
+        heure: item.heure,
+        commandes: item.count,
+        livraisons: 0,
+      });
+    });
+
+    stats.horairesCourtants.livraisons.forEach((item) => {
+      if (horaireMap.has(item.heure)) {
+        horaireMap.get(item.heure).livraisons = item.count;
+      } else {
+        horaireMap.set(item.heure, {
+          heure: item.heure,
+          commandes: 0,
+          livraisons: item.count,
+        });
+      }
+    });
+
+    return Array.from(horaireMap.values()).sort((a, b) =>
+      a.heure.localeCompare(b.heure)
+    );
+  }, [stats]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -90,48 +140,6 @@ const DesktopLivraisons = () => {
       </div>
     );
   }
-
-  // Filtrer les communes selon la recherche
-  const filteredCommunes = stats.zones.parCommune.filter((zone) =>
-    zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Préparer les données pour le graphique des délais par tranche horaire
-  const delaisParTrancheData = stats.delais.parTrancheHoraire.map((item) => ({
-    heure: item.heure,
-    delai: item.delaiMoyen,
-    livraisons: item.nombreLivraisons,
-  }));
-
-  // Préparer les données pour le graphique des horaires courtants
-  const horairesData = useMemo(() => {
-    // Combiner les commandes et livraisons
-    const horaireMap = new Map();
-
-    stats.horairesCourtants.commandes.forEach((item) => {
-      horaireMap.set(item.heure, {
-        heure: item.heure,
-        commandes: item.count,
-        livraisons: 0,
-      });
-    });
-
-    stats.horairesCourtants.livraisons.forEach((item) => {
-      if (horaireMap.has(item.heure)) {
-        horaireMap.get(item.heure).livraisons = item.count;
-      } else {
-        horaireMap.set(item.heure, {
-          heure: item.heure,
-          commandes: 0,
-          livraisons: item.count,
-        });
-      }
-    });
-
-    return Array.from(horaireMap.values()).sort((a, b) =>
-      a.heure.localeCompare(b.heure)
-    );
-  }, [stats.horairesCourtants]);
 
   // Export CSV
   const handleExportCSV = () => {
