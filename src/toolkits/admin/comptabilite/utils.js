@@ -170,6 +170,113 @@ export function getDaysInMonth(monthKey) {
 }
 
 // ============================================================================
+// FORMATAGE DE DATES LISIBLES
+// ============================================================================
+
+/**
+ * Formate une clé de jour (DDMMYYYY) en format lisible français
+ * @param {string} dayKey - Format DDMMYYYY
+ * @param {Object} options - Options de formatage
+ * @param {boolean} options.short - Format court (10 Nov. 2025) vs long (10 novembre 2025)
+ * @returns {string} Date formatée
+ */
+export function formatDayKeyReadable(dayKey, options = { short: true }) {
+  if (!dayKey || dayKey.length !== 8) return dayKey;
+
+  const day = parseInt(dayKey.substring(0, 2), 10);
+  const month = parseInt(dayKey.substring(2, 4), 10);
+  const year = parseInt(dayKey.substring(4, 8), 10);
+
+  const date = new Date(year, month - 1, day);
+
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: options.short ? 'short' : 'long',
+    year: 'numeric'
+  });
+}
+
+/**
+ * Formate une clé de mois (MMYYYY) en format lisible français
+ * @param {string} monthKey - Format MMYYYY
+ * @param {Object} options - Options de formatage
+ * @param {boolean} options.short - Format court (Nov. 2025) vs long (Novembre 2025)
+ * @param {boolean} options.capitalize - Capitaliser le mois
+ * @returns {string} Mois formaté
+ */
+export function formatMonthKeyReadable(monthKey, options = { short: false, capitalize: true }) {
+  if (!monthKey || monthKey.length !== 6) return monthKey;
+
+  const month = parseInt(monthKey.substring(0, 2), 10);
+  const year = parseInt(monthKey.substring(2, 6), 10);
+
+  const date = new Date(year, month - 1, 1);
+
+  let formatted = date.toLocaleDateString('fr-FR', {
+    month: options.short ? 'short' : 'long',
+    year: 'numeric'
+  });
+
+  // Capitaliser la première lettre si demandé
+  if (options.capitalize) {
+    formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+
+  return formatted;
+}
+
+/**
+ * Formate une clé de semaine (DDMMYYYY-DDMMYYYY) en format lisible
+ * @param {string} weekKey - Format DDMMYYYY-DDMMYYYY
+ * @param {Object} options - Options de formatage
+ * @param {boolean} options.short - Format court
+ * @returns {string} Semaine formatée (ex: "10 Nov. - 16 Nov. 2025")
+ */
+export function formatWeekKeyReadable(weekKey, options = { short: true }) {
+  if (!weekKey || !weekKey.includes('-')) return weekKey;
+
+  const [debutKey, finKey] = weekKey.split('-');
+
+  const debutDay = parseInt(debutKey.substring(0, 2), 10);
+  const debutMonth = parseInt(debutKey.substring(2, 4), 10);
+  const debutYear = parseInt(debutKey.substring(4, 8), 10);
+
+  const finDay = parseInt(finKey.substring(0, 2), 10);
+  const finMonth = parseInt(finKey.substring(2, 4), 10);
+  const finYear = parseInt(finKey.substring(4, 8), 10);
+
+  const debutDate = new Date(debutYear, debutMonth - 1, debutDay);
+  const finDate = new Date(finYear, finMonth - 1, finDay);
+
+  const formatOptions = {
+    day: 'numeric',
+    month: options.short ? 'short' : 'long'
+  };
+
+  const debutFormatted = debutDate.toLocaleDateString('fr-FR', formatOptions);
+
+  // Si même année, on ne met l'année qu'à la fin
+  if (debutYear === finYear) {
+    const finFormatted = finDate.toLocaleDateString('fr-FR', {
+      ...formatOptions,
+      year: 'numeric'
+    });
+    return `${debutFormatted} - ${finFormatted}`;
+  } else {
+    // Années différentes, on met l'année pour les deux
+    const debutWithYear = debutDate.toLocaleDateString('fr-FR', {
+      ...formatOptions,
+      year: 'numeric'
+    });
+    const finWithYear = finDate.toLocaleDateString('fr-FR', {
+      ...formatOptions,
+      year: 'numeric'
+    });
+    return `${debutWithYear} - ${finWithYear}`;
+  }
+}
+
+// ============================================================================
 // GESTION DU CACHE LOCAL
 // ============================================================================
 
