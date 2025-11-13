@@ -29,6 +29,16 @@ import Ventes from "@/pages/admin/statistiques/Ventes";
 import ComptabiliteId from "@/pages/admin/statistiques/ComptabiliteId";
 import Comptabilite from "@/pages/admin/statistiques/Comptabilite";
 
+// Imports pour le système de comptabilité étendu
+import ComptabiliteDashboard from "@/pages/admin/statistiques/comptabilite/ComptabiliteDashboard";
+import ComptabiliteBudget from "@/pages/admin/statistiques/comptabilite/budget/ComptabiliteBudget";
+import ComptabiliteBudgetCreer from "@/pages/admin/statistiques/comptabilite/budget/ComptabiliteBudgetCreer";
+import ComptabiliteBudgetId from "@/pages/admin/statistiques/comptabilite/budget/ComptabiliteBudgetId";
+import ComptabilitePrevisions from "@/pages/admin/statistiques/comptabilite/ComptabilitePrevisions";
+import ComptabiliteAnalyseFlux from "@/pages/admin/statistiques/comptabilite/ComptabiliteAnalyseFlux";
+import ComptabiliteComparaisons from "@/pages/admin/statistiques/comptabilite/ComptabiliteComparaisons";
+import ComptabiliteInsights from "@/pages/admin/statistiques/comptabilite/ComptabiliteInsights";
+
 // Import des composants pour chaque section
 // À décommenter et créer au fur et à mesure
 export const statistiqueSubRoutes = [
@@ -140,14 +150,65 @@ export const statistiqueSubRoutes = [
   {
     path: "comptabilite",
     nom: "Comptabilité",
-    description: "Analyse du flux comptable",
+    description: "Analyse du flux comptable et gestion financière",
     url: "/users.svg",
-    component: Comptabilite, // ✅ Composant activé
+    component: Comptabilite, // ✅ Dashboard principal
     children: [
       {
-        path: ":id",
-        nom: "Analyse statistique du flux commercial d'un emplacement",
-        component: ComptabiliteId, // ✅ Composant activé
+        path: "dashboard",
+        nom: "Vue d'ensemble",
+        description: "Tableau de bord financier complet avec KPIs et graphiques",
+        component: ComptabiliteDashboard,
+      },
+      {
+        path: "budget",
+        nom: "Budget Prévisionnel",
+        description: "Gestion et suivi des budgets mensuels",
+        component: ComptabiliteBudget,
+        children: [
+          {
+            path: "creer",
+            nom: "Créer un budget",
+            description: "Définir un nouveau budget mensuel",
+            component: ComptabiliteBudgetCreer,
+          },
+          {
+            path: ":budgetId",
+            nom: "Détails du budget",
+            description: "Suivi détaillé d'un budget spécifique",
+            component: ComptabiliteBudgetId,
+          },
+        ],
+      },
+      {
+        path: "previsions",
+        nom: "Prévisions",
+        description: "Projections financières à 30, 60 et 90 jours",
+        component: ComptabilitePrevisions,
+      },
+      {
+        path: "analyse-flux",
+        nom: "Analyse de Flux",
+        description: "Visualisation des flux de trésorerie avec Sankey diagram",
+        component: ComptabiliteAnalyseFlux,
+      },
+      {
+        path: "comptes/:compteId",
+        nom: "Détails d'un compte",
+        description: "Historique et tendances d'un compte comptable",
+        component: ComptabiliteId,
+      },
+      {
+        path: "comparaisons",
+        nom: "Comparaisons",
+        description: "Comparer différentes périodes comptables",
+        component: ComptabiliteComparaisons,
+      },
+      {
+        path: "insights",
+        nom: "Insights",
+        description: "Analyses automatiques et recommandations intelligentes",
+        component: ComptabiliteInsights,
       },
     ],
   },
