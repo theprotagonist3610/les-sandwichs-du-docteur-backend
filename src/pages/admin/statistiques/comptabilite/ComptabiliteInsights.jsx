@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useInsightsMois } from "@/toolkits/admin/comptabiliteToolkit";
 import { formatMonthKey } from "@/toolkits/admin/comptabilite/utils";
+import { calculerScoreSante } from "@/toolkits/admin/comptabilite/insights";
 import KPICard from "@/components/statistics/cards/KPICard";
 import {
   CircularProgressbar,
@@ -68,7 +69,6 @@ const ComptabiliteInsights = () => {
       };
     }
 
-    const { calculerScoreSante } = require("@/toolkits/admin/comptabilite/insights");
     const { resume, ratios } = insights;
 
     // On a besoin des stats complètes, on les reconstruit à partir du résumé et ratios
