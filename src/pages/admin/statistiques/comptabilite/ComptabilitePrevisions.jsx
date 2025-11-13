@@ -38,7 +38,7 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import { usePrevisions } from "@/toolkits/admin/comptabiliteToolkit";
+import { usePrevisions, formatMonthKeyReadable } from "@/toolkits/admin/comptabiliteToolkit";
 import KPICard from "@/components/statistics/cards/KPICard";
 
 const ComptabilitePrevisions = () => {
@@ -287,6 +287,7 @@ const ComptabilitePrevisions = () => {
                 dataKey="periode"
                 stroke="#6b7280"
                 style={{ fontSize: "12px" }}
+                tickFormatter={(moisKey) => formatMonthKeyReadable(moisKey, { short: true, capitalize: false })}
               />
               <YAxis
                 stroke="#6b7280"
@@ -341,6 +342,7 @@ const ComptabilitePrevisions = () => {
                 dataKey="mois"
                 stroke="#6b7280"
                 style={{ fontSize: "12px" }}
+                tickFormatter={(moisKey) => formatMonthKeyReadable(moisKey, { short: true, capitalize: false })}
               />
               <YAxis
                 stroke="#6b7280"
@@ -522,7 +524,7 @@ const ComptabilitePrevisions = () => {
                   const soldeStatus = mois.solde >= 0 ? "Excédent" : "Déficit";
                   return (
                     <tr key={index} className="border-b hover:bg-accent/50 transition-colors">
-                      <td className="p-3 font-medium">{mois.mois}</td>
+                      <td className="p-3 font-medium">{formatMonthKeyReadable(mois.mois)}</td>
                       <td className="p-3 text-right text-green-600 font-semibold">
                         +{(mois.entrees / 1000).toFixed(0)}k FCFA
                       </td>

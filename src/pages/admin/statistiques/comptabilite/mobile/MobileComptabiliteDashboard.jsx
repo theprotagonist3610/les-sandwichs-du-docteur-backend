@@ -33,7 +33,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { useStatistiquesByDay, useStatistiquesByWeek } from "@/toolkits/admin/comptabiliteToolkit";
+import { useStatistiquesByDay, useStatistiquesByWeek, formatDayKeyReadable } from "@/toolkits/admin/comptabiliteToolkit";
 import { formatDayKey, formatWeekKey } from "@/toolkits/admin/comptabilite/utils";
 
 const MobileComptabiliteDashboard = () => {
@@ -83,7 +83,7 @@ const MobileComptabiliteDashboard = () => {
     if (!stats || !stats.jours) return [];
 
     return stats.jours.slice(-7).map((jour) => ({
-      date: jour.id.slice(0, 5), // Raccourcir pour mobile
+      date: jour.id, // Garder la date complète pour formatage
       entrees: jour.total_entrees,
       sorties: jour.total_sorties,
     }));
@@ -226,6 +226,12 @@ const MobileComptabiliteDashboard = () => {
                   dataKey="date"
                   stroke="#6b7280"
                   style={{ fontSize: "10px" }}
+                  tickFormatter={(dayKey) => {
+                    // Format très court pour mobile : "10 Nov."
+                    const formatted = formatDayKeyReadable(dayKey, { short: true });
+                    // Enlever l'année pour gagner de la place
+                    return formatted.replace(/ \d{4}$/, '');
+                  }}
                 />
                 <YAxis
                   stroke="#6b7280"
