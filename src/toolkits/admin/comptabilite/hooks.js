@@ -1494,6 +1494,10 @@ export function useInsightsMois(moisKey, options = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Stabiliser l'objet options pour éviter la boucle infinie
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const optionsKey = useMemo(() => JSON.stringify(options), [JSON.stringify(options)]);
+
   const fetchInsights = useCallback(async () => {
     if (!moisKey) {
       setInsights(null);
@@ -1506,7 +1510,7 @@ export function useInsightsMois(moisKey, options = {}) {
       setError(null);
 
       const { genererInsightsMois } = await import("./insights");
-      const data = await genererInsightsMois(moisKey, options);
+      const data = await genererInsightsMois(moisKey, JSON.parse(optionsKey));
 
       setInsights(data);
     } catch (err) {
@@ -1515,7 +1519,7 @@ export function useInsightsMois(moisKey, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [moisKey, options]);
+  }, [moisKey, optionsKey]);
 
   useEffect(() => {
     fetchInsights();
