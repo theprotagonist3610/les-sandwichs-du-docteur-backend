@@ -19,13 +19,22 @@ import {
   Loader2,
   FileText,
   X,
+  Plus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { searchAdresses } from "@/toolkits/admin/adresseToolkit";
+import { searchAdresses, createAdresse } from "@/toolkits/admin/adresseToolkit";
+import { toast } from "sonner";
 
 /**
  * Composant de sélection d'adresse intelligent
@@ -52,6 +61,11 @@ const AddressSelector = ({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Dialog de création rapide d'adresse
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newAddressValue, setNewAddressValue] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
   // Formater l'affichage de l'adresse sélectionnée
   const getDisplayValue = () => {
@@ -175,6 +189,53 @@ const AddressSelector = ({
     if (addr.arrondissement) parts.push(addr.arrondissement);
     if (addr.quartier) parts.push(addr.quartier);
     return parts.join(", ");
+  };
+
+  // Ouvrir le dialog de création
+  const handleOpenCreateDialog = () => {
+    setNewAddressValue(searchQuery); // Pré-remplir avec la recherche
+    setIsCreateDialogOpen(true);
+    setIsOpen(false);
+  };
+
+  // Créer une nouvelle adresse rapide
+  const handleCreateAddress = async () => {
+    if (!newAddressValue || newAddressValue.trim() === "") {
+      toast.error("Veuillez saisir une adresse");
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const newAddress = await createAdresse({
+        departement: "inconnu",
+        commune: "inconnu",
+        arrondissement: "inconnu",
+        quartier: newAddressValue.trim(),
+        localisation: {
+          longitude: 0.0,
+          latitude: 0.0,
+        },
+      });
+
+      toast.success("Adresse créée avec succès");
+
+      // Sélectionner automatiquement l'adresse créée
+      handleSelectAddress(newAddress);
+
+      // Fermer le dialog et réinitialiser
+      setIsCreateDialogOpen(false);
+      setNewAddressValue("");
+    } catch (error) {
+      console.error("Erreur création adresse:", error);
+      if (error.message.includes("E_DUPLICATE_ADRESSE")) {
+        toast.error("Cette adresse existe déjà");
+      } else {
+        toast.error("Erreur lors de la création de l'adresse");
+      }
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -321,7 +382,7 @@ const AddressSelector = ({
           )}
         </AnimatePresence>
 
-        {/* Message si aucun résultat */}
+        {/* Message si aucun résultat + Bouton créer */}
         {isOpen &&
           searchQuery.length >= 2 &&
           suggestions.length === 0 &&
@@ -333,8 +394,19 @@ const AddressSelector = ({
               className="absolute z-50 w-full mt-1"
             >
               <Card className="border-2">
-                <CardContent className="p-4 text-center text-sm text-muted-foreground">
-                  Aucune adresse trouvée pour "{searchQuery}"
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-center text-sm text-muted-foreground">
+                    Aucune adresse trouvée pour "{searchQuery}"
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleOpenCreateDialog}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Créer cette adresse
+                  </Button>
                 </CardContent>
               </Card>
             </motion.div>
@@ -363,6 +435,74 @@ const AddressSelector = ({
           </p>
         </motion.div>
       )}
+
+      {/* Dialog de création rapide d'adresse */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Créer une nouvelle adresse
+            </DialogTitle>
+            <DialogDescription>
+              Cette adresse sera enregistrée avec les informations suivantes :
+              département, commune et arrondissement "inconnu".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-address">
+                Adresse <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="new-address"
+                placeholder="Ex: Marché Dantokpa, Rue des Artisans..."
+                value={newAddressValue}
+                onChange={(e) => setNewAddressValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isCreating) {
+                    handleCreateAddress();
+                  }
+                }}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Saisissez le nom du quartier ou des détails de l'adresse
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  setNewAddressValue("");
+                }}
+                disabled={isCreating}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCreateAddress}
+                disabled={isCreating || !newAddressValue.trim()}
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Création...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Créer
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
