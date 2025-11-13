@@ -88,9 +88,11 @@ const DesktopLivraisonId = () => {
     return zoneData.arrondissements || [];
   }, [zoneData, type]);
 
-  const filteredSousZones = sousZones.filter((zone) =>
-    zone.nom.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSousZones = useMemo(() => {
+    return sousZones.filter((zone) =>
+      zone.nom.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [sousZones, searchTerm]);
 
   // Préparer les données pour le graphique des arrondissements
   const arrondissementsChartData = useMemo(() => {
