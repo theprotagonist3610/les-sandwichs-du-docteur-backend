@@ -39,7 +39,7 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import { useStatistiquesByDay, useStatistiquesByWeek } from "@/toolkits/admin/comptabiliteToolkit";
+import { useStatistiquesByDay, useStatistiquesByWeek, formatDayKeyReadable } from "@/toolkits/admin/comptabiliteToolkit";
 import { formatDayKey, formatWeekKey } from "@/toolkits/admin/comptabilite/utils";
 import KPICard from "@/components/statistics/cards/KPICard";
 
@@ -248,6 +248,7 @@ const DesktopComptabiliteDashboard = () => {
                   dataKey="date"
                   stroke="#6b7280"
                   style={{ fontSize: "11px" }}
+                  tickFormatter={(dayKey) => formatDayKeyReadable(dayKey, { short: true })}
                 />
                 <YAxis stroke="#6b7280" style={{ fontSize: "12px" }} />
                 <Tooltip

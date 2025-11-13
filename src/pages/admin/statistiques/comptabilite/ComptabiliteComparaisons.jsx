@@ -35,7 +35,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { useComparaisonMoisActuel, useComparaisonMois, useComparaisonAnnees } from "@/toolkits/admin/comptabiliteToolkit";
+import { useComparaisonMoisActuel, useComparaisonMois, useComparaisonAnnees, formatMonthKeyReadable } from "@/toolkits/admin/comptabiliteToolkit";
 import { formatMonthKey } from "@/toolkits/admin/comptabilite/utils";
 import KPICard from "@/components/statistics/cards/KPICard";
 
@@ -236,7 +236,7 @@ const ComptabiliteComparaisons = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Comparaison Visuelle - {periode1.mois} vs {periode2.mois}
+              Comparaison Visuelle - {formatMonthKeyReadable(periode1.mois)} vs {formatMonthKeyReadable(periode2.mois)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -258,8 +258,8 @@ const ComptabiliteComparaisons = () => {
                   formatter={(value) => `${value.toLocaleString()} FCFA`}
                 />
                 <Legend />
-                <Bar dataKey={periode1.mois} fill="#3b82f6" name={`Période 1 (${periode1.mois})`} radius={[8, 8, 0, 0]} />
-                <Bar dataKey={periode2.mois} fill="#10b981" name={`Période 2 (${periode2.mois})`} radius={[8, 8, 0, 0]} />
+                <Bar dataKey={periode1.mois} fill="#3b82f6" name={`Période 1 (${formatMonthKeyReadable(periode1.mois)})`} radius={[8, 8, 0, 0]} />
+                <Bar dataKey={periode2.mois} fill="#10b981" name={`Période 2 (${formatMonthKeyReadable(periode2.mois)})`} radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
