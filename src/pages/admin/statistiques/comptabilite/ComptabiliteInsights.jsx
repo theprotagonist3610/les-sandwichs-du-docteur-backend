@@ -23,11 +23,9 @@ import {
 } from "lucide-react";
 import { useInsightsMois } from "@/toolkits/admin/comptabiliteToolkit";
 import { formatMonthKey } from "@/toolkits/admin/comptabilite/utils";
+import { calculerScoreSante } from "@/toolkits/admin/comptabilite/insights";
 import KPICard from "@/components/statistics/cards/KPICard";
-import {
-  CircularProgressbar,
-  buildStyles,
-} from "react-circular-progressbar";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 
 // Couleur du score (fonction pure, en dehors du composant)
@@ -46,7 +44,10 @@ const ComptabiliteInsights = () => {
     for (let i = 0; i < 12; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = formatMonthKey(date);
-      const label = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      const label = date.toLocaleDateString("fr-FR", {
+        month: "long",
+        year: "numeric",
+      });
       options.push({ key, label });
     }
     return options;
@@ -55,7 +56,9 @@ const ComptabiliteInsights = () => {
   const [moisKey, setMoisKey] = useState(moisOptions[0].key);
 
   // Charger les insights
-  const { insights, loading, error } = useInsightsMois(moisKey, { includeHistorique: true });
+  const { insights, loading, error } = useInsightsMois(moisKey, {
+    includeHistorique: true,
+  });
 
   // Calculer le score de santé (AVANT les early returns pour respecter les règles des hooks)
   const scoreData = useMemo(() => {
@@ -68,13 +71,18 @@ const ComptabiliteInsights = () => {
       };
     }
 
-    const { calculerScoreSante } = require("@/toolkits/admin/comptabilite/insights");
     const { resume, ratios } = insights;
 
     // On a besoin des stats complètes, on les reconstruit à partir du résumé et ratios
     const stats = {
-      total_entrees: resume.solde >= 0 ? resume.solde + (resume.solde * ratios.ratio_charges_ca / 100) : Math.abs(resume.solde),
-      total_sorties: resume.solde >= 0 ? (resume.solde * ratios.ratio_charges_ca / 100) : Math.abs(resume.solde) + resume.solde,
+      total_entrees:
+        resume.solde >= 0
+          ? resume.solde + (resume.solde * ratios.ratio_charges_ca) / 100
+          : Math.abs(resume.solde),
+      total_sorties:
+        resume.solde >= 0
+          ? (resume.solde * ratios.ratio_charges_ca) / 100
+          : Math.abs(resume.solde) + resume.solde,
       nombre_operations: 100, // Estimation
       tresorerie: [{ montant_total: resume.tresorerie_totale }],
     };
@@ -160,7 +168,9 @@ const ComptabiliteInsights = () => {
         <div className="text-center">
           <div className="animate-spin text-6xl mb-4">⏳</div>
           <p className="text-lg opacity-70">Génération des insights...</p>
-          <p className="text-sm opacity-50 mt-2">Analyse de vos données en cours</p>
+          <p className="text-sm opacity-50 mt-2">
+            Analyse de vos données en cours
+          </p>
         </div>
       </div>
     );
@@ -174,7 +184,9 @@ const ComptabiliteInsights = () => {
             <div className="flex items-start gap-3">
               <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-red-900">Erreur lors de la génération des insights</p>
+                <p className="font-semibold text-red-900">
+                  Erreur lors de la génération des insights
+                </p>
                 <p className="text-sm text-red-700 mt-1">{error}</p>
               </div>
             </div>
@@ -192,7 +204,9 @@ const ComptabiliteInsights = () => {
             <div className="text-center opacity-70">
               <Lightbulb className="h-16 w-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">Aucun insight disponible</p>
-              <p className="text-sm mt-2">Sélectionnez un mois avec des données</p>
+              <p className="text-sm mt-2">
+                Sélectionnez un mois avec des données
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -200,7 +214,15 @@ const ComptabiliteInsights = () => {
     );
   }
 
-  const { resume, ratios, insights: insightsList, alertes, recommandations, tendances, opportunites } = insights;
+  const {
+    resume,
+    ratios,
+    insights: insightsList,
+    alertes,
+    recommandations,
+    tendances,
+    opportunites,
+  } = insights;
 
   return (
     <div className="p-6 space-y-6">
@@ -222,8 +244,10 @@ const ComptabiliteInsights = () => {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {moisOptions.map(opt => (
-              <SelectItem key={opt.key} value={opt.key}>{opt.label}</SelectItem>
+            {moisOptions.map((opt) => (
+              <SelectItem key={opt.key} value={opt.key}>
+                {opt.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -246,14 +270,16 @@ const ComptabiliteInsights = () => {
                   value={scoreData.score}
                   text={`${scoreData.score}/100`}
                   styles={buildStyles({
-                    textSize: '16px',
+                    textSize: "16px",
                     pathColor: getScoreColor(scoreData.score),
                     textColor: getScoreColor(scoreData.score),
-                    trailColor: '#e5e7eb',
+                    trailColor: "#e5e7eb",
                   })}
                 />
               </div>
-              <p className="text-2xl font-bold mt-4" style={{ color: getScoreColor(scoreData.score) }}>
+              <p
+                className="text-2xl font-bold mt-4"
+                style={{ color: getScoreColor(scoreData.score) }}>
                 Santé {scoreData.appreciation}
               </p>
             </div>
@@ -265,7 +291,9 @@ const ComptabiliteInsights = () => {
                 return (
                   <div key={index}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">{detail.critere}</span>
+                      <span className="text-sm font-medium">
+                        {detail.critere}
+                      </span>
                       <span className="text-sm text-muted-foreground">
                         {detail.note}/{detail.max}
                       </span>
@@ -275,11 +303,18 @@ const ComptabiliteInsights = () => {
                         className="h-2 rounded-full transition-all"
                         style={{
                           width: `${pourcentage}%`,
-                          backgroundColor: pourcentage >= 80 ? "#10b981" : pourcentage >= 50 ? "#f59e0b" : "#ef4444",
+                          backgroundColor:
+                            pourcentage >= 80
+                              ? "#10b981"
+                              : pourcentage >= 50
+                              ? "#f59e0b"
+                              : "#ef4444",
                         }}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{detail.commentaire}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {detail.commentaire}
+                    </p>
                   </div>
                 );
               })}
@@ -293,7 +328,13 @@ const ComptabiliteInsights = () => {
         <KPICard
           title="Marge Globale"
           value={`${ratios.marge_globale?.toFixed(1) || 0}%`}
-          icon={ratios.marge_globale >= 0 ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
+          icon={
+            ratios.marge_globale >= 0 ? (
+              <TrendingUp className="h-6 w-6" />
+            ) : (
+              <TrendingDown className="h-6 w-6" />
+            )
+          }
           subtitle="Résultat / CA"
           trend={ratios.marge_globale >= 10 ? "up" : "down"}
           hint="Pourcentage du chiffre d'affaires qui reste après toutes les dépenses. Une marge >20% est excellente, >10% est bonne, <5% est préoccupante."
@@ -310,7 +351,11 @@ const ComptabiliteInsights = () => {
 
         <KPICard
           title="Jours de Trésorerie"
-          value={ratios.jours_tresorerie >= 999 ? "∞" : ratios.jours_tresorerie.toFixed(0)}
+          value={
+            ratios.jours_tresorerie >= 999
+              ? "∞"
+              : ratios.jours_tresorerie.toFixed(0)
+          }
           icon={<Wallet className="h-6 w-6" />}
           subtitle="Coussin de sécurité"
           trend={ratios.jours_tresorerie >= 30 ? "up" : "down"}
@@ -333,7 +378,9 @@ const ComptabiliteInsights = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-70">Alertes</p>
-                <p className="text-2xl font-bold text-red-600">{alertes.length}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {alertes.length}
+                </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-600 opacity-20" />
             </div>
@@ -345,7 +392,9 @@ const ComptabiliteInsights = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-70">Recommandations</p>
-                <p className="text-2xl font-bold text-orange-600">{recommandations.length}</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {recommandations.length}
+                </p>
               </div>
               <Zap className="h-8 w-8 text-orange-600 opacity-20" />
             </div>
@@ -357,7 +406,9 @@ const ComptabiliteInsights = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-70">Insights</p>
-                <p className="text-2xl font-bold text-blue-600">{insightsList.length}</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {insightsList.length}
+                </p>
               </div>
               <Info className="h-8 w-8 text-blue-600 opacity-20" />
             </div>
@@ -369,7 +420,9 @@ const ComptabiliteInsights = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-70">Opportunités</p>
-                <p className="text-2xl font-bold text-green-600">{opportunites.length}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {opportunites.length}
+                </p>
               </div>
               <Lightbulb className="h-8 w-8 text-green-600 opacity-20" />
             </div>
@@ -391,9 +444,12 @@ const ComptabiliteInsights = () => {
               {alertes.map((alerte, index) => {
                 const styles = getSeverityStyles(alerte.severite);
                 return (
-                  <div key={index} className={`${styles.border} ${styles.bg} p-4 rounded-lg`}>
+                  <div
+                    key={index}
+                    className={`${styles.border} ${styles.bg} p-4 rounded-lg`}>
                     <div className="flex items-start gap-3">
-                      <div className={`${styles.iconBg} ${styles.iconColor} p-2 rounded-lg`}>
+                      <div
+                        className={`${styles.iconBg} ${styles.iconColor} p-2 rounded-lg`}>
                         <AlertTriangle className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
@@ -401,7 +457,8 @@ const ComptabiliteInsights = () => {
                           <h3 className={`font-semibold ${styles.titleColor}`}>
                             {alerte.titre}
                           </h3>
-                          <span className={`text-xs px-2 py-1 rounded-full ${styles.iconBg} ${styles.iconColor}`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${styles.iconBg} ${styles.iconColor}`}>
                             {alerte.severite}
                           </span>
                         </div>
@@ -432,9 +489,12 @@ const ComptabiliteInsights = () => {
               {recommandations.map((reco, index) => {
                 const styles = getSeverityStyles(reco.priorite);
                 return (
-                  <div key={index} className={`${styles.border} ${styles.bg} p-4 rounded-lg`}>
+                  <div
+                    key={index}
+                    className={`${styles.border} ${styles.bg} p-4 rounded-lg`}>
                     <div className="flex items-start gap-3">
-                      <div className={`${styles.iconBg} ${styles.iconColor} p-2 rounded-lg flex-shrink-0`}>
+                      <div
+                        className={`${styles.iconBg} ${styles.iconColor} p-2 rounded-lg flex-shrink-0`}>
                         <Zap className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
@@ -442,7 +502,8 @@ const ComptabiliteInsights = () => {
                           <h3 className={`font-semibold ${styles.titleColor}`}>
                             {reco.titre}
                           </h3>
-                          <span className={`text-xs px-2 py-1 rounded-full ${styles.iconBg} ${styles.iconColor}`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${styles.iconBg} ${styles.iconColor}`}>
                             Priorité {reco.priorite}
                           </span>
                         </div>
@@ -450,10 +511,14 @@ const ComptabiliteInsights = () => {
                           {reco.description}
                         </p>
                         <div className="space-y-1">
-                          <p className="text-xs font-semibold opacity-70">Actions suggérées :</p>
+                          <p className="text-xs font-semibold opacity-70">
+                            Actions suggérées :
+                          </p>
                           <ul className="list-disc list-inside space-y-1">
                             {reco.actions.map((action, i) => (
-                              <li key={i} className={`text-sm ${styles.messageColor}`}>
+                              <li
+                                key={i}
+                                className={`text-sm ${styles.messageColor}`}>
                                 {action}
                               </li>
                             ))}
@@ -483,13 +548,17 @@ const ComptabiliteInsights = () => {
               {insightsList.map((insight, index) => {
                 const styles = getInsightTypeStyles(insight.type);
                 return (
-                  <div key={index} className={`${styles.border} ${styles.bg} p-4 rounded-lg`}>
+                  <div
+                    key={index}
+                    className={`${styles.border} ${styles.bg} p-4 rounded-lg`}>
                     <div className="flex items-start gap-3">
-                      <div className={`${styles.iconBg} ${styles.iconColor} p-2 rounded-lg`}>
+                      <div
+                        className={`${styles.iconBg} ${styles.iconColor} p-2 rounded-lg`}>
                         {styles.icon}
                       </div>
                       <div className="flex-1">
-                        <h3 className={`font-semibold ${styles.titleColor} mb-1`}>
+                        <h3
+                          className={`font-semibold ${styles.titleColor} mb-1`}>
                           {insight.titre}
                         </h3>
                         <p className={`text-sm ${styles.messageColor}`}>
@@ -497,7 +566,8 @@ const ComptabiliteInsights = () => {
                         </p>
                         {insight.compte && (
                           <p className="text-xs opacity-70 mt-2">
-                            Compte concerné: {insight.compte.denomination} ({insight.compte.code_ohada})
+                            Compte concerné: {insight.compte.denomination} (
+                            {insight.compte.code_ohada})
                           </p>
                         )}
                       </div>
@@ -522,7 +592,9 @@ const ComptabiliteInsights = () => {
           <CardContent>
             <div className="space-y-3">
               {tendances.map((tendance, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     {tendance.type === "positif" ? (
                       <TrendingUp className="h-5 w-5 text-green-600" />
@@ -534,8 +606,14 @@ const ComptabiliteInsights = () => {
                       <p className="text-sm opacity-70">{tendance.message}</p>
                     </div>
                   </div>
-                  <div className={`text-lg font-bold ${tendance.type === "positif" ? "text-green-600" : "text-red-600"}`}>
-                    {tendance.valeur >= 0 ? "+" : ""}{tendance.valeur.toFixed(1)}%
+                  <div
+                    className={`text-lg font-bold ${
+                      tendance.type === "positif"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}>
+                    {tendance.valeur >= 0 ? "+" : ""}
+                    {tendance.valeur.toFixed(1)}%
                   </div>
                 </div>
               ))}
@@ -556,10 +634,16 @@ const ComptabiliteInsights = () => {
           <CardContent>
             <div className="space-y-3">
               {opportunites.map((opp, index) => (
-                <div key={index} className="bg-white p-4 rounded-lg border border-green-200">
-                  <h3 className="font-semibold text-green-900 mb-1">{opp.titre}</h3>
+                <div
+                  key={index}
+                  className="bg-white p-4 rounded-lg border border-green-200">
+                  <h3 className="font-semibold text-green-900 mb-1">
+                    {opp.titre}
+                  </h3>
                   <p className="text-sm text-green-700 mb-2">{opp.message}</p>
-                  <p className="text-sm text-green-600 italic">💡 {opp.suggestion}</p>
+                  <p className="text-sm text-green-600 italic">
+                    💡 {opp.suggestion}
+                  </p>
                 </div>
               ))}
             </div>
@@ -577,9 +661,11 @@ const ComptabiliteInsights = () => {
                 Comment fonctionnent les insights ?
               </p>
               <p className="text-sm text-purple-700">
-                Les insights sont générés automatiquement en analysant vos données comptables, vos tendances historiques,
-                et vos ratios financiers. Le système détecte les anomalies, les opportunités d'optimisation,
-                et vous propose des recommandations actionnables classées par priorité. Les insights se mettent à jour
+                Les insights sont générés automatiquement en analysant vos
+                données comptables, vos tendances historiques, et vos ratios
+                financiers. Le système détecte les anomalies, les opportunités
+                d'optimisation, et vous propose des recommandations actionnables
+                classées par priorité. Les insights se mettent à jour
                 automatiquement à chaque nouvelle opération comptable.
               </p>
             </div>
