@@ -30,6 +30,14 @@ import {
 } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 
+// Couleur du score (fonction pure, en dehors du composant)
+const getScoreColor = (score) => {
+  if (score >= 85) return "#10b981"; // green
+  if (score >= 70) return "#3b82f6"; // blue
+  if (score >= 50) return "#f59e0b"; // orange
+  return "#ef4444"; // red
+};
+
 const ComptabiliteInsights = () => {
   // Générer les options de mois
   const moisOptions = useMemo(() => {
@@ -48,6 +56,30 @@ const ComptabiliteInsights = () => {
 
   // Charger les insights
   const { insights, loading, error } = useInsightsMois(moisKey, { includeHistorique: true });
+
+  // Calculer le score de santé (AVANT les early returns pour respecter les règles des hooks)
+  const scoreData = useMemo(() => {
+    if (!insights || !insights.resume || !insights.ratios) {
+      // Valeur par défaut si pas de données
+      return {
+        score: 0,
+        appreciation: "Indisponible",
+        details: [],
+      };
+    }
+
+    const { calculerScoreSante } = require("@/toolkits/admin/comptabilite/insights");
+    const { resume, ratios } = insights;
+
+    // On a besoin des stats complètes, on les reconstruit à partir du résumé et ratios
+    const stats = {
+      total_entrees: resume.solde >= 0 ? resume.solde + (resume.solde * ratios.ratio_charges_ca / 100) : Math.abs(resume.solde),
+      total_sorties: resume.solde >= 0 ? (resume.solde * ratios.ratio_charges_ca / 100) : Math.abs(resume.solde) + resume.solde,
+      nombre_operations: 100, // Estimation
+      tresorerie: [{ montant_total: resume.tresorerie_totale }],
+    };
+    return calculerScoreSante(stats);
+  }, [insights]);
 
   const getSeverityStyles = (severity) => {
     const styles = {
@@ -169,27 +201,6 @@ const ComptabiliteInsights = () => {
   }
 
   const { resume, ratios, insights: insightsList, alertes, recommandations, tendances, opportunites } = insights;
-
-  // Calculer le score de santé
-  const scoreData = useMemo(() => {
-    const { calculerScoreSante } = require("@/toolkits/admin/comptabilite/insights");
-    // On a besoin des stats complètes, on les reconstruit à partir du résumé et ratios
-    const stats = {
-      total_entrees: resume.solde >= 0 ? resume.solde + (resume.solde * ratios.ratio_charges_ca / 100) : Math.abs(resume.solde),
-      total_sorties: resume.solde >= 0 ? (resume.solde * ratios.ratio_charges_ca / 100) : Math.abs(resume.solde) + resume.solde,
-      nombre_operations: 100, // Estimation
-      tresorerie: [{ montant_total: resume.tresorerie_totale }],
-    };
-    return calculerScoreSante(stats);
-  }, [resume, ratios]);
-
-  // Couleur du score
-  const getScoreColor = (score) => {
-    if (score >= 85) return "#10b981"; // green
-    if (score >= 70) return "#3b82f6"; // blue
-    if (score >= 50) return "#f59e0b"; // orange
-    return "#ef4444"; // red
-  };
 
   return (
     <div className="p-6 space-y-6">
