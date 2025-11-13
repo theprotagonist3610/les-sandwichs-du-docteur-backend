@@ -4,7 +4,7 @@
  * Gestion du cache, temps réel RTDB, et détection automatique du changement de jour
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { ref, onValue } from "firebase/database";
 import { db, rtdb } from "../../../firebase.js";
