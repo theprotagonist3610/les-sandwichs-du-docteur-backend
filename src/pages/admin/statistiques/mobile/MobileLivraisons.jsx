@@ -48,6 +48,14 @@ const MobileLivraisons = () => {
     adresses
   );
 
+  // Filtrer les communes selon la recherche (calculé même pendant le chargement)
+  const filteredCommunes = useMemo(() => {
+    if (!stats || !stats.zones || !stats.zones.parCommune) return [];
+    return stats.zones.parCommune.filter((zone) =>
+      zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [stats, searchTerm]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
@@ -75,11 +83,6 @@ const MobileLivraisons = () => {
       </div>
     );
   }
-
-  // Filtrer les communes selon la recherche
-  const filteredCommunes = stats.zones.parCommune.filter((zone) =>
-    zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const getPeriodLabel = () => {
     switch (period) {
@@ -167,10 +170,10 @@ const MobileLivraisons = () => {
               <Truck className="h-4 w-4 opacity-50" />
             </div>
             <p className="text-xl font-bold">
-              {stats.statistiquesGlobales.nombreTotalLivraisons}
+              {stats.statistiquesGlobales.nombreTotalLivraisons || 0}
             </p>
             <p className="text-xs opacity-70">
-              {stats.statistiquesGlobales.nombreLivraisonsTerminees} terminées
+              {stats.statistiquesGlobales.nombreLivraisonsTerminees || 0} terminées
             </p>
           </CardContent>
         </Card>
@@ -181,8 +184,8 @@ const MobileLivraisons = () => {
               <p className="text-xs opacity-70">Délai Moyen</p>
               <Clock className="h-4 w-4 opacity-50" />
             </div>
-            <p className="text-xl font-bold">{stats.delais.moyen} min</p>
-            <p className="text-xs opacity-70">Médiane: {stats.delais.mediane} min</p>
+            <p className="text-xl font-bold">{stats.delais.moyen || 0} min</p>
+            <p className="text-xs opacity-70">Médiane: {stats.delais.mediane || 0} min</p>
           </CardContent>
         </Card>
 
@@ -193,7 +196,7 @@ const MobileLivraisons = () => {
               <DollarSign className="h-4 w-4 opacity-50" />
             </div>
             <p className="text-xl font-bold">
-              {(stats.statistiquesGlobales.chiffreAffaire / 1000).toFixed(0)}k
+              {((stats.statistiquesGlobales.chiffreAffaire || 0) / 1000).toFixed(0)}k
             </p>
             <p className="text-xs opacity-70">FCFA</p>
           </CardContent>
@@ -206,10 +209,10 @@ const MobileLivraisons = () => {
               <Package className="h-4 w-4 opacity-50" />
             </div>
             <p className="text-xl font-bold">
-              {stats.statistiquesGlobales.tauxLivraisonsTerminees}%
+              {stats.statistiquesGlobales.tauxLivraisonsTerminees || 0}%
             </p>
             <p className="text-xs opacity-70">
-              {stats.statistiquesGlobales.nombreLivraisonsEnCours} en cours
+              {stats.statistiquesGlobales.nombreLivraisonsEnCours || 0} en cours
             </p>
           </CardContent>
         </Card>
@@ -227,7 +230,7 @@ const MobileLivraisons = () => {
               </div>
             </div>
             <p className="text-2xl font-bold">
-              {stats.statistiquesGlobales.tauxLivraisonsEnRetard}%
+              {stats.statistiquesGlobales.tauxLivraisonsEnRetard || 0}%
             </p>
           </div>
         </CardContent>
@@ -279,9 +282,9 @@ const MobileLivraisons = () => {
                         </Badge>
                       </div>
                       <div className="flex gap-3 mt-1 text-xs opacity-70">
-                        <span>{zone.nombreLivraisons} liv.</span>
-                        <span>{(zone.montantTotal / 1000).toFixed(0)}k FCFA</span>
-                        <span>{zone.delaiMoyen} min</span>
+                        <span>{zone.nombreLivraisons || 0} liv.</span>
+                        <span>{((zone.montantTotal || 0) / 1000).toFixed(0)}k FCFA</span>
+                        <span>{zone.delaiMoyen || 0} min</span>
                       </div>
                     </div>
                   </div>

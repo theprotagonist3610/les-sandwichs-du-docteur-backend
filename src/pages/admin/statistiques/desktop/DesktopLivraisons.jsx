@@ -63,6 +63,56 @@ const DesktopLivraisons = () => {
     adresses
   );
 
+  // Filtrer les communes selon la recherche (calculé même pendant le chargement)
+  const filteredCommunes = useMemo(() => {
+    if (!stats || !stats.zones || !stats.zones.parCommune) return [];
+    return stats.zones.parCommune.filter((zone) =>
+      zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [stats, searchTerm]);
+
+  // Préparer les données pour le graphique des délais par tranche horaire
+  const delaisParTrancheData = useMemo(() => {
+    if (!stats || !stats.delais || !stats.delais.parTrancheHoraire) return [];
+    return stats.delais.parTrancheHoraire.map((item) => ({
+      heure: item.heure,
+      delai: item.delaiMoyen || 0,
+      livraisons: item.nombreLivraisons || 0,
+    }));
+  }, [stats]);
+
+  // Préparer les données pour le graphique des horaires courtants
+  const horairesData = useMemo(() => {
+    if (!stats || !stats.horairesCourtants) return [];
+
+    // Combiner les commandes et livraisons
+    const horaireMap = new Map();
+
+    stats.horairesCourtants.commandes.forEach((item) => {
+      horaireMap.set(item.heure, {
+        heure: item.heure,
+        commandes: item.count || 0,
+        livraisons: 0,
+      });
+    });
+
+    stats.horairesCourtants.livraisons.forEach((item) => {
+      if (horaireMap.has(item.heure)) {
+        horaireMap.get(item.heure).livraisons = item.count || 0;
+      } else {
+        horaireMap.set(item.heure, {
+          heure: item.heure,
+          commandes: 0,
+          livraisons: item.count || 0,
+        });
+      }
+    });
+
+    return Array.from(horaireMap.values()).sort((a, b) =>
+      a.heure.localeCompare(b.heure)
+    );
+  }, [stats]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -90,48 +140,6 @@ const DesktopLivraisons = () => {
       </div>
     );
   }
-
-  // Filtrer les communes selon la recherche
-  const filteredCommunes = stats.zones.parCommune.filter((zone) =>
-    zone.commune.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Préparer les données pour le graphique des délais par tranche horaire
-  const delaisParTrancheData = stats.delais.parTrancheHoraire.map((item) => ({
-    heure: item.heure,
-    delai: item.delaiMoyen,
-    livraisons: item.nombreLivraisons,
-  }));
-
-  // Préparer les données pour le graphique des horaires courtants
-  const horairesData = useMemo(() => {
-    // Combiner les commandes et livraisons
-    const horaireMap = new Map();
-
-    stats.horairesCourtants.commandes.forEach((item) => {
-      horaireMap.set(item.heure, {
-        heure: item.heure,
-        commandes: item.count,
-        livraisons: 0,
-      });
-    });
-
-    stats.horairesCourtants.livraisons.forEach((item) => {
-      if (horaireMap.has(item.heure)) {
-        horaireMap.get(item.heure).livraisons = item.count;
-      } else {
-        horaireMap.set(item.heure, {
-          heure: item.heure,
-          commandes: 0,
-          livraisons: item.count,
-        });
-      }
-    });
-
-    return Array.from(horaireMap.values()).sort((a, b) =>
-      a.heure.localeCompare(b.heure)
-    );
-  }, [stats.horairesCourtants]);
 
   // Export CSV
   const handleExportCSV = () => {
@@ -224,35 +232,35 @@ const DesktopLivraisons = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard
           title="Total Livraisons"
-          value={stats.statistiquesGlobales.nombreTotalLivraisons}
+          value={stats.statistiquesGlobales.nombreTotalLivraisons || 0}
           icon={<Truck className="h-6 w-6" />}
-          subtitle={`${stats.statistiquesGlobales.nombreLivraisonsTerminees} terminées`}
+          subtitle={`${stats.statistiquesGlobales.nombreLivraisonsTerminees || 0} terminées`}
         />
 
         <KPICard
           title="Délai Moyen"
-          value={`${stats.delais.moyen} min`}
+          value={`${stats.delais.moyen || 0} min`}
           icon={<Clock className="h-6 w-6" />}
-          subtitle={`Médiane: ${stats.delais.mediane} min`}
+          subtitle={`Médiane: ${stats.delais.mediane || 0} min`}
         />
 
         <KPICard
           title="Chiffre d'Affaires"
-          value={`${(stats.statistiquesGlobales.chiffreAffaire / 1000).toFixed(0)}k`}
+          value={`${((stats.statistiquesGlobales.chiffreAffaire || 0) / 1000).toFixed(0)}k`}
           icon={<DollarSign className="h-6 w-6" />}
           subtitle="FCFA"
         />
 
         <KPICard
           title="Taux de Réussite"
-          value={`${stats.statistiquesGlobales.tauxLivraisonsTerminees}%`}
+          value={`${stats.statistiquesGlobales.tauxLivraisonsTerminees || 0}%`}
           icon={<Package className="h-6 w-6" />}
-          subtitle={`${stats.statistiquesGlobales.nombreLivraisonsEnCours} en cours`}
+          subtitle={`${stats.statistiquesGlobales.nombreLivraisonsEnCours || 0} en cours`}
         />
 
         <KPICard
           title="Taux de Retard"
-          value={`${stats.statistiquesGlobales.tauxLivraisonsEnRetard}%`}
+          value={`${stats.statistiquesGlobales.tauxLivraisonsEnRetard || 0}%`}
           icon={<Clock className="h-6 w-6" />}
           subtitle="vs heure prévue"
         />
@@ -407,17 +415,17 @@ const DesktopLivraisons = () => {
                   <div className="flex items-center gap-6 text-sm">
                     <div className="text-center">
                       <p className="opacity-70">Livraisons</p>
-                      <p className="font-bold text-lg">{zone.nombreLivraisons}</p>
+                      <p className="font-bold text-lg">{zone.nombreLivraisons || 0}</p>
                     </div>
                     <div className="text-center">
                       <p className="opacity-70">CA (FCFA)</p>
                       <p className="font-bold text-lg">
-                        {(zone.montantTotal / 1000).toFixed(0)}k
+                        {((zone.montantTotal || 0) / 1000).toFixed(0)}k
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="opacity-70">Délai moy.</p>
-                      <p className="font-bold text-lg">{zone.delaiMoyen} min</p>
+                      <p className="font-bold text-lg">{zone.delaiMoyen || 0} min</p>
                     </div>
                     <Navigation className="h-5 w-5 opacity-50" />
                   </div>
