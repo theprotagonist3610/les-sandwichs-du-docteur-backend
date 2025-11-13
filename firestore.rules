@@ -257,14 +257,49 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 6.8 Autres sous-collections de comptabilite (pour extensions futures)
+    // 6.8 Statistiques mensuelles
+    match /comptabilite/statistiques/months/{monthKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.9 Autres sous-collections de comptabilite (pour extensions futures)
     match /comptabilite/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     // ========================================
-    // 7. COLLECTION "statistiques"
+    // 7. COLLECTION "comptabilite_budgets"
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // Structure: Documents de budgets prévisionnels par mois
+    // Chaque budget contient:
+    // - id: budget_{nano(10)}
+    // - mois: format MMYYYY
+    // - lignes_budget: array de lignes avec compte_id, montant_previsionnel, etc.
+    // - createdBy, updatedBy, createdAt, updatedAt
+    // ========================================
+    match /comptabilite_budgets/{budgetId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() &&
+                     request.resource.data.keys().hasAll(['id', 'mois', 'nom', 'montant_total_previsionnel', 'lignes_budget', 'createdBy', 'createdAt', 'updatedAt']) &&
+                     request.resource.data.mois.matches('^[0-9]{6}$') &&
+                     request.resource.data.createdAt is int &&
+                     request.resource.data.updatedAt is int;
+      allow update: if isAdmin() &&
+                     request.resource.data.keys().hasAll(['id', 'mois', 'nom', 'montant_total_previsionnel', 'lignes_budget', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt']) &&
+                     request.resource.data.mois.matches('^[0-9]{6}$') &&
+                     request.resource.data.createdAt is int &&
+                     request.resource.data.updatedAt is int;
+      allow delete: if isAdmin();
+    }
+
+    // ========================================
+    // 8. COLLECTION "statistiques"
     // Admin: CRUD
     // User authentifié: Read only
     // ========================================
@@ -282,7 +317,7 @@ service cloud.firestore {
     }
 
     // ========================================
-    // 8. COLLECTION "livraisons"
+    // 9. COLLECTION "livraisons"
     // Admin: CRUD
     // User authentifié: Read only
     // ========================================
@@ -300,7 +335,7 @@ service cloud.firestore {
     }
 
     // ========================================
-    // 9. COLLECTION "productions"
+    // 10. COLLECTION "productions"
     // Admin: CRUD
     // User authentifié: Read only
     // ========================================
@@ -318,7 +353,7 @@ service cloud.firestore {
     }
 
     // ========================================
-    // 10. COLLECTION "emplacements"
+    // 11. COLLECTION "emplacements"
     // Admin: CRUD complet
     // User authentifié: Read only
     // ========================================
@@ -346,7 +381,7 @@ service cloud.firestore {
     }
 
     // ========================================
-    // 11. COLLECTION "stock" (REFACTORÉ)
+    // 12. COLLECTION "stock" (REFACTORÉ)
     // Admin: CRUD complet
     // User authentifié: Read only
     //
