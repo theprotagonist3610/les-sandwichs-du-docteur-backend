@@ -8,7 +8,7 @@
  */
 
 import { getStatistiquesByMonth } from "./statistiques";
-import { formatMonthKey, getMonthsInRange } from "./utils";
+import { formatMonthKey } from "./utils";
 
 /**
  * Calcule la tendance (taux de croissance moyen) d'un compte sur plusieurs mois
