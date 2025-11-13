@@ -192,6 +192,28 @@ export {
 } from "./previsions";
 
 // ============================================================================
+// COMPARAISONS FUNCTIONS
+// ============================================================================
+export {
+  // Comparaisons de périodes
+  comparerDeuxMois,
+  comparerMoisVsMoisPrecedent,
+  comparerDeuxAnnees,
+  comparerBudgetVsReel,
+  genererMatriceComparaison,
+} from "./comparaisons";
+
+// ============================================================================
+// INSIGHTS FUNCTIONS
+// ============================================================================
+export {
+  // Génération d'insights
+  genererInsightsMois,
+  calculerRatiosFinanciers,
+  calculerScoreSante,
+} from "./insights";
+
+// ============================================================================
 // HOOKS
 // ============================================================================
 export {
@@ -227,4 +249,11 @@ export {
   usePrevisions,
   useAnomaliesPrevisions,
   useComparaisonPrevisions,
+  // Comparaisons hooks
+  useComparaisonMois,
+  useComparaisonAnnees,
+  useComparaisonMoisActuel,
+  // Insights hooks
+  useInsightsMois,
+  useScoreSante,
 } from "./hooks";
