@@ -39,7 +39,7 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import { useStatistiquesJour, useStatistiquesSemaine } from "@/toolkits/admin/comptabiliteToolkit";
+import { useStatistiquesByDay, useStatistiquesByWeek } from "@/toolkits/admin/comptabiliteToolkit";
 import { formatDayKey, formatWeekKey } from "@/toolkits/admin/comptabilite/utils";
 import KPICard from "@/components/statistics/cards/KPICard";
 
@@ -51,8 +51,8 @@ const DesktopComptabiliteDashboard = () => {
   const dayKey = useMemo(() => formatDayKey(), []);
   const weekKey = useMemo(() => formatWeekKey(), []);
 
-  const { statistiques: statsToday, loading: loadingToday } = useStatistiquesJour(dayKey);
-  const { statistiques: statsWeek, loading: loadingWeek } = useStatistiquesSemaine(weekKey);
+  const { statistiques: statsToday, loading: loadingToday } = useStatistiquesByDay(dayKey);
+  const { statistiques: statsWeek, loading: loadingWeek } = useStatistiquesByWeek(weekKey);
 
   const stats = periode === "today" ? statsToday : statsWeek;
   const loading = periode === "today" ? loadingToday : loadingWeek;
