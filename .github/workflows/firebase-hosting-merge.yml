@@ -13,6 +13,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: npm ci
+      - name: Debug - Check if secrets are available
+        run: |
+          echo "Checking environment variables (first 10 chars only):"
+          echo "VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:0:10}..."
+          echo "VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:0:10}..."
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
       - name: Build with environment variables
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
