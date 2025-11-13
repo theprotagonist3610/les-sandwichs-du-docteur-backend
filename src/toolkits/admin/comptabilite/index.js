@@ -24,6 +24,10 @@ export {
   ligneBudgetAvecRealisationSchema,
   budgetAvecRealisationSchema,
   budgetsListeSchema,
+  previsionCompteSchema,
+  previsionMoisSchema,
+  previsionsGlobalesSchema,
+  anomalieSchema,
 } from "./schemas";
 
 // ============================================================================
@@ -172,6 +176,22 @@ export {
 } from "./budgets";
 
 // ============================================================================
+// PREVISIONS FUNCTIONS
+// ============================================================================
+export {
+  // Calculs de tendances
+  calculerTendance,
+  calculerMoyenneMobile,
+  detecterSaisonnalite,
+  // Génération de prévisions
+  genererPrevisionsCompte,
+  genererPrevisionsGlobales,
+  chargerHistoriqueCompte,
+  // Détection d'anomalies
+  detecterAnomalies,
+} from "./previsions";
+
+// ============================================================================
 // HOOKS
 // ============================================================================
 export {
@@ -203,4 +223,8 @@ export {
   useBudgetById,
   useBudgetAvecRealisation,
   useBudgetAlertes,
+  // Prévisions hooks
+  usePrevisions,
+  useAnomaliesPrevisions,
+  useComparaisonPrevisions,
 } from "./hooks";

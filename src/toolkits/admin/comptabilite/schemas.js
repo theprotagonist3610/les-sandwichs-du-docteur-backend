@@ -228,3 +228,96 @@ export const budgetsListeSchema = z.object({
   budgets: z.array(budgetSchema).default([]),
   lastUpdated: z.number().positive(),
 });
+
+// ============================================================================
+// SCHEMAS PREVISIONS
+// ============================================================================
+
+/**
+ * Schema pour une prévision d'un compte pour un mois
+ */
+export const previsionCompteSchema = z.object({
+  mois: z.string().regex(/^\d{6}$/, "Format mois invalide (MMYYYY)"),
+  compte_id: z.string().min(1, "Le compte_id est requis"),
+  code_ohada: z.string().min(1, "Le code OHADA est requis"),
+  denomination: z.string().min(1, "La dénomination est requise"),
+  categorie: z.enum(["entree", "sortie"]),
+  montant_prevu: z.number().min(0, "Le montant prévu doit être positif ou nul"),
+  scenario_pessimiste: z.number().min(0),
+  scenario_optimiste: z.number().min(0),
+  taux_croissance: z.number(), // Peut être négatif
+  facteur_saisonnalite: z.number().positive(),
+});
+
+/**
+ * Schema pour les prévisions d'un mois complet
+ */
+export const previsionMoisSchema = z.object({
+  mois: z.string().regex(/^\d{6}$/, "Format mois invalide (MMYYYY)"),
+  total_entrees_prevu: z.number().min(0),
+  total_sorties_prevu: z.number().min(0),
+  total_entrees_pessimiste: z.number().min(0),
+  total_sorties_pessimiste: z.number().min(0),
+  total_entrees_optimiste: z.number().min(0),
+  total_sorties_optimiste: z.number().min(0),
+  solde_prevu: z.number(),
+  solde_pessimiste: z.number(),
+  solde_optimiste: z.number(),
+  comptes: z.array(previsionCompteSchema).default([]),
+});
+
+/**
+ * Schema pour un ensemble complet de prévisions
+ */
+export const previsionsGlobalesSchema = z.object({
+  periode_analyse: z.object({
+    debut: z.string().regex(/^\d{6}$/),
+    fin: z.string().regex(/^\d{6}$/),
+    nb_mois: z.number().positive(),
+  }),
+  periode_previsions: z.object({
+    nb_mois: z.number().positive(),
+    debut: z.string().regex(/^\d{6}$/),
+    fin: z.string().regex(/^\d{6}$/),
+  }),
+  indicateurs_cles: z.object({
+    taux_croissance_moyen: z.number(),
+    marge_previsionnelle: z.number(),
+    nombre_comptes_analyses: z.number().min(0),
+  }),
+  previsions_par_mois: z.array(previsionMoisSchema),
+  previsions_par_compte: z.array(z.object({
+    compte: z.object({
+      compte_id: z.string(),
+      code_ohada: z.string(),
+      denomination: z.string(),
+      categorie: z.enum(["entree", "sortie"]),
+    }),
+    historique: z.array(z.object({
+      mois: z.string(),
+      montant: z.number(),
+    })),
+    previsions: z.array(previsionCompteSchema),
+    tendance: z.number(),
+    moyenne_mobile: z.number(),
+  })),
+  historique: z.array(z.any()), // Flexible pour l'historique
+  generatedAt: z.number().positive(),
+});
+
+/**
+ * Schema pour une anomalie détectée
+ */
+export const anomalieSchema = z.object({
+  type: z.enum(["total", "compte"]),
+  categorie: z.enum(["entree", "sortie"]).optional(),
+  compte_id: z.string().optional(),
+  code_ohada: z.string().optional(),
+  denomination: z.string().optional(),
+  severite: z.enum(["basse", "moyenne", "haute"]),
+  message: z.string().min(1),
+  ecart_montant: z.number(),
+  ecart_pourcentage: z.number().min(0),
+  montant_prevu: z.number().optional(),
+  montant_realise: z.number().optional(),
+});

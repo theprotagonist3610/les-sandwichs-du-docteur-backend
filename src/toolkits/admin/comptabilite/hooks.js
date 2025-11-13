@@ -1179,3 +1179,165 @@ export function useBudgetAlertes(budgetId) {
 
   return { alertes, loading, error, refetch: fetchAlertes };
 }
+
+// ============================================================================
+// HOOKS PREVISIONS
+// ============================================================================
+
+/**
+ * Hook pour générer et récupérer des prévisions globales
+ * @param {number} nbMois - Nombre de mois à prévoir (1, 3, ou 6)
+ * @param {number} nbMoisHistorique - Nombre de mois d'historique à analyser
+ * @returns {Object} { previsions, loading, error, refetch }
+ */
+export function usePrevisions(nbMois = 3, nbMoisHistorique = 6) {
+  const [previsions, setPrevisions] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPrevisions = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Importer la fonction dynamiquement pour éviter les cycles
+      const { genererPrevisionsGlobales } = await import("./previsions");
+      const data = await genererPrevisionsGlobales(nbMois, nbMoisHistorique);
+
+      setPrevisions(data);
+    } catch (err) {
+      console.error("Erreur lors de la génération des prévisions:", err);
+      setError(err.message || "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
+  }, [nbMois, nbMoisHistorique]);
+
+  useEffect(() => {
+    fetchPrevisions();
+  }, [fetchPrevisions]);
+
+  // Écouter les changements RTDB pour régénérer les prévisions
+  useEffect(() => {
+    const triggerRef = ref(rtdb, RTDB_COMPTA_TRIGGER_PATH);
+
+    const unsubscribe = onValue(triggerRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const latestTrigger = Object.values(data).pop();
+        if (latestTrigger && latestTrigger.action === "stats_updated") {
+          console.log("🔄 Stats mises à jour, régénération des prévisions...");
+          fetchPrevisions();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchPrevisions]);
+
+  return { previsions, loading, error, refetch: fetchPrevisions };
+}
+
+/**
+ * Hook pour détecter les anomalies entre prévisions et réalisations
+ * @param {string} moisKey - Mois à analyser (format MMYYYY)
+ * @param {Object} previsions - Prévisions pour ce mois
+ * @returns {Object} { anomalies, loading, error }
+ */
+export function useAnomaliesPrevisions(moisKey, previsions) {
+  const [anomalies, setAnomalies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAnomalies = useCallback(async () => {
+    if (!moisKey || !previsions) {
+      setAnomalies([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Charger les statistiques réelles du mois
+      const { getStatistiquesByMonth } = await import("./statistiques");
+      const realisations = await getStatistiquesByMonth(moisKey);
+
+      if (!realisations) {
+        setAnomalies([]);
+        setLoading(false);
+        return;
+      }
+
+      // Trouver les prévisions correspondantes au mois
+      const prevMois = previsions.previsions_par_mois?.find(p => p.mois === moisKey);
+
+      if (!prevMois) {
+        setAnomalies([]);
+        setLoading(false);
+        return;
+      }
+
+      // Détecter les anomalies
+      const { detecterAnomalies } = await import("./previsions");
+      const anomaliesDetectees = detecterAnomalies(prevMois, realisations);
+
+      setAnomalies(anomaliesDetectees);
+    } catch (err) {
+      console.error("Erreur lors de la détection des anomalies:", err);
+      setError(err.message || "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
+  }, [moisKey, previsions]);
+
+  useEffect(() => {
+    fetchAnomalies();
+  }, [fetchAnomalies]);
+
+  return { anomalies, loading, error, refetch: fetchAnomalies };
+}
+
+/**
+ * Hook pour comparer les prévisions multi-périodes
+ * @returns {Object} { comparaison, loading, error, refetch }
+ */
+export function useComparaisonPrevisions() {
+  const [comparaison, setComparaison] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchComparaison = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Générer 3 jeux de prévisions : 1 mois, 3 mois, 6 mois
+      const { genererPrevisionsGlobales } = await import("./previsions");
+
+      const [prev1Mois, prev3Mois, prev6Mois] = await Promise.all([
+        genererPrevisionsGlobales(1, 6),
+        genererPrevisionsGlobales(3, 6),
+        genererPrevisionsGlobales(6, 12),
+      ]);
+
+      setComparaison({
+        un_mois: prev1Mois,
+        trois_mois: prev3Mois,
+        six_mois: prev6Mois,
+      });
+    } catch (err) {
+      console.error("Erreur lors de la comparaison des prévisions:", err);
+      setError(err.message || "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchComparaison();
+  }, [fetchComparaison]);
+
+  return { comparaison, loading, error, refetch: fetchComparaison };
+}
