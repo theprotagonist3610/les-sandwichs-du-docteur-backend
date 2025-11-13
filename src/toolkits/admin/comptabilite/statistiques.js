@@ -326,3 +326,101 @@ export async function getStatistiquesSemaine(weekKey) {
     throw error;
   }
 }
+
+/**
+ * Récupère et agrège les statistiques d'un mois
+ * @param {string} monthKey - Format MMYYYY
+ * @returns {Promise<Object>} Statistiques du mois agrégées
+ */
+export async function getStatistiquesByMonth(monthKey) {
+  try {
+    console.log(`📊 Récupération statistiques mois ${monthKey}...`);
+
+    const { getDaysInMonth } = await import("./utils");
+    const jours = getDaysInMonth(monthKey);
+
+    // Récupérer les stats de chaque jour
+    const joursStats = [];
+    for (const dayKey of jours) {
+      try {
+        const dayStats = await getStatistiquesJour(dayKey);
+        if (dayStats) {
+          joursStats.push(dayStats);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Erreur stats pour ${dayKey}:`, error);
+      }
+    }
+
+    if (joursStats.length === 0) {
+      console.log(`ℹ️ Aucune statistique pour le mois ${monthKey}`);
+      return {
+        id: monthKey,
+        jours: [],
+        comptes: [],
+        tresorerie: [],
+        total_entrees: 0,
+        total_sorties: 0,
+        solde_mensuel: 0,
+        nombre_operations: 0,
+      };
+    }
+
+    // Agréger les comptes
+    const comptesMap = new Map();
+    const tresorerieMap = new Map();
+    let total_entrees = 0;
+    let total_sorties = 0;
+    let nombre_operations = 0;
+
+    joursStats.forEach((dayStats) => {
+      total_entrees += dayStats.total_entrees;
+      total_sorties += dayStats.total_sorties;
+      nombre_operations += dayStats.nombre_operations;
+
+      // Agréger comptes
+      dayStats.comptes.forEach((c) => {
+        if (!comptesMap.has(c.compte_id)) {
+          comptesMap.set(c.compte_id, {
+            ...c,
+            nombre_operations: 0,
+            montant_total: 0,
+          });
+        }
+        const stat = comptesMap.get(c.compte_id);
+        stat.nombre_operations += c.nombre_operations;
+        stat.montant_total += c.montant_total;
+      });
+
+      // Agréger trésorerie
+      dayStats.tresorerie.forEach((t) => {
+        if (!tresorerieMap.has(t.compte_id)) {
+          tresorerieMap.set(t.compte_id, {
+            ...t,
+            nombre_operations: 0,
+            montant_total: 0,
+          });
+        }
+        const stat = tresorerieMap.get(t.compte_id);
+        stat.nombre_operations += t.nombre_operations;
+        stat.montant_total += t.montant_total;
+      });
+    });
+
+    const solde_mensuel = total_entrees - total_sorties;
+
+    return {
+      id: monthKey,
+      jours: joursStats,
+      comptes: Array.from(comptesMap.values()),
+      tresorerie: Array.from(tresorerieMap.values()),
+      total_entrees,
+      total_sorties,
+      solde_mensuel,
+      nombre_operations,
+    };
+  } catch (error) {
+    console.error("❌ Erreur récupération statistiques mois:", error);
+    throw error;
+  }
+}

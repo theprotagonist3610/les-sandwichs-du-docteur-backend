@@ -13,6 +13,7 @@ export const TODAY_DOC = "comptabilite/today";
 export const HISTORIQUE_DAYS_COLLECTION = "comptabilite/historique/days";
 export const STATISTIQUES_WEEKS_COLLECTION = "comptabilite/statistiques/weeks";
 export const BILAN_WEEKS_COLLECTION = "comptabilite/bilan/weeks";
+export const BUDGETS_COLLECTION = "comptabilite_budgets";
 
 // ============================================================================
 // PATHS RTDB
@@ -31,6 +32,8 @@ export const CACHE_KEY_TODAY = "local_compta_today";
 export const CACHE_KEY_HISTORIQUE_PREFIX = "local_compta_day_";
 export const CACHE_KEY_STATISTIQUES_PREFIX = "local_compta_week_stat_";
 export const CACHE_KEY_BILAN_PREFIX = "local_compta_week_bilan_";
+export const CACHE_KEY_BUDGETS = "local_compta_budgets";
+export const CACHE_KEY_BUDGET_PREFIX = "local_compta_budget_";
 export const CACHE_LIFETIME = 5 * 60 * 1000; // 5 minutes
 
 // ============================================================================

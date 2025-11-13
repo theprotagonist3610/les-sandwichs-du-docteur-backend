@@ -19,6 +19,11 @@ export {
   weekStatisticSchema,
   dayBilanSchema,
   weekBilanSchema,
+  ligneBudgetSchema,
+  budgetSchema,
+  ligneBudgetAvecRealisationSchema,
+  budgetAvecRealisationSchema,
+  budgetsListeSchema,
 } from "./schemas";
 
 // ============================================================================
@@ -32,6 +37,7 @@ export {
   HISTORIQUE_DAYS_COLLECTION,
   STATISTIQUES_WEEKS_COLLECTION,
   BILAN_WEEKS_COLLECTION,
+  BUDGETS_COLLECTION,
   // RTDB paths
   RTDB_NOTIFICATIONS_PATH,
   RTDB_COMPTA_TRIGGER_PATH,
@@ -42,6 +48,8 @@ export {
   CACHE_KEY_HISTORIQUE_PREFIX,
   CACHE_KEY_STATISTIQUES_PREFIX,
   CACHE_KEY_BILAN_PREFIX,
+  CACHE_KEY_BUDGETS,
+  CACHE_KEY_BUDGET_PREFIX,
   CACHE_LIFETIME,
   // Default accounts
   COMPTES_OHADA_DEFAULT,
@@ -129,6 +137,7 @@ export {
   updateStatistiquesEnTempsReel,
   getStatistiquesJour,
   getStatistiquesSemaine,
+  getStatistiquesByMonth,
 } from "./statistiques";
 
 // ============================================================================
@@ -143,6 +152,24 @@ export {
   getBilansPlusieuresSemaines,
   getBilansPlusieursJours,
 } from "./bilans";
+
+// ============================================================================
+// BUDGETS FUNCTIONS
+// ============================================================================
+export {
+  // CRUD
+  creerBudget,
+  getBudgetById,
+  getAllBudgets,
+  getBudgetsByMois,
+  getBudgetActif,
+  updateBudget,
+  archiverBudget,
+  deleteBudget,
+  // Calculs
+  calculerRealisationBudget,
+  verifierAlertesBudget,
+} from "./budgets";
 
 // ============================================================================
 // HOOKS
@@ -170,4 +197,10 @@ export {
   useOperationsByWeek,
   useOperationsByMonth,
   useTresorerie,
+  // Budgets hooks
+  useBudgetsList,
+  useBudgetByMois,
+  useBudgetById,
+  useBudgetAvecRealisation,
+  useBudgetAlertes,
 } from "./hooks";
