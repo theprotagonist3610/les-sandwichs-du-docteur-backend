@@ -24,6 +24,10 @@ export {
   ligneBudgetAvecRealisationSchema,
   budgetAvecRealisationSchema,
   budgetsListeSchema,
+  previsionCompteSchema,
+  previsionMoisSchema,
+  previsionsGlobalesSchema,
+  anomalieSchema,
 } from "./schemas";
 
 // ============================================================================
@@ -172,6 +176,44 @@ export {
 } from "./budgets";
 
 // ============================================================================
+// PREVISIONS FUNCTIONS
+// ============================================================================
+export {
+  // Calculs de tendances
+  calculerTendance,
+  calculerMoyenneMobile,
+  detecterSaisonnalite,
+  // Génération de prévisions
+  genererPrevisionsCompte,
+  genererPrevisionsGlobales,
+  chargerHistoriqueCompte,
+  // Détection d'anomalies
+  detecterAnomalies,
+} from "./previsions";
+
+// ============================================================================
+// COMPARAISONS FUNCTIONS
+// ============================================================================
+export {
+  // Comparaisons de périodes
+  comparerDeuxMois,
+  comparerMoisVsMoisPrecedent,
+  comparerDeuxAnnees,
+  comparerBudgetVsReel,
+  genererMatriceComparaison,
+} from "./comparaisons";
+
+// ============================================================================
+// INSIGHTS FUNCTIONS
+// ============================================================================
+export {
+  // Génération d'insights
+  genererInsightsMois,
+  calculerRatiosFinanciers,
+  calculerScoreSante,
+} from "./insights";
+
+// ============================================================================
 // HOOKS
 // ============================================================================
 export {
@@ -203,4 +245,15 @@ export {
   useBudgetById,
   useBudgetAvecRealisation,
   useBudgetAlertes,
+  // Prévisions hooks
+  usePrevisions,
+  useAnomaliesPrevisions,
+  useComparaisonPrevisions,
+  // Comparaisons hooks
+  useComparaisonMois,
+  useComparaisonAnnees,
+  useComparaisonMoisActuel,
+  // Insights hooks
+  useInsightsMois,
+  useScoreSante,
 } from "./hooks";
