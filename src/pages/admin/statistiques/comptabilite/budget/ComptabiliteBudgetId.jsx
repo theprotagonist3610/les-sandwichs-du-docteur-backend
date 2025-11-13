@@ -246,6 +246,7 @@ const ComptabiliteBudgetId = () => {
           value={`${(budget.montant_total_previsionnel / 1000).toFixed(0)}k FCFA`}
           icon={<Target className="h-6 w-6" />}
           subtitle="Montant prévisionnel"
+          hint="Montant total planifié pour ce budget. Somme de toutes les lignes budgétaires définies pour la période."
         />
 
         <KPICard
@@ -254,6 +255,7 @@ const ComptabiliteBudgetId = () => {
           icon={<Activity className="h-6 w-6" />}
           subtitle={`${budget.taux_realisation_global.toFixed(1)}% du budget`}
           trend={budget.taux_realisation_global < 100 ? "down" : "up"}
+          hint="Montant effectivement dépensé à ce jour. Le taux de réalisation indique le pourcentage du budget consommé."
         />
 
         <KPICard
@@ -274,6 +276,7 @@ const ComptabiliteBudgetId = () => {
               ? "down"
               : "up"
           }
+          hint="Différence entre le budget prévu et le réalisé. Un écart positif indique que vous êtes sous le budget, un écart négatif signale un dépassement."
         />
       </div>
 

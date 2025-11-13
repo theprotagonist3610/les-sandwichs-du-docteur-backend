@@ -164,6 +164,7 @@ const DesktopComptabiliteDashboard = () => {
           value={`${(tresorerieTotale / 1000).toFixed(0)}k FCFA`}
           icon={<Wallet className="h-6 w-6" />}
           subtitle="Solde global"
+          hint="Solde total disponible dans tous vos comptes de trésorerie (Banque, Mobile Money, Caisse). Ce montant représente votre liquidité immédiate."
         />
 
         <KPICard
@@ -172,6 +173,7 @@ const DesktopComptabiliteDashboard = () => {
           icon={<TrendingUp className="h-6 w-6" />}
           subtitle={`${stats.nombre_operations || 0} opérations`}
           trend="up"
+          hint="Total des recettes enregistrées pour la période sélectionnée. Inclut toutes les opérations créditant vos comptes de produits et revenus."
         />
 
         <KPICard
@@ -180,6 +182,7 @@ const DesktopComptabiliteDashboard = () => {
           icon={<TrendingDown className="h-6 w-6" />}
           subtitle={`${stats.nombre_operations || 0} opérations`}
           trend="down"
+          hint="Total des dépenses enregistrées pour la période sélectionnée. Inclut toutes les opérations débitant vos comptes de charges et frais."
         />
 
         <KPICard
@@ -188,6 +191,7 @@ const DesktopComptabiliteDashboard = () => {
           icon={<Activity className="h-6 w-6" />}
           subtitle={soldeStatus === "positif" ? "Excédent" : "Déficit"}
           trend={soldeStatus === "positif" ? "up" : "down"}
+          hint="Différence entre les entrées et sorties de la période. Un solde positif indique un excédent (bénéfice), un solde négatif indique un déficit (perte)."
         />
       </div>
 

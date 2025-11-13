@@ -200,6 +200,7 @@ const ComptabiliteAnalyseFlux = () => {
           icon={<TrendingUp className="h-6 w-6" />}
           subtitle={`${stats.comptes?.filter(c => c.categorie === "entree").length || 0} comptes`}
           trend="up"
+          hint="Somme de toutes les recettes de la période. Analyse les flux entrants par compte pour identifier vos principales sources de revenus."
         />
 
         <KPICard
@@ -208,6 +209,7 @@ const ComptabiliteAnalyseFlux = () => {
           icon={<TrendingDown className="h-6 w-6" />}
           subtitle={`${stats.comptes?.filter(c => c.categorie === "sortie").length || 0} comptes`}
           trend="down"
+          hint="Somme de toutes les dépenses de la période. Analyse les flux sortants par compte pour identifier vos principaux postes de coûts."
         />
 
         <KPICard
@@ -216,6 +218,7 @@ const ComptabiliteAnalyseFlux = () => {
           icon={<Activity className="h-6 w-6" />}
           subtitle={soldeStatus === "positif" ? "Excédent" : "Déficit"}
           trend={soldeStatus === "positif" ? "up" : "down"}
+          hint="Résultat net de la période (Entrées - Sorties). Permet d'évaluer rapidement la performance financière et l'équilibre des flux."
         />
       </div>
 
