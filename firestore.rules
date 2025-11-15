@@ -317,25 +317,54 @@ service cloud.firestore {
     }
 
     // ========================================
-    // 9. COLLECTION "livraisons"
+    // 9. COLLECTION "livreurs"
     // Admin: CRUD
     // User authentifié: Read only
+    //
+    // Structure: Document unique contenant la liste des livreurs
+    // - livreurs/liste: { livreurs: [...], updatedAt }
+    // Chaque livreur contient: id, denomination, contact, actif, timestamps
     // ========================================
-    match /livraisons/{livraisonId} {
+    match /livreurs/liste {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
 
-      // Sous-collections de livraisons
-      match /{subcollection=**} {
-        allow read: if isAuthenticated();
-        allow write: if isAdmin();
-      }
+    // Autres sous-collections de livreurs
+    match /livreurs/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // ========================================
-    // 10. COLLECTION "productions"
+    // 10. COLLECTION "livraisons"
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // Structure: Document unique contenant la liste des livraisons (Option C - Hybride)
+    // - livraisons/liste: { livraisons: [...], updatedAt }
+    // Chaque livraison contient:
+    //   - id, commande_code, statut, client, livreur, colis_recupere
+    //   - priorite, dates, notes, timestamps
+    // Index RTDB pour sync temps réel
+    // ========================================
+    match /livraisons/liste {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Autres sous-collections de livraisons
+    match /livraisons/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // 11. COLLECTION "productions"
     // Admin: CRUD
     // User authentifié: Read only
     // ========================================
@@ -353,12 +382,12 @@ service cloud.firestore {
     }
 
     // ========================================
-    // 11. COLLECTION "emplacements"
+    // 12. COLLECTION "emplacements"
     // Admin: CRUD complet
     // User authentifié: Read only
     // ========================================
 
-    // 10.1 Document liste des emplacements
+    // 12.1 Document liste des emplacements
     match /emplacements/liste {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -366,7 +395,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 10.2 Opérations quotidiennes sur emplacements
+    // 12.2 Opérations quotidiennes sur emplacements
     match /emplacements/operations/{dayKey} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -374,14 +403,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 10.3 Autres sous-collections d'emplacements
+    // 12.3 Autres sous-collections d'emplacements
     match /emplacements/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     // ========================================
-    // 12. COLLECTION "stock" (REFACTORÉ)
+    // 13. COLLECTION "stock" (REFACTORÉ)
     // Admin: CRUD complet
     // User authentifié: Read only
     //
@@ -394,7 +423,7 @@ service cloud.firestore {
     // - stock/queueMetadata: Métadonnées de la queue
     // ========================================
 
-    // 11.1 Document liste des éléments de stock
+    // 13.1 Document liste des éléments de stock
     match /stock/liste {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -402,7 +431,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 11.2 Document résumé du stock global
+    // 13.2 Document résumé du stock global
     match /stock/resume {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -410,7 +439,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 11.3 Document des emplacements avec stock actuel
+    // 13.3 Document des emplacements avec stock actuel
     match /stock/emplacements {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -418,7 +447,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 11.4 Documents de transactions par jour
+    // 13.4 Documents de transactions par jour
     match /stock/transactions/liste/{dayKey} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -426,7 +455,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 11.5 Queue d'opérations
+    // 13.5 Queue d'opérations
     match /stock/operationsQueue {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -434,7 +463,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 11.6 Métadonnées de la queue
+    // 13.6 Métadonnées de la queue
     match /stock/queueMetadata {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -442,7 +471,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 11.7 Autres sous-collections de stock (pour extensions futures)
+    // 13.7 Autres sous-collections de stock (pour extensions futures)
     match /stock/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
