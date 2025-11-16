@@ -27,7 +27,6 @@ const Dashboard = () => {
     error,
     kpis,
     alertes,
-    nbAlertes,
     livraisonsEnCours,
     refresh,
   } = useDashboardGlobal();
@@ -57,8 +56,6 @@ const Dashboard = () => {
   if (error) {
     return (
       <DashboardLayout
-        titre="🏢 Les Sandwichs du Docteur - Centre de Contrôle"
-        nbAlertes={0}
         onRefresh={refresh}
         isLoading={isLoading}
       >
@@ -82,8 +79,6 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout
-      titre="🏢 Les Sandwichs du Docteur - Centre de Contrôle"
-      nbAlertes={nbAlertes}
       onRefresh={refresh}
       isLoading={isLoading}
     >
