@@ -3,7 +3,6 @@
  * Affiche un flux d'activités de tous les modules
  */
 
-import { useMemo } from "react";
 import {
   ShoppingCart,
   Truck,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import useActivities from "../../hooks/useActivities";
 
 /**
  * Map des icônes par type d'activité
@@ -69,86 +69,58 @@ const ACTIVITY_COLORS = {
  * Composant ActivityTimeline
  */
 const ActivityTimeline = ({ maxItems = 10 }) => {
-  // Générer des activités mock (en attendant les vraies données)
-  const activities = useMemo(() => {
-    const now = Date.now();
+  // Récupérer les activités en temps réel via le hook
+  const { activities, loading, error } = useActivities({ maxItems });
 
-    return [
-      {
-        id: 1,
-        type: "vente",
-        titre: "Vente #1245 validée",
-        description: "15,000 FCFA - Jean Dosseh",
-        timestamp: now - 5 * 60 * 1000, // Il y a 5 min
-      },
-      {
-        id: 2,
-        type: "production",
-        titre: "Production Sandwich Poulet terminée",
-        description: "50 unités produites",
-        timestamp: now - 10 * 60 * 1000, // Il y a 10 min
-      },
-      {
-        id: 3,
-        type: "livraison",
-        titre: "Livraison #89 assignée",
-        description: "Livreur: Kofi Mensah - Destination: Akpakpa",
-        timestamp: now - 15 * 60 * 1000, // Il y a 15 min
-      },
-      {
-        id: 4,
-        type: "alerte",
-        titre: "Stock Tomates < seuil",
-        description: "12kg restants (seuil: 20kg)",
-        timestamp: now - 20 * 60 * 1000, // Il y a 20 min
-      },
-      {
-        id: 5,
-        type: "comptabilite",
-        titre: "Opération comptable enregistrée",
-        description: "+50,000 FCFA - Vente directe",
-        timestamp: now - 25 * 60 * 1000, // Il y a 25 min
-      },
-      {
-        id: 6,
-        type: "stock",
-        titre: "Mouvement stock: Entrée Viande",
-        description: "+15kg - Achat fournisseur",
-        timestamp: now - 35 * 60 * 1000, // Il y a 35 min
-      },
-      {
-        id: 7,
-        type: "vente",
-        titre: "Vente #1244 validée",
-        description: "22,000 FCFA - Marie Koffi",
-        timestamp: now - 40 * 60 * 1000, // Il y a 40 min
-      },
-      {
-        id: 8,
-        type: "livraison",
-        titre: "Livraison #88 terminée",
-        description: "Durée: 28 min - Client satisfait",
-        timestamp: now - 50 * 60 * 1000, // Il y a 50 min
-      },
-      {
-        id: 9,
-        type: "production",
-        titre: "Production Sandwich Viande démarrée",
-        description: "30 unités planifiées",
-        timestamp: now - 55 * 60 * 1000, // Il y a 55 min
-      },
-      {
-        id: 10,
-        type: "comptabilite",
-        titre: "Opération comptable enregistrée",
-        description: "-25,000 FCFA - Achat fournitures",
-        timestamp: now - 65 * 60 * 1000, // Il y a 1h 5min
-      },
-    ];
-  }, []);
+  // Si chargement, afficher un spinner
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Activités Récentes
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+              <span className="text-xs text-gray-600 font-medium">Chargement...</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 flex items-center justify-center">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
-  // Limiter au nombre max d'items
-  const displayedActivities = activities.slice(0, maxItems);
+  // Si erreur, afficher un message
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-gray-600" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              Activités Récentes
+            </h3>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-2" />
+            <p className="text-sm text-red-800 font-medium">Erreur de chargement</p>
+            <p className="text-xs text-red-600 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const displayedActivities = activities;
 
   /**
    * Formate le temps relatif

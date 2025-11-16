@@ -3,72 +3,121 @@
  * Centralise toutes les données des différents modules pour les KPIs globaux
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { ref, onChildAdded } from "firebase/database";
+import { rtdb } from "@/firebase.js";
+
+// Imports des toolkits
 import {
   getAllComptesTresorerie,
   getOperationsToday,
 } from "@/toolkits/admin/comptabilite";
 import { getAllLivraisons, getLivraisonsEnCours } from "@/toolkits/admin/livraisons";
+import { GetCommandes } from "@/toolkits/admin/commandeToolkit";
+import { getProductionsEnAttente, formatDayKey } from "@/toolkits/admin/productionToolkit";
+import { listElements } from "@/toolkits/admin/stockToolkit";
+import { getAllUsers, getAllUsersPresences } from "@/toolkits/admin/userToolkit";
 
 // ============================================================================
-// FONCTIONS MOCK TEMPORAIRES (en attendant les vrais toolkits)
+// FONCTIONS WRAPPER POUR LES TOOLKITS
 // ============================================================================
 
 /**
- * Mock: Récupère les commandes du jour
- * TODO: Remplacer par import depuis commandeToolkit
+ * Récupère les commandes du jour depuis le toolkit
  */
 const getCommandesJour = async () => {
-  // Données simulées
-  return {
-    commandes: [
-      { id: 1, type: "sur_place", montant: 15000, vendeur: "Jean Dosseh" },
-      { id: 2, type: "a_livrer", montant: 22000, vendeur: "Marie Koffi" },
-      // ... plus de données simulées
-    ],
-  };
+  try {
+    const allCommandes = await GetCommandes();
+
+    // Filtrer les commandes du jour
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = today.getTime();
+
+    const commandesJour = (allCommandes || []).filter((commande) => {
+      if (!commande.dates?.creation) return false;
+      return commande.dates.creation >= todayTimestamp;
+    });
+
+    return { commandes: commandesJour };
+  } catch (error) {
+    console.error("❌ Erreur getCommandesJour:", error);
+    return { commandes: [] };
+  }
 };
 
 /**
- * Mock: Récupère les productions du jour
- * TODO: Remplacer par import depuis productionToolkit
+ * Récupère les productions en attente depuis le toolkit
  */
 const getProductionsJour = async () => {
-  // Données simulées
-  return {
-    productions: [
-      { id: 1, nom: "Sandwich Poulet", statut: "termine", quantite: 50 },
-      { id: 2, nom: "Sandwich Viande", statut: "en_cours", quantite: 30 },
-      // ... plus de données simulées
-    ],
-  };
+  try {
+    const productions = await getProductionsEnAttente();
+    return { productions: productions || [] };
+  } catch (error) {
+    console.error("❌ Erreur getProductionsJour:", error);
+    return { productions: [] };
+  }
 };
 
 /**
- * Mock: Récupère les alertes stock
- * TODO: Remplacer par import depuis stockToolkit
+ * Récupère les alertes stock depuis le toolkit
  */
 const getAlertesStock = async () => {
-  // Données simulées
-  return {
-    alertes: [
-      { id: 1, element: "Tomates", niveau: "critique", quantite: 12, seuil: 20 },
-      { id: 2, element: "Pain", niveau: "critique", quantite: 8, seuil: 15 },
-      { id: 3, element: "Oignons", niveau: "attention", quantite: 22, seuil: 20 },
-    ],
-  };
+  try {
+    const elements = await listElements({ status: true });
+
+    // Filtrer les éléments en alerte (quantité <= seuil)
+    const alertes = (elements || [])
+      .filter((element) => {
+        const quantite = element.quantite_actuelle || 0;
+        const seuil = element.seuil_alerte || 0;
+        return seuil > 0 && quantite <= seuil;
+      })
+      .map((element) => ({
+        id: element.id,
+        element: element.denomination,
+        quantite: element.quantite_actuelle || 0,
+        seuil: element.seuil_alerte || 0,
+        niveau: (element.quantite_actuelle || 0) === 0 ? "critique" : "attention",
+        unite: element.unite,
+        type: element.type,
+      }));
+
+    return { alertes };
+  } catch (error) {
+    console.error("❌ Erreur getAlertesStock:", error);
+    return { alertes: [] };
+  }
 };
 
 /**
- * Mock: Récupère les utilisateurs présents
- * TODO: Remplacer par import depuis userToolkit
+ * Récupère les utilisateurs présents depuis le toolkit
  */
 const getUtilisateursPresents = async () => {
-  // Données simulées
-  return {
-    presents: 8,
-    total: 12,
-  };
+  try {
+    const [users, presences] = await Promise.all([
+      getAllUsers(),
+      getAllUsersPresences(),
+    ]);
+
+    // Compter les utilisateurs réellement actifs (online et lastSeen < 90s)
+    const now = Date.now();
+    const activeThreshold = 90000; // 90 secondes
+
+    const activeUsers = presences.filter((presence) => {
+      const isOnline = presence.status === "online";
+      const isRecent = presence.lastSeen && (now - presence.lastSeen) < activeThreshold;
+      return isOnline && isRecent;
+    });
+
+    return {
+      presents: activeUsers.length,
+      total: users.length,
+    };
+  } catch (error) {
+    console.error("❌ Erreur getUtilisateursPresents:", error);
+    return { presents: 0, total: 0 };
+  }
 };
 
 /**
@@ -106,10 +155,12 @@ const useDashboardGlobal = () => {
   // ============================================================================
   // CHARGEMENT DES DONNÉES
   // ============================================================================
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
+
+      console.log("🔄 Dashboard: Chargement des données...");
 
       // Charger les données en parallèle
       const [
@@ -129,7 +180,7 @@ const useDashboardGlobal = () => {
         getCommandesJour().catch(() => ({ commandes: [] })),
         getProductionsJour().catch(() => ({ productions: [] })),
         getAlertesStock().catch(() => ({ alertes: [] })),
-        getUtilisateursPresents().catch(() => ({ presents: 0, total: 12 })),
+        getUtilisateursPresents().catch(() => ({ presents: 0, total: 0 })),
       ]);
 
       setComptesTresorerie(comptesData.comptes || []);
@@ -142,24 +193,106 @@ const useDashboardGlobal = () => {
       setUtilisateursPresents(
         Array.from({ length: utilisateursData.presents }, (_, i) => ({ id: i }))
       );
-      setTotalUtilisateurs(utilisateursData.total || 12);
+      setTotalUtilisateurs(utilisateursData.total || 0);
 
       console.log("✅ Dashboard global chargé avec succès");
+      console.log(`📊 Commandes: ${commandesData.commandes.length}, Productions: ${productionsData.productions.length}, Alertes: ${alertesStockData.alertes.length}`);
     } catch (err) {
       console.error("❌ Erreur chargement dashboard global:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  // ============================================================================
+  // EFFET 1: CHARGEMENT INITIAL + AUTO-REFRESH
+  // ============================================================================
   useEffect(() => {
     loadData();
 
     // Auto-refresh toutes les 30 secondes
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
+
+  // ============================================================================
+  // EFFET 2: LISTENERS RTDB POUR SYNCHRONISATION TEMPS RÉEL
+  // ============================================================================
+  useEffect(() => {
+    console.log("🔌 Dashboard: Configuration des listeners RTDB...");
+    const notificationsRef = ref(rtdb, "notification");
+    let debounceTimer = null;
+    let isInitialLoad = true;
+
+    // Handler pour les nouvelles notifications
+    const handleNotification = (snapshot) => {
+      // Ignorer les notifications au montage initial
+      if (isInitialLoad) {
+        return;
+      }
+
+      const notification = snapshot.val();
+      if (!notification) return;
+
+      const title = notification.title || "";
+      const message = notification.message || "";
+
+      console.log("🔔 Dashboard: Notification RTDB reçue", {
+        title,
+        message,
+        timestamp: notification.timestamp,
+      });
+
+      // Vérifier si la notification concerne un module du dashboard
+      const shouldRefresh =
+        title.includes("Transaction stock") ||
+        title.includes("stock") ||
+        title.includes("Commande") ||
+        title.includes("commande") ||
+        title.includes("Production") ||
+        title.includes("production") ||
+        title.includes("Livraison") ||
+        title.includes("livraison") ||
+        title.includes("comptable") ||
+        title.includes("Opération") ||
+        message.includes("stock") ||
+        message.includes("commande");
+
+      if (shouldRefresh) {
+        console.log("🔄 Dashboard: Déclenchement du refresh différé (500ms)");
+
+        // Annuler le timer précédent
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+
+        // Attendre 500ms avant de recharger (debounce)
+        debounceTimer = setTimeout(() => {
+          console.log("🔄 Dashboard: Refresh déclenché par RTDB");
+          loadData();
+        }, 500);
+      }
+    };
+
+    // Écouter les nouvelles notifications
+    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+
+    // Marquer le chargement initial comme terminé après 1s
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ Dashboard: Listeners RTDB actifs");
+    }, 1000);
+
+    return () => {
+      console.log("🔌 Dashboard: Nettoyage des listeners RTDB");
+      unsubscribe();
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      clearTimeout(initTimer);
+    };
+  }, [loadData]);
 
   // ============================================================================
   // KPI 1: TRÉSORERIE
