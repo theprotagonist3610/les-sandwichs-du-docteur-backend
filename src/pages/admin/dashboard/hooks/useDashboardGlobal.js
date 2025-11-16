@@ -328,6 +328,11 @@ const useDashboardGlobal = () => {
     alertes: alertesGlobales,
     nbAlertes: alertesGlobales.length,
 
+    // Données pour les widgets
+    livraisonsEnCours,
+    comptesTresorerie,
+    operationsJour,
+
     // Actions
     refresh: loadData,
   };
