@@ -217,16 +217,18 @@ const useDashboardGlobal = () => {
   }, [loadData]);
 
   // ============================================================================
-  // EFFET 2: LISTENERS RTDB POUR SYNCHRONISATION TEMPS RÉEL
+  // EFFET 2: LISTENERS RTDB POUR SYNCHRONISATION TEMPS RÉEL (DEUX NŒUDS)
   // ============================================================================
   useEffect(() => {
     console.log("🔌 Dashboard: Configuration des listeners RTDB...");
-    const notificationsRef = ref(rtdb, "notification");
+    const RTDB_NOTIFICATIONS_PATHS = ["notification", "notifications"];
+    console.log(`📡 Dashboard: Écoute de ${RTDB_NOTIFICATIONS_PATHS.length} nœuds:`, RTDB_NOTIFICATIONS_PATHS);
+
     let debounceTimer = null;
     let isInitialLoad = true;
 
     // Handler pour les nouvelles notifications
-    const handleNotification = (snapshot) => {
+    const handleNotification = (nodePath) => (snapshot) => {
       // Ignorer les notifications au montage initial
       if (isInitialLoad) {
         return;
@@ -238,7 +240,7 @@ const useDashboardGlobal = () => {
       const title = notification.title || "";
       const message = notification.message || "";
 
-      console.log("🔔 Dashboard: Notification RTDB reçue", {
+      console.log(`🔔 Dashboard: Notification RTDB reçue depuis ${nodePath}`, {
         title,
         message,
         timestamp: notification.timestamp,
@@ -275,8 +277,12 @@ const useDashboardGlobal = () => {
       }
     };
 
-    // Écouter les nouvelles notifications
-    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+    // Créer un listener pour chaque nœud
+    const unsubscribers = RTDB_NOTIFICATIONS_PATHS.map((nodePath) => {
+      const notificationsRef = ref(rtdb, nodePath);
+      console.log(`🔌 Dashboard: Listener actif sur ${nodePath}`);
+      return onChildAdded(notificationsRef, handleNotification(nodePath));
+    });
 
     // Marquer le chargement initial comme terminé après 1s
     const initTimer = setTimeout(() => {
@@ -286,7 +292,7 @@ const useDashboardGlobal = () => {
 
     return () => {
       console.log("🔌 Dashboard: Nettoyage des listeners RTDB");
-      unsubscribe();
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }

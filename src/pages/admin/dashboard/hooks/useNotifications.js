@@ -11,7 +11,7 @@ import { rtdb } from "@/firebase.js";
 // CONFIGURATION
 // ============================================================================
 
-const RTDB_NOTIFICATIONS_PATH = "notification";
+const RTDB_NOTIFICATIONS_PATHS = ["notification", "notifications"]; // Deux nœuds RTDB
 const MAX_NOTIFICATIONS = 50; // Nombre max de notifications à garder
 
 // ============================================================================
@@ -100,55 +100,71 @@ const useNotifications = () => {
   const [error, setError] = useState(null);
 
   // ============================================================================
-  // EFFET: ÉCOUTER LES NOTIFICATIONS RTDB
+  // EFFET: ÉCOUTER LES NOTIFICATIONS RTDB (DEUX NŒUDS)
   // ============================================================================
   useEffect(() => {
-    console.log("🔌 useNotifications: Configuration du listener RTDB...");
+    console.log("🔌 useNotifications: Configuration des listeners RTDB...");
+    console.log(`📡 useNotifications: Écoute de ${RTDB_NOTIFICATIONS_PATHS.length} nœuds:`, RTDB_NOTIFICATIONS_PATHS);
 
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notificationsQuery = query(notificationsRef, limitToLast(MAX_NOTIFICATIONS));
-
-    const notificationBuffer = [];
+    // Buffer partagé pour les deux nœuds
+    const notificationBuffer = new Map(); // Utiliser Map pour éviter les doublons
 
     // Handler pour les nouvelles notifications
-    const handleNewNotification = (snapshot) => {
+    const handleNewNotification = (nodePath) => (snapshot) => {
       try {
         const key = snapshot.key;
         const notification = snapshot.val();
 
         if (!notification) return;
 
-        // Formater la notification
-        const formattedNotif = formatNotification(key, notification);
+        // Créer un ID unique incluant le nœud source pour éviter les collisions
+        const uniqueId = `${nodePath}_${key}`;
 
-        console.log("📡 useNotifications: Nouvelle notification", {
+        // Formater la notification
+        const formattedNotif = formatNotification(uniqueId, notification);
+
+        console.log(`📡 useNotifications: Nouvelle notification depuis ${nodePath}`, {
           type: formattedNotif.type,
           module: formattedNotif.module,
           titre: formattedNotif.titre,
         });
 
-        // Ajouter au buffer
-        notificationBuffer.push(formattedNotif);
+        // Ajouter au buffer (Map élimine automatiquement les doublons)
+        notificationBuffer.set(uniqueId, formattedNotif);
 
-        // Limiter la taille
-        if (notificationBuffer.length > MAX_NOTIFICATIONS) {
-          notificationBuffer.shift();
-        }
+        // Convertir Map en Array et limiter la taille
+        let notifArray = Array.from(notificationBuffer.values());
 
         // Trier par timestamp décroissant
-        notificationBuffer.sort((a, b) => b.timestamp - a.timestamp);
+        notifArray.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Limiter la taille
+        if (notifArray.length > MAX_NOTIFICATIONS) {
+          notifArray = notifArray.slice(0, MAX_NOTIFICATIONS);
+
+          // Reconstruire le buffer avec les notifications gardées
+          notificationBuffer.clear();
+          notifArray.forEach((notif) => notificationBuffer.set(notif.id, notif));
+        }
 
         // Mettre à jour l'état
-        setNotifications([...notificationBuffer]);
+        setNotifications(notifArray);
         setLoading(false);
       } catch (err) {
-        console.error("❌ useNotifications: Erreur traitement notification:", err);
+        console.error(`❌ useNotifications: Erreur traitement notification (${nodePath}):`, err);
         setError(err.message);
       }
     };
 
-    // Écouter les notifications
-    const unsubscribe = onChildAdded(notificationsQuery, handleNewNotification);
+    // Créer un listener pour chaque nœud
+    const unsubscribers = RTDB_NOTIFICATIONS_PATHS.map((nodePath) => {
+      const notificationsRef = ref(rtdb, nodePath);
+      const notificationsQuery = query(notificationsRef, limitToLast(MAX_NOTIFICATIONS));
+
+      console.log(`🔌 useNotifications: Listener actif sur ${nodePath}`);
+
+      return onChildAdded(notificationsQuery, handleNewNotification(nodePath));
+    });
 
     // Timer de sécurité
     const loadingTimeout = setTimeout(() => {
@@ -159,8 +175,8 @@ const useNotifications = () => {
     }, 3000);
 
     return () => {
-      console.log("🔌 useNotifications: Nettoyage du listener");
-      unsubscribe();
+      console.log("🔌 useNotifications: Nettoyage des listeners");
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
       clearTimeout(loadingTimeout);
     };
   }, []);
@@ -184,11 +200,15 @@ const useNotifications = () => {
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
 
-      // Mettre à jour dans RTDB
-      const notifRef = ref(rtdb, `${RTDB_NOTIFICATIONS_PATH}/${notificationId}`);
+      // Extraire le nœud source et la clé depuis l'ID unique (format: "nodePath_key")
+      const [nodePath, ...keyParts] = notificationId.split("_");
+      const key = keyParts.join("_"); // Rejoindre au cas où la clé contient des underscores
+
+      // Mettre à jour dans RTDB sur le bon nœud
+      const notifRef = ref(rtdb, `${nodePath}/${key}`);
       await update(notifRef, { read: true });
 
-      console.log("✅ Notification marquée comme lue dans RTDB");
+      console.log(`✅ Notification marquée comme lue dans RTDB (${nodePath}/${key})`);
     } catch (err) {
       console.error("❌ Erreur marquage notification:", err);
       // Revenir à l'état précédent en cas d'erreur
@@ -214,7 +234,11 @@ const useNotifications = () => {
       // Mettre à jour dans RTDB en parallèle
       await Promise.all(
         unreadNotifications.map((notif) => {
-          const notifRef = ref(rtdb, `${RTDB_NOTIFICATIONS_PATH}/${notif.id}`);
+          // Extraire le nœud source et la clé depuis l'ID unique
+          const [nodePath, ...keyParts] = notif.id.split("_");
+          const key = keyParts.join("_");
+
+          const notifRef = ref(rtdb, `${nodePath}/${key}`);
           return update(notifRef, { read: true });
         })
       );

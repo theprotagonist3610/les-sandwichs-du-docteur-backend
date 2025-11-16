@@ -11,7 +11,7 @@ import { rtdb } from "@/firebase.js";
 // CONFIGURATION
 // ============================================================================
 
-const RTDB_NOTIFICATIONS_PATH = "notification";
+const RTDB_NOTIFICATIONS_PATHS = ["notification", "notifications"]; // Deux nœuds RTDB
 const MAX_ACTIVITIES = 50; // Nombre max d'activités à garder en mémoire
 
 // ============================================================================
@@ -82,48 +82,55 @@ const useActivities = (options = {}) => {
   const [error, setError] = useState(null);
 
   // ============================================================================
-  // EFFET: ÉCOUTER LES NOTIFICATIONS RTDB
+  // EFFET: ÉCOUTER LES NOTIFICATIONS RTDB (DEUX NŒUDS)
   // ============================================================================
   useEffect(() => {
-    console.log("🔌 useActivities: Configuration du listener RTDB...");
-
-    // Créer une query pour récupérer les dernières notifications
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notificationsQuery = query(notificationsRef, limitToLast(MAX_ACTIVITIES));
+    console.log("🔌 useActivities: Configuration des listeners RTDB...");
+    console.log(`📡 useActivities: Écoute de ${RTDB_NOTIFICATIONS_PATHS.length} nœuds:`, RTDB_NOTIFICATIONS_PATHS);
 
     let isInitialLoad = true;
-    const activityBuffer = [];
+    const activityBuffer = new Map(); // Utiliser Map pour éviter les doublons
 
     // Handler pour les nouvelles notifications
-    const handleNewNotification = (snapshot) => {
+    const handleNewNotification = (nodePath) => (snapshot) => {
       try {
         const notificationKey = snapshot.key;
         const notification = snapshot.val();
 
         if (!notification) return;
 
-        // Convertir la notification en activité
-        const activity = notificationToActivity(notificationKey, notification);
+        // Créer un ID unique incluant le nœud source
+        const uniqueId = `${nodePath}_${notificationKey}`;
 
-        console.log("📡 useActivities: Nouvelle activité", {
+        // Convertir la notification en activité
+        const activity = notificationToActivity(uniqueId, notification);
+
+        console.log(`📡 useActivities: Nouvelle activité depuis ${nodePath}`, {
           type: activity.type,
           titre: activity.titre,
           timestamp: activity.timestamp,
         });
 
-        // Ajouter au buffer
-        activityBuffer.push(activity);
+        // Ajouter au buffer (Map élimine automatiquement les doublons)
+        activityBuffer.set(uniqueId, activity);
 
-        // Limiter la taille du buffer
-        if (activityBuffer.length > MAX_ACTIVITIES) {
-          activityBuffer.shift(); // Retirer le plus ancien
-        }
+        // Convertir Map en Array
+        let activityArray = Array.from(activityBuffer.values());
 
         // Trier par timestamp décroissant (plus récent en premier)
-        activityBuffer.sort((a, b) => b.timestamp - a.timestamp);
+        activityArray.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Limiter la taille
+        if (activityArray.length > MAX_ACTIVITIES) {
+          activityArray = activityArray.slice(0, MAX_ACTIVITIES);
+
+          // Reconstruire le buffer avec les activités gardées
+          activityBuffer.clear();
+          activityArray.forEach((act) => activityBuffer.set(act.id, act));
+        }
 
         // Mettre à jour l'état
-        setActivities([...activityBuffer]);
+        setActivities(activityArray);
 
         // Marquer le chargement initial comme terminé après la première notification
         if (isInitialLoad) {
@@ -132,13 +139,20 @@ const useActivities = (options = {}) => {
           console.log("✅ useActivities: Chargement initial terminé");
         }
       } catch (err) {
-        console.error("❌ useActivities: Erreur lors du traitement de la notification:", err);
+        console.error(`❌ useActivities: Erreur traitement notification (${nodePath}):`, err);
         setError(err.message);
       }
     };
 
-    // Écouter les notifications (incluant les existantes avec limitToLast)
-    const unsubscribe = onChildAdded(notificationsQuery, handleNewNotification);
+    // Créer un listener pour chaque nœud
+    const unsubscribers = RTDB_NOTIFICATIONS_PATHS.map((nodePath) => {
+      const notificationsRef = ref(rtdb, nodePath);
+      const notificationsQuery = query(notificationsRef, limitToLast(MAX_ACTIVITIES));
+
+      console.log(`🔌 useActivities: Listener actif sur ${nodePath}`);
+
+      return onChildAdded(notificationsQuery, handleNewNotification(nodePath));
+    });
 
     // Timer de sécurité pour marquer le chargement comme terminé même sans notification
     const loadingTimeout = setTimeout(() => {
@@ -149,8 +163,8 @@ const useActivities = (options = {}) => {
     }, 3000);
 
     return () => {
-      console.log("🔌 useActivities: Nettoyage du listener");
-      unsubscribe();
+      console.log("🔌 useActivities: Nettoyage des listeners");
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
       clearTimeout(loadingTimeout);
     };
   }, []);
