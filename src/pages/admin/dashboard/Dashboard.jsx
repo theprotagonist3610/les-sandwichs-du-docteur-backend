@@ -15,6 +15,7 @@ import StockWidget from "./components/widgets/StockWidget";
 import AlertesWidget from "./components/widgets/AlertesWidget";
 import ActivityTimeline from "./components/timeline/ActivityTimeline";
 import useDashboardGlobal from "./hooks/useDashboardGlobal";
+import useNotificationCleanup from "@/hooks/useNotificationCleanup";
 
 /**
  * Composant Dashboard principal
@@ -30,6 +31,15 @@ const Dashboard = () => {
     livraisonsEnCours,
     refresh,
   } = useDashboardGlobal();
+
+  // Hook de nettoyage automatique des notifications (48H)
+  useNotificationCleanup({
+    enabled: true,
+    runOnMount: true,
+    onCleanupComplete: (stats) => {
+      console.log("✅ Nettoyage notifications terminé:", stats);
+    },
+  });
 
   // Gestion du clic sur un KPI ou widget
   const handleNavigate = (module) => {
