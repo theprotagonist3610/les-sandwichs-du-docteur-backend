@@ -33,9 +33,8 @@ const Dashboard = () => {
 
   // Gestion du clic sur un KPI ou widget
   const handleNavigate = (module) => {
-    // TODO: Rediriger vers le module approprié
     console.log(`Navigation vers module: ${module}`);
-    // navigate(`/admin/${module}`);
+    navigate(`/admin/${module}`);
   };
 
   // Gestion des actions rapides

@@ -30,3 +30,4 @@ export { default as NotificationCenter } from "./components/notifications/Notifi
 // Hooks
 export { default as useDashboardGlobal } from "./hooks/useDashboardGlobal";
 export { default as useActivities } from "./hooks/useActivities";
+export { default as useNotifications } from "./hooks/useNotifications";
