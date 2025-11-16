@@ -27,43 +27,43 @@ const ICONS = {
   Users,
 };
 
-// Map des couleurs
+// Map des couleurs adaptées au thème
 const COLORS = {
   blue: {
-    bg: "bg-blue-50",
-    icon: "text-blue-600",
-    border: "border-blue-200",
-    accent: "bg-blue-600",
+    bg: "bg-primary/10",
+    icon: "text-primary",
+    border: "border-primary/20",
+    accent: "bg-primary",
   },
   green: {
-    bg: "bg-green-50",
-    icon: "text-green-600",
-    border: "border-green-200",
-    accent: "bg-green-600",
+    bg: "bg-green-50 dark:bg-green-950/20",
+    icon: "text-green-600 dark:text-green-400",
+    border: "border-green-200 dark:border-green-800",
+    accent: "bg-green-600 dark:bg-green-500",
   },
   orange: {
-    bg: "bg-orange-50",
-    icon: "text-orange-600",
-    border: "border-orange-200",
-    accent: "bg-orange-600",
+    bg: "bg-accent/20",
+    icon: "text-accent-foreground",
+    border: "border-accent/30",
+    accent: "bg-accent",
   },
   purple: {
-    bg: "bg-purple-50",
-    icon: "text-purple-600",
-    border: "border-purple-200",
-    accent: "bg-purple-600",
+    bg: "bg-purple-50 dark:bg-purple-950/20",
+    icon: "text-purple-600 dark:text-purple-400",
+    border: "border-purple-200 dark:border-purple-800",
+    accent: "bg-purple-600 dark:bg-purple-500",
   },
   yellow: {
-    bg: "bg-yellow-50",
-    icon: "text-yellow-600",
-    border: "border-yellow-200",
-    accent: "bg-yellow-600",
+    bg: "bg-accent/20",
+    icon: "text-accent-foreground",
+    border: "border-accent/30",
+    accent: "bg-accent",
   },
   indigo: {
-    bg: "bg-indigo-50",
-    icon: "text-indigo-600",
-    border: "border-indigo-200",
-    accent: "bg-indigo-600",
+    bg: "bg-primary/10",
+    icon: "text-primary",
+    border: "border-primary/20",
+    accent: "bg-primary",
   },
 };
 
@@ -108,13 +108,13 @@ const getTrendIcon = (trend) => {
 const getTrendColor = (trend) => {
   switch (trend) {
     case "up":
-      return "text-green-600 bg-green-50";
+      return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20";
     case "down":
-      return "text-red-600 bg-red-50";
+      return "text-destructive bg-destructive/10";
     case "warning":
-      return "text-orange-600 bg-orange-50";
+      return "text-accent-foreground bg-accent/20";
     default:
-      return "text-gray-600 bg-gray-50";
+      return "text-muted-foreground bg-muted";
   }
 };
 
@@ -143,7 +143,7 @@ const KPICard = ({
       transition={{ duration: 0.3 }}
       onClick={onClick}
       className={`
-        relative overflow-hidden rounded-lg border ${colors.border} bg-white
+        relative overflow-hidden rounded-lg border ${colors.border} bg-card
         shadow-sm hover:shadow-md transition-all duration-300
         ${onClick ? "cursor-pointer" : ""}
       `}
@@ -174,17 +174,17 @@ const KPICard = ({
         {/* Valeur principale */}
         <div className="mb-2">
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-gray-900">
+            <span className="text-3xl font-bold text-card-foreground">
               {formatValue(valeur, format, fractionTotal)}
             </span>
             {suffix && format === "currency" && (
-              <span className="text-sm font-medium text-gray-600">{suffix}</span>
+              <span className="text-sm font-medium text-muted-foreground">{suffix}</span>
             )}
           </div>
         </div>
 
         {/* Titre */}
-        <div className="text-sm font-medium text-gray-600">{titre}</div>
+        <div className="text-sm font-medium text-muted-foreground">{titre}</div>
       </div>
 
       {/* Animation de hover */}

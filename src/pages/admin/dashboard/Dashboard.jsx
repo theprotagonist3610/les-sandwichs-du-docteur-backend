@@ -53,28 +53,6 @@ const Dashboard = () => {
     console.log(`Action rapide: ${actionId}`);
   };
 
-  // État de chargement global
-  if (isLoading) {
-    return (
-      <DashboardLayout
-        titre="🏢 Les Sandwichs du Docteur - Centre de Contrôle"
-        nbAlertes={0}
-      >
-        <div className="flex items-center justify-center py-24">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-lg text-gray-600 font-medium">
-              Chargement du dashboard...
-            </p>
-            <p className="text-sm text-gray-500">
-              Récupération des données en cours
-            </p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   // État d'erreur
   if (error) {
     return (
@@ -82,16 +60,17 @@ const Dashboard = () => {
         titre="🏢 Les Sandwichs du Docteur - Centre de Contrôle"
         nbAlertes={0}
         onRefresh={refresh}
+        isLoading={isLoading}
       >
         <div className="flex items-center justify-center py-24">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md">
-            <h3 className="text-red-800 font-bold text-lg mb-2">
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-8 max-w-md">
+            <h3 className="text-destructive font-bold text-lg mb-2">
               Erreur de chargement
             </h3>
-            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <p className="text-destructive/80 text-sm mb-4">{error}</p>
             <button
               onClick={refresh}
-              className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              className="w-full px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors font-medium"
             >
               Réessayer
             </button>
@@ -106,13 +85,14 @@ const Dashboard = () => {
       titre="🏢 Les Sandwichs du Docteur - Centre de Contrôle"
       nbAlertes={nbAlertes}
       onRefresh={refresh}
+      isLoading={isLoading}
     >
       <div className="space-y-8">
         {/* ================================================================ */}
         {/* SECTION 1: KPIs GLOBAUX */}
         {/* ================================================================ */}
         <section>
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          <h2 className="text-xl font-semibold text-foreground mb-6">
             Indicateurs Clés de Performance
           </h2>
           <KPIGrid kpis={kpis} onKPIClick={handleNavigate} />
@@ -129,7 +109,7 @@ const Dashboard = () => {
         {/* SECTION 3: WIDGETS MODULES (Grid 2 colonnes) */}
         {/* ================================================================ */}
         <section>
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          <h2 className="text-xl font-semibold text-foreground mb-6">
             Aperçu des Modules
           </h2>
 
@@ -177,7 +157,7 @@ const Dashboard = () => {
         {/* SECTION 4: TIMELINE ACTIVITÉS (Temps réel) */}
         {/* ================================================================ */}
         <section>
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          <h2 className="text-xl font-semibold text-foreground mb-6">
             Flux d'Activités
           </h2>
           <ActivityTimeline maxItems={10} />
@@ -186,7 +166,7 @@ const Dashboard = () => {
         {/* ================================================================ */}
         {/* FOOTER */}
         {/* ================================================================ */}
-        <div className="text-center text-sm text-gray-500 py-4 border-t border-gray-200">
+        <div className="text-center text-sm text-muted-foreground py-4 border-t border-border">
           Centre de Contrôle - Les Sandwichs du Docteur © 2025
         </div>
       </div>

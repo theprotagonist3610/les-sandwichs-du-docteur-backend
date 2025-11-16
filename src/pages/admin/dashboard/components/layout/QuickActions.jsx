@@ -49,8 +49,8 @@ const QuickActions = ({ onAction = null }) => {
   ];
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions Rapides</h2>
+    <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+      <h2 className="text-lg font-semibold text-card-foreground mb-4">Actions Rapides</h2>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {actions.map((action) => {

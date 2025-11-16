@@ -26,37 +26,37 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
       case "error":
         return {
           icon: AlertCircle,
-          color: "text-red-600",
-          bg: "bg-red-50",
-          border: "border-red-200",
-          badge: "bg-red-600",
+          color: "text-destructive",
+          bg: "bg-destructive/10",
+          border: "border-destructive/30",
+          badge: "bg-destructive",
           label: "URGENT",
         };
       case "warning":
         return {
           icon: AlertTriangle,
-          color: "text-yellow-600",
-          bg: "bg-yellow-50",
-          border: "border-yellow-200",
-          badge: "bg-yellow-600",
+          color: "text-accent-foreground",
+          bg: "bg-accent/20",
+          border: "border-accent/30",
+          badge: "bg-accent",
           label: "ATTENTION",
         };
       case "info":
         return {
           icon: Info,
-          color: "text-blue-600",
-          bg: "bg-blue-50",
-          border: "border-blue-200",
-          badge: "bg-blue-600",
+          color: "text-primary",
+          bg: "bg-primary/10",
+          border: "border-primary/20",
+          badge: "bg-primary",
           label: "INFO",
         };
       default:
         return {
           icon: Bell,
-          color: "text-gray-600",
-          bg: "bg-gray-50",
-          border: "border-gray-200",
-          badge: "bg-gray-600",
+          color: "text-muted-foreground",
+          bg: "bg-muted/50",
+          border: "border-border",
+          badge: "bg-muted-foreground",
           label: "INFO",
         };
     }
@@ -81,7 +81,7 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
       viewMoreLabel="Toutes les alertes"
       headerAction={
         stats.total > 0 && (
-          <div className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">
+          <div className="px-2 py-1 bg-destructive/20 text-destructive rounded-full text-xs font-bold">
             {stats.total}
           </div>
         )
@@ -90,35 +90,35 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
       <div className="space-y-6">
         {/* Stats rapides */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-red-50 rounded-lg p-3 text-center">
+          <div className="bg-destructive/10 rounded-lg p-3 text-center">
             <div className="flex items-center justify-center mb-1">
-              <AlertCircle className="w-4 h-4 text-red-600" />
+              <AlertCircle className="w-4 h-4 text-destructive" />
             </div>
-            <p className="text-lg font-bold text-red-600">{stats.error}</p>
-            <p className="text-xs text-red-700 font-medium">Urgent</p>
+            <p className="text-lg font-bold text-destructive">{stats.error}</p>
+            <p className="text-xs text-destructive font-medium">Urgent</p>
           </div>
-          <div className="bg-yellow-50 rounded-lg p-3 text-center">
+          <div className="bg-accent/20 rounded-lg p-3 text-center">
             <div className="flex items-center justify-center mb-1">
-              <AlertTriangle className="w-4 h-4 text-yellow-600" />
+              <AlertTriangle className="w-4 h-4 text-accent-foreground" />
             </div>
-            <p className="text-lg font-bold text-yellow-600">{stats.warning}</p>
-            <p className="text-xs text-yellow-700 font-medium">Attention</p>
+            <p className="text-lg font-bold text-accent-foreground">{stats.warning}</p>
+            <p className="text-xs text-accent-foreground font-medium">Attention</p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
+          <div className="bg-primary/10 rounded-lg p-3 text-center">
             <div className="flex items-center justify-center mb-1">
-              <Info className="w-4 h-4 text-blue-600" />
+              <Info className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-lg font-bold text-blue-600">{stats.info}</p>
-            <p className="text-xs text-blue-700 font-medium">Info</p>
+            <p className="text-lg font-bold text-primary">{stats.info}</p>
+            <p className="text-xs text-primary font-medium">Info</p>
           </div>
         </div>
 
         {/* Timeline des alertes */}
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Alertes récentes</h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">Alertes récentes</h4>
 
           {alertes.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <Bell className="w-12 h-12 mx-auto mb-2 opacity-30" />
               <p className="text-sm">Aucune alerte pour le moment</p>
               <p className="text-xs mt-1">Tout fonctionne correctement 🎉</p>
@@ -126,7 +126,7 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
           ) : (
             <div className="relative">
               {/* Ligne verticale de timeline */}
-              <div className="absolute left-4 top-3 bottom-3 w-0.5 bg-gray-200" />
+              <div className="absolute left-4 top-3 bottom-3 w-0.5 bg-border" />
 
               {/* Liste des alertes */}
               <div className="space-y-3">
@@ -138,7 +138,7 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
                     <div key={alerte.id} className="relative pl-10">
                       {/* Point de timeline */}
                       <div
-                        className={`absolute left-2 top-3 w-4 h-4 rounded-full border-2 border-white ${style.bg} ${style.color} flex items-center justify-center z-10`}
+                        className={`absolute left-2 top-3 w-4 h-4 rounded-full border-2 border-card ${style.bg} ${style.color} flex items-center justify-center z-10`}
                       >
                         <div className={`w-2 h-2 rounded-full ${style.badge}`} />
                       </div>
@@ -154,26 +154,26 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2">
                             <span
-                              className={`px-2 py-0.5 ${style.badge} text-white text-xs rounded font-bold`}
+                              className={`px-2 py-0.5 ${style.badge} text-white dark:text-white text-xs rounded font-bold`}
                             >
                               {style.label}
                             </span>
-                            <span className="text-xs font-medium text-gray-600">
+                            <span className="text-xs font-medium text-muted-foreground">
                               {alerte.module}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             {formatTime(alerte.timestamp)}
                           </span>
                         </div>
 
                         {/* Titre */}
-                        <h5 className="text-sm font-semibold text-gray-900 mb-1">
+                        <h5 className="text-sm font-semibold text-card-foreground mb-1">
                           {alerte.titre}
                         </h5>
 
                         {/* Message */}
-                        <p className="text-sm text-gray-700">{alerte.message}</p>
+                        <p className="text-sm text-muted-foreground">{alerte.message}</p>
                       </div>
                     </div>
                   );
@@ -185,7 +185,7 @@ const AlertesWidget = ({ alertes = [], onViewMore }) => {
                 <div className="mt-4 text-center">
                   <button
                     onClick={onViewMore}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    className="text-sm text-destructive hover:text-destructive/80 font-medium"
                   >
                     Voir {alertes.length - 8} alertes de plus
                   </button>

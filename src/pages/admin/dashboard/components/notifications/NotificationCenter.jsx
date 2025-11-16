@@ -69,27 +69,27 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
     switch (type) {
       case "error":
         return {
-          icon: "text-red-600",
-          bg: "bg-red-50",
-          border: "border-red-200",
+          icon: "text-destructive",
+          bg: "bg-destructive/10",
+          border: "border-destructive/30",
         };
       case "warning":
         return {
-          icon: "text-yellow-600",
-          bg: "bg-yellow-50",
-          border: "border-yellow-200",
+          icon: "text-accent-foreground",
+          bg: "bg-accent/20",
+          border: "border-accent/30",
         };
       case "info":
         return {
-          icon: "text-blue-600",
-          bg: "bg-blue-50",
-          border: "border-blue-200",
+          icon: "text-primary",
+          bg: "bg-primary/10",
+          border: "border-primary/20",
         };
       default:
         return {
-          icon: "text-gray-600",
-          bg: "bg-gray-50",
-          border: "border-gray-200",
+          icon: "text-muted-foreground",
+          bg: "bg-muted/50",
+          border: "border-border",
         };
     }
   };
@@ -117,15 +117,15 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+    <div className="fixed inset-y-0 right-0 w-full max-w-md bg-card shadow-2xl z-50 flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="px-6 py-4 border-b border-border bg-muted/50">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-gray-700" />
-            <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+            <Bell className="w-5 h-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold text-card-foreground">Notifications</h2>
             {stats.unread > 0 && (
-              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">
+              <span className="px-2 py-0.5 bg-destructive/20 text-destructive rounded-full text-xs font-bold">
                 {stats.unread}
               </span>
             )}
@@ -135,7 +135,7 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
             {onClearAll && notifications.length > 0 && (
               <button
                 onClick={onClearAll}
-                className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                 title="Tout supprimer"
               >
                 <Trash2 className="w-4 h-4" />
@@ -144,7 +144,7 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -158,8 +158,8 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
             onClick={() => setFilter("all")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               filter === "all"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent"
             }`}
           >
             Tous ({stats.total})
@@ -168,8 +168,8 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
             onClick={() => setFilter("unread")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               filter === "unread"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent"
             }`}
           >
             Non lus ({stats.unread})
@@ -178,8 +178,8 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
             onClick={() => setFilter("error")}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               filter === "error"
-                ? "bg-red-600 text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent"
             }`}
           >
             Urgent ({stats.error})
@@ -190,7 +190,7 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
       {/* Liste des notifications */}
       <div className="flex-1 overflow-y-auto">
         {filteredNotifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500 px-6">
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6">
             {filter === "unread" ? (
               <>
                 <CheckCircle className="w-16 h-16 mb-3 opacity-20" />
@@ -206,7 +206,7 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
             )}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {filteredNotifications.map((notification) => {
               const styles = getStyles(notification.type);
               const icon = getIcon(notification.type);
@@ -214,8 +214,8 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
               return (
                 <div
                   key={notification.id}
-                  className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                    !notification.read ? "bg-blue-50/30" : ""
+                  className={`p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
+                    !notification.read ? "bg-primary/5" : ""
                   }`}
                   onClick={() => onMarkAsRead?.(notification.id)}
                 >
@@ -229,23 +229,23 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-600">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {notification.module}
                           </span>
                           {!notification.read && (
-                            <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                            <div className="w-2 h-2 bg-primary rounded-full" />
                           )}
                         </div>
-                        <span className="text-xs text-gray-500 whitespace-nowrap">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatTime(notification.timestamp)}
                         </span>
                       </div>
 
-                      <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                      <h4 className="text-sm font-semibold text-card-foreground mb-1">
                         {notification.titre}
                       </h4>
 
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {notification.message}
                       </p>
                     </div>
@@ -257,7 +257,7 @@ const NotificationCenter = ({ notifications = [], onClose = null, onMarkAsRead =
                           e.stopPropagation();
                           onMarkAsRead?.(notification.id);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
+                        className="p-1.5 text-muted-foreground hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/20 rounded transition-colors flex-shrink-0"
                         title="Marquer comme lu"
                       >
                         <Check className="w-4 h-4" />

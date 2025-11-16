@@ -13,7 +13,7 @@ import WidgetContainer from "./WidgetContainer";
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
+      <div className="bg-popover text-popover-foreground px-3 py-2 rounded-lg shadow-lg text-sm border border-border">
         <p className="font-medium">
           {new Intl.NumberFormat("fr-FR").format(payload[0].value)} FCFA
         </p>
@@ -57,25 +57,25 @@ const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
           {/* Entrées */}
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              <span className="text-xs font-medium text-gray-600">Entrées</span>
+              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+              <span className="text-xs font-medium text-muted-foreground">Entrées</span>
             </div>
-            <p className="text-lg font-bold text-green-600">
+            <p className="text-lg font-bold text-green-600 dark:text-green-400">
               {new Intl.NumberFormat("fr-FR", {
                 notation: "compact",
                 compactDisplay: "short",
               }).format(details.entrees)}
             </p>
-            <p className="text-xs text-gray-500">{details.nbOperations || 0} ops</p>
+            <p className="text-xs text-muted-foreground">{details.nbOperations || 0} ops</p>
           </div>
 
           {/* Sorties */}
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
-              <TrendingDown className="w-4 h-4 text-red-600" />
-              <span className="text-xs font-medium text-gray-600">Sorties</span>
+              <TrendingDown className="w-4 h-4 text-destructive" />
+              <span className="text-xs font-medium text-muted-foreground">Sorties</span>
             </div>
-            <p className="text-lg font-bold text-red-600">
+            <p className="text-lg font-bold text-destructive">
               {new Intl.NumberFormat("fr-FR", {
                 notation: "compact",
                 compactDisplay: "short",
@@ -86,10 +86,10 @@ const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
           {/* Balance */}
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
-              <span className="text-xs font-medium text-gray-600">Balance</span>
+              <span className="text-xs font-medium text-muted-foreground">Balance</span>
             </div>
             <p
-              className={`text-lg font-bold ${isPositive ? "text-green-600" : "text-red-600"}`}
+              className={`text-lg font-bold ${isPositive ? "text-green-600 dark:text-green-400" : "text-destructive"}`}
             >
               {isPositive ? "+" : ""}
               {new Intl.NumberFormat("fr-FR", {
@@ -97,13 +97,13 @@ const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
                 compactDisplay: "short",
               }).format(details.balanceJour)}
             </p>
-            <p className="text-xs text-gray-500">Aujourd'hui</p>
+            <p className="text-xs text-muted-foreground">Aujourd'hui</p>
           </div>
         </div>
 
         {/* Mini graphique d'évolution */}
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Évolution 7 jours</h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">Évolution 7 jours</h4>
           <div className="h-24">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={evolutionData}>
@@ -111,7 +111,7 @@ const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
                 <Line
                   type="monotone"
                   dataKey="solde"
-                  stroke="#2563eb"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}
@@ -122,10 +122,10 @@ const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
         </div>
 
         {/* Solde total */}
-        <div className="pt-4 border-t border-gray-200">
+        <div className="pt-4 border-t border-border">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Solde Total</span>
-            <span className="text-xl font-bold text-gray-900">
+            <span className="text-sm text-muted-foreground">Solde Total</span>
+            <span className="text-xl font-bold text-card-foreground">
               {new Intl.NumberFormat("fr-FR").format(details.soldeTotal)} FCFA
             </span>
           </div>

@@ -206,14 +206,11 @@ const useDashboardGlobal = () => {
   }, []);
 
   // ============================================================================
-  // EFFET 1: CHARGEMENT INITIAL + AUTO-REFRESH
+  // EFFET 1: CHARGEMENT INITIAL UNIQUEMENT
   // ============================================================================
   useEffect(() => {
     loadData();
-
-    // Auto-refresh toutes les 30 secondes
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
+    // Plus d'auto-refresh automatique - uniquement sur trigger RTDB
   }, [loadData]);
 
   // ============================================================================

@@ -47,24 +47,24 @@ const VentesWidget = ({ kpiData, onViewMore }) => {
         {/* Objectif du jour */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Objectif du jour</span>
-            <span className="text-sm font-bold text-gray-900">{progression}%</span>
+            <span className="text-sm font-medium text-muted-foreground">Objectif du jour</span>
+            <span className="text-sm font-bold text-card-foreground">{progression}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="w-full bg-muted rounded-full h-2.5">
             <div
-              className="bg-green-600 h-2.5 rounded-full transition-all duration-500"
+              className="bg-green-600 dark:bg-green-500 h-2.5 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(progression, 100)}%` }}
             />
           </div>
           <div className="flex items-center justify-between mt-1">
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {new Intl.NumberFormat("fr-FR", {
                 notation: "compact",
                 compactDisplay: "short",
               }).format(stats.realise)}{" "}
               FCFA
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {new Intl.NumberFormat("fr-FR", {
                 notation: "compact",
                 compactDisplay: "short",
@@ -76,17 +76,17 @@ const VentesWidget = ({ kpiData, onViewMore }) => {
 
         {/* Stats rapides */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-green-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-green-700 font-medium mb-1">Sur place</p>
-            <p className="text-lg font-bold text-green-600">{stats.surPlace}</p>
+          <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-3 text-center">
+            <p className="text-xs text-green-700 dark:text-green-300 font-medium mb-1">Sur place</p>
+            <p className="text-lg font-bold text-green-600 dark:text-green-400">{stats.surPlace}</p>
           </div>
-          <div className="bg-orange-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-orange-700 font-medium mb-1">À livrer</p>
-            <p className="text-lg font-bold text-orange-600">{stats.aLivrer}</p>
+          <div className="bg-accent/20 rounded-lg p-3 text-center">
+            <p className="text-xs text-accent-foreground font-medium mb-1">À livrer</p>
+            <p className="text-lg font-bold text-accent-foreground">{stats.aLivrer}</p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-blue-700 font-medium mb-1">Panier moy.</p>
-            <p className="text-lg font-bold text-blue-600">
+          <div className="bg-primary/10 rounded-lg p-3 text-center">
+            <p className="text-xs text-primary font-medium mb-1">Panier moy.</p>
+            <p className="text-lg font-bold text-primary">
               {new Intl.NumberFormat("fr-FR", {
                 notation: "compact",
                 compactDisplay: "short",
@@ -98,14 +98,14 @@ const VentesWidget = ({ kpiData, onViewMore }) => {
         {/* Top Vendeurs */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Award className="w-4 h-4 text-yellow-600" />
-            <h4 className="text-sm font-medium text-gray-700">Top Vendeurs</h4>
+            <Award className="w-4 h-4 text-accent-foreground" />
+            <h4 className="text-sm font-medium text-muted-foreground">Top Vendeurs</h4>
           </div>
           <div className="space-y-2">
             {topVendeurs.map((vendeur, index) => (
               <div
                 key={vendeur.id}
-                className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg hover:bg-accent transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -113,20 +113,20 @@ const VentesWidget = ({ kpiData, onViewMore }) => {
                     w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
                     ${
                       index === 0
-                        ? "bg-yellow-100 text-yellow-700"
+                        ? "bg-accent/30 text-accent-foreground"
                         : index === 1
-                          ? "bg-gray-200 text-gray-700"
-                          : "bg-orange-100 text-orange-700"
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-accent/20 text-accent-foreground"
                     }
                   `}
                   >
                     {index + 1}
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{vendeur.nom}</span>
+                  <span className="text-sm font-medium text-card-foreground">{vendeur.nom}</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{vendeur.ventes}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-bold text-card-foreground">{vendeur.ventes}</p>
+                  <p className="text-xs text-muted-foreground">
                     {new Intl.NumberFormat("fr-FR", {
                       notation: "compact",
                       compactDisplay: "short",
@@ -142,17 +142,17 @@ const VentesWidget = ({ kpiData, onViewMore }) => {
         {/* Top Produits */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Package className="w-4 h-4 text-green-600" />
-            <h4 className="text-sm font-medium text-gray-700">Top Produits</h4>
+            <Package className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <h4 className="text-sm font-medium text-muted-foreground">Top Produits</h4>
           </div>
           <div className="space-y-2">
             {topProduits.map((produit) => (
               <div
                 key={produit.id}
-                className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg"
               >
-                <span className="text-sm text-gray-700">{produit.nom}</span>
-                <span className="text-sm font-bold text-green-600">{produit.quantite}</span>
+                <span className="text-sm text-muted-foreground">{produit.nom}</span>
+                <span className="text-sm font-bold text-green-600 dark:text-green-400">{produit.quantite}</span>
               </div>
             ))}
           </div>
