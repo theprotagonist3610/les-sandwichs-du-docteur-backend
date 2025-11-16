@@ -10,6 +10,67 @@ import {
 } from "@/toolkits/admin/comptabilite";
 import { getAllLivraisons, getLivraisonsEnCours } from "@/toolkits/admin/livraisons";
 
+// ============================================================================
+// FONCTIONS MOCK TEMPORAIRES (en attendant les vrais toolkits)
+// ============================================================================
+
+/**
+ * Mock: Récupère les commandes du jour
+ * TODO: Remplacer par import depuis commandeToolkit
+ */
+const getCommandesJour = async () => {
+  // Données simulées
+  return {
+    commandes: [
+      { id: 1, type: "sur_place", montant: 15000, vendeur: "Jean Dosseh" },
+      { id: 2, type: "a_livrer", montant: 22000, vendeur: "Marie Koffi" },
+      // ... plus de données simulées
+    ],
+  };
+};
+
+/**
+ * Mock: Récupère les productions du jour
+ * TODO: Remplacer par import depuis productionToolkit
+ */
+const getProductionsJour = async () => {
+  // Données simulées
+  return {
+    productions: [
+      { id: 1, nom: "Sandwich Poulet", statut: "termine", quantite: 50 },
+      { id: 2, nom: "Sandwich Viande", statut: "en_cours", quantite: 30 },
+      // ... plus de données simulées
+    ],
+  };
+};
+
+/**
+ * Mock: Récupère les alertes stock
+ * TODO: Remplacer par import depuis stockToolkit
+ */
+const getAlertesStock = async () => {
+  // Données simulées
+  return {
+    alertes: [
+      { id: 1, element: "Tomates", niveau: "critique", quantite: 12, seuil: 20 },
+      { id: 2, element: "Pain", niveau: "critique", quantite: 8, seuil: 15 },
+      { id: 3, element: "Oignons", niveau: "attention", quantite: 22, seuil: 20 },
+    ],
+  };
+};
+
+/**
+ * Mock: Récupère les utilisateurs présents
+ * TODO: Remplacer par import depuis userToolkit
+ */
+const getUtilisateursPresents = async () => {
+  // Données simulées
+  return {
+    presents: 8,
+    total: 12,
+  };
+};
+
 /**
  * Hook principal pour le dashboard global
  * @returns {Object} Données centralisées pour tous les KPIs
@@ -51,22 +112,37 @@ const useDashboardGlobal = () => {
       setError(null);
 
       // Charger les données en parallèle
-      const [comptesData, opsToday, livraisonsData, livraisonsEnCoursData] = await Promise.all([
+      const [
+        comptesData,
+        opsToday,
+        livraisonsData,
+        livraisonsEnCoursData,
+        commandesData,
+        productionsData,
+        alertesStockData,
+        utilisateursData,
+      ] = await Promise.all([
         getAllComptesTresorerie(),
         getOperationsToday(),
         getAllLivraisons().catch(() => ({ livraisons: [] })),
         getLivraisonsEnCours().catch(() => ({ livraisons: [] })),
+        getCommandesJour().catch(() => ({ commandes: [] })),
+        getProductionsJour().catch(() => ({ productions: [] })),
+        getAlertesStock().catch(() => ({ alertes: [] })),
+        getUtilisateursPresents().catch(() => ({ presents: 0, total: 12 })),
       ]);
 
       setComptesTresorerie(comptesData.comptes || []);
       setOperationsJour(opsToday.operations || []);
       setLivraisons(livraisonsData.livraisons || []);
       setLivraisonsEnCours(livraisonsEnCoursData.livraisons || []);
-
-      // TODO: Charger les commandes du jour depuis commandeToolkit
-      // TODO: Charger les productions du jour depuis productionToolkit
-      // TODO: Charger les alertes stock depuis stockToolkit
-      // TODO: Charger la présence utilisateurs depuis userToolkit
+      setCommandesJour(commandesData.commandes || []);
+      setProductionsJour(productionsData.productions || []);
+      setAlertesStock(alertesStockData.alertes || []);
+      setUtilisateursPresents(
+        Array.from({ length: utilisateursData.presents }, (_, i) => ({ id: i }))
+      );
+      setTotalUtilisateurs(utilisateursData.total || 12);
 
       console.log("✅ Dashboard global chargé avec succès");
     } catch (err) {
@@ -130,9 +206,16 @@ const useDashboardGlobal = () => {
   // KPI 2: COMMANDES
   // ============================================================================
   const kpiCommandes = useMemo(() => {
-    // TODO: Récupérer les vraies données depuis commandeToolkit
-    const nbCommandes = commandesJour.length || 0;
-    const variation = 8; // Placeholder
+    const nbCommandes = commandesJour.length;
+
+    // Calculer stats
+    const surPlace = commandesJour.filter((c) => c.type === "sur_place").length;
+    const aLivrer = commandesJour.filter((c) => c.type === "a_livrer").length;
+    const totalMontant = commandesJour.reduce((sum, c) => sum + (c.montant || 0), 0);
+    const panierMoyen = nbCommandes > 0 ? totalMontant / nbCommandes : 0;
+
+    // Variation simulée (TODO: calculer vs hier)
+    const variation = 8;
 
     return {
       titre: "Commandes",
@@ -144,9 +227,9 @@ const useDashboardGlobal = () => {
       color: "green",
       details: {
         aujourdhui: nbCommandes,
-        surPlace: 0, // TODO
-        aLivrer: 0, // TODO
-        panierMoyen: 0, // TODO
+        surPlace,
+        aLivrer,
+        panierMoyen,
       },
     };
   }, [commandesJour]);
@@ -189,21 +272,26 @@ const useDashboardGlobal = () => {
   // KPI 4: PRODUCTION
   // ============================================================================
   const kpiProduction = useMemo(() => {
-    // TODO: Récupérer les vraies données depuis productionToolkit
-    const nbProductions = productionsJour.length || 0;
+    const nbProductions = productionsJour.length;
+
+    // Calculer stats par statut
+    const terminees = productionsJour.filter((p) => p.statut === "termine").length;
+    const enCours = productionsJour.filter((p) => p.statut === "en_cours").length;
+    const planifiees = productionsJour.filter((p) => p.statut === "planifie").length;
 
     return {
       titre: "Production",
       valeur: nbProductions,
       format: "number",
       variation: null,
-      trend: "neutral",
+      trend: enCours > 0 ? "up" : "neutral",
       icon: "ChefHat",
       color: "purple",
       details: {
         recettes: nbProductions,
-        enCours: 0, // TODO
-        terminees: 0, // TODO
+        enCours,
+        terminees,
+        planifiees,
       },
     };
   }, [productionsJour]);
@@ -212,21 +300,26 @@ const useDashboardGlobal = () => {
   // KPI 5: STOCK
   // ============================================================================
   const kpiStock = useMemo(() => {
-    // TODO: Récupérer les vraies alertes depuis stockToolkit
-    const nbAlertes = alertesStock.length || 0;
+    const nbAlertes = alertesStock.length;
+
+    // Compter par niveau
+    const critiques = alertesStock.filter((a) => a.niveau === "critique").length;
+    const attention = alertesStock.filter((a) => a.niveau === "attention").length;
 
     return {
       titre: "Stock",
       valeur: nbAlertes,
       format: "number",
       variation: null,
-      trend: nbAlertes > 0 ? "warning" : "neutral",
+      trend: critiques > 0 ? "warning" : nbAlertes > 0 ? "neutral" : "up",
       icon: "Package",
       color: "yellow",
       details: {
         alertes: nbAlertes,
-        stockBas: 0, // TODO
-        elementsTotal: 0, // TODO
+        stockBas: critiques,
+        elementsTotal: nbAlertes,
+        critiques,
+        attention,
       },
     };
   }, [alertesStock]);

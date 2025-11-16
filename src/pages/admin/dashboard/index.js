@@ -23,5 +23,9 @@ export { default as ProductionWidget } from "./components/widgets/ProductionWidg
 export { default as StockWidget } from "./components/widgets/StockWidget";
 export { default as AlertesWidget } from "./components/widgets/AlertesWidget";
 
+// Timeline & Notifications
+export { default as ActivityTimeline } from "./components/timeline/ActivityTimeline";
+export { default as NotificationCenter } from "./components/notifications/NotificationCenter";
+
 // Hooks
 export { default as useDashboardGlobal } from "./hooks/useDashboardGlobal";

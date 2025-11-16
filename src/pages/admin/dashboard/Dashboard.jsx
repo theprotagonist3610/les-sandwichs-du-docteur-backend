@@ -13,6 +13,7 @@ import LivraisonsWidget from "./components/widgets/LivraisonsWidget";
 import ProductionWidget from "./components/widgets/ProductionWidget";
 import StockWidget from "./components/widgets/StockWidget";
 import AlertesWidget from "./components/widgets/AlertesWidget";
+import ActivityTimeline from "./components/timeline/ActivityTimeline";
 import useDashboardGlobal from "./hooks/useDashboardGlobal";
 
 /**
@@ -161,6 +162,16 @@ const Dashboard = () => {
               onViewMore={() => handleNavigate("alertes")}
             />
           </div>
+        </section>
+
+        {/* ================================================================ */}
+        {/* SECTION 4: TIMELINE ACTIVITÉS (Temps réel) */}
+        {/* ================================================================ */}
+        <section>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            Flux d'Activités
+          </h2>
+          <ActivityTimeline maxItems={10} />
         </section>
 
         {/* ================================================================ */}
