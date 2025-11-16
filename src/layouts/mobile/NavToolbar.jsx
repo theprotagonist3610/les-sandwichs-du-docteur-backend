@@ -13,12 +13,15 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "@/toolkits/global/userToolkit";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Bell, ListTodo, ShoppingCart, Bike } from "lucide-react";
+import useNotifications from "@/pages/admin/dashboard/hooks/useNotifications";
 
 const NavToolbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
 
   // Fonction pour revenir à la route parente la plus proche
   const handleGoBack = () => {
@@ -90,14 +93,25 @@ const NavToolbar = () => {
         </Button>
         {visibleActions.map(([key, action]) => {
           const Icon = action.icon;
+          const isNotifications = key === "notifications";
+          const showBadge = isNotifications && unreadCount > 0;
+
           return (
             <Button
               key={key}
               variant="ghost"
               size="icon"
               onClick={action.onClick}
-              title={action.label}>
+              title={action.label}
+              className="relative">
               <Icon className="h-5 w-5" />
+              {showBadge && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Badge>
+              )}
             </Button>
           );
         })}
