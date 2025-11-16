@@ -1,0 +1,581 @@
+// ============================================================================
+// FIRESTORE SECURITY RULES
+// ============================================================================
+// Fichier: firestore.rules
+// Mise à jour: Compatible avec stockToolkit.jsx refactoré (transactions atomiques)
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    // Vérifier si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Vérifier si l'utilisateur est le propriétaire du document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Vérifier que les champs timestamp sont valides
+    function hasValidTimestamps() {
+      return request.resource.data.keys().hasAll(['createdAt', 'updatedAt']) &&
+             request.resource.data.createdAt is timestamp &&
+             request.resource.data.updatedAt is timestamp;
+    }
+
+    // ========================================
+    // 0. COLLECTION "preusers"
+    // Admin: CRUD tous les documents
+    // Public: Read only
+    // ========================================
+    match /preusers/{userId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ========================================
+    // 1. COLLECTION "users"
+    // Admin: CRUD tous les documents
+    // User authentifié: Read + Update son propre document
+    // ========================================
+    match /users/{userId} {
+      // Lecture: admin OU propriétaire
+      allow read: if isAdmin() || isOwner(userId);
+
+      // Création: admin OU création de son propre document
+      allow create: if isAdmin() || (isOwner(userId) && hasValidTimestamps());
+
+      // Mise à jour: admin OU mise à jour de son propre document
+      allow update: if isAdmin() || (isOwner(userId) && hasValidTimestamps());
+
+      // Suppression: admin uniquement
+      allow delete: if isAdmin();
+
+      // Sous-collections de users
+      match /{subcollection=**} {
+        allow read: if isAdmin() || isOwner(userId);
+        allow write: if isAdmin() || isOwner(userId);
+      }
+    }
+
+    // ========================================
+    // 2. COLLECTION "menus"
+    // Admin: CRUD
+    // User authentifié: Read only
+    // ========================================
+    match /menus/{menuId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Sous-collections de menus
+      match /{subcollection=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ========================================
+    // 3. COLLECTION "boissons"
+    // Admin: CRUD
+    // User authentifié: Read only
+    // ========================================
+    match /boissons/{boissonId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Sous-collections de boissons
+      match /{subcollection=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ========================================
+    // 4. COLLECTION "ventes" (REFACTORÉ - commandeToolkit)
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // IMPORTANT: Compatible avec système de queue anti-collision
+    // - ventes/today: Document unique avec les commandes du jour
+    // - ventes/archives/liste/{DDMMYYYY}: Documents d'archives par jour
+    // - ventes/ventes_en_attente: Commandes non soldées/livrées/servies
+    // - ventes/statistiques: Statistiques des ventes
+    // - ventes/operationsQueue: Queue d'opérations anti-collision
+    // ========================================
+
+    // 4.1 Document today - commandes du jour
+    match /ventes/today {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4.2 Documents d'archives par jour
+    match /ventes/archives/liste/{dayKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4.3 Document ventes en attente
+    match /ventes/ventes_en_attente {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4.4 Document statistiques
+    match /ventes/statistiques {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4.5 Queue d'opérations commandes
+    match /ventes/operationsQueue {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4.6 Autres sous-collections de ventes (pour extensions futures)
+    match /ventes/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // 5. COLLECTION "adresses"
+    // Admin: CRUD
+    // User authentifié: Read only
+    // ========================================
+    match /adresses/{adresseId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Sous-collections de adresses
+      match /{subcollection=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ========================================
+    // 6. COLLECTION "comptabilite" (REFACTORÉ - comptabiliteToolkit)
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // IMPORTANT: Compatible avec système de queue anti-collision
+    // - comptabilite/comptes: Plan comptable OHADA
+    // - comptabilite/tresorerie: Situation de trésorerie
+    // - comptabilite/today: Opérations du jour courant
+    // - comptabilite/historique/days/{DDMMYYYY}: Opérations par jour (historique)
+    // - comptabilite/statistiques/weeks/{weekKey}: Statistiques hebdomadaires
+    // - comptabilite/bilan/weeks/{weekKey}: Bilans hebdomadaires
+    // - comptabilite/operationsQueue: Queue d'opérations anti-collision
+    // ========================================
+
+    // 6.1 Document comptes (plan comptable OHADA)
+    match /comptabilite/comptes {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.2 Document trésorerie
+    match /comptabilite/tresorerie {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.3 Document today (opérations du jour)
+    match /comptabilite/today {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.4 Documents d'opérations par jour (historique)
+    match /comptabilite/historique/days/{dayKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.5 Statistiques hebdomadaires
+    match /comptabilite/statistiques/weeks/{weekKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.6 Bilans hebdomadaires
+    match /comptabilite/bilan/weeks/{weekKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.7 Queue d'opérations comptabilité
+    match /comptabilite/operationsQueue {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.8 Statistiques mensuelles
+    match /comptabilite/statistiques/months/{monthKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 6.9 Autres sous-collections de comptabilite (pour extensions futures)
+    match /comptabilite/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // 7. COLLECTION "comptabilite_budgets"
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // Structure: Documents de budgets prévisionnels par mois
+    // Chaque budget contient:
+    // - id: budget_{nano(10)}
+    // - mois: format MMYYYY
+    // - lignes_budget: array de lignes avec compte_id, montant_previsionnel, etc.
+    // - createdBy, updatedBy, createdAt, updatedAt
+    // ========================================
+    match /comptabilite_budgets/{budgetId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() &&
+                     request.resource.data.keys().hasAll(['id', 'mois', 'nom', 'montant_total_previsionnel', 'lignes_budget', 'createdBy', 'createdAt', 'updatedAt']) &&
+                     request.resource.data.mois.matches('^[0-9]{6}$') &&
+                     request.resource.data.createdAt is int &&
+                     request.resource.data.updatedAt is int;
+      allow update: if isAdmin() &&
+                     request.resource.data.keys().hasAll(['id', 'mois', 'nom', 'montant_total_previsionnel', 'lignes_budget', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt']) &&
+                     request.resource.data.mois.matches('^[0-9]{6}$') &&
+                     request.resource.data.createdAt is int &&
+                     request.resource.data.updatedAt is int;
+      allow delete: if isAdmin();
+    }
+
+    // ========================================
+    // 8. COLLECTION "statistiques"
+    // Admin: CRUD
+    // User authentifié: Read only
+    // ========================================
+    match /statistiques/{statistiqueId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Sous-collections de statistiques
+      match /{subcollection=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ========================================
+    // 9. COLLECTION "livreurs"
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // Structure: Document unique contenant la liste des livreurs
+    // - livreurs/liste: { livreurs: [...], updatedAt }
+    // Chaque livreur contient: id, denomination, contact, actif, timestamps
+    // ========================================
+    match /livreurs/liste {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Autres sous-collections de livreurs
+    match /livreurs/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // 10. COLLECTION "livraisons"
+    // Admin: CRUD
+    // User authentifié: Read only
+    //
+    // Structure: Document unique contenant la liste des livraisons (Option C - Hybride)
+    // - livraisons/liste: { livraisons: [...], updatedAt }
+    // Chaque livraison contient:
+    //   - id, commande_code, statut, client, livreur, colis_recupere
+    //   - priorite, dates, notes, timestamps
+    // Index RTDB pour sync temps réel
+    // ========================================
+    match /livraisons/liste {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Autres sous-collections de livraisons
+    match /livraisons/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // 11. COLLECTION "productions"
+    // Admin: CRUD
+    // User authentifié: Read only
+    // ========================================
+    match /productions/{productionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Sous-collections de productions
+      match /{subcollection=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ========================================
+    // 12. COLLECTION "emplacements"
+    // Admin: CRUD complet
+    // User authentifié: Read only
+    // ========================================
+
+    // 12.1 Document liste des emplacements
+    match /emplacements/liste {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 12.2 Opérations quotidiennes sur emplacements
+    match /emplacements/operations/{dayKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 12.3 Autres sous-collections d'emplacements
+    match /emplacements/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // 13. COLLECTION "stock" (REFACTORÉ)
+    // Admin: CRUD complet
+    // User authentifié: Read only
+    //
+    // IMPORTANT: Compatible avec transactions atomiques et queue d'opérations
+    // - stock/liste: Document unique avec array d'éléments
+    // - stock/resume: Document unique avec map d'éléments indexés par id
+    // - stock/emplacements: Document unique avec map d'emplacements et leur stock
+    // - stock/transactions/{DDMMYYYY}: Documents de journal par jour
+    // - stock/operationsQueue: Queue d'opérations en attente
+    // - stock/queueMetadata: Métadonnées de la queue
+    // ========================================
+
+    // 13.1 Document liste des éléments de stock
+    match /stock/liste {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 13.2 Document résumé du stock global
+    match /stock/resume {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 13.3 Document des emplacements avec stock actuel
+    match /stock/emplacements {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 13.4 Documents de transactions par jour
+    match /stock/transactions/liste/{dayKey} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 13.5 Queue d'opérations
+    match /stock/operationsQueue {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 13.6 Métadonnées de la queue
+    match /stock/queueMetadata {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 13.7 Autres sous-collections de stock (pour extensions futures)
+    match /stock/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ========================================
+    // BLOQUER TOUT ACCÈS NON DÉFINI
+    // ========================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
+// ============================================================================
+// NOTES D'IMPLÉMENTATION - TOOLKITS AVEC QUEUES ANTI-COLLISION
+// ============================================================================
+
+/*
+STRUCTURE DES DONNÉES:
+
+A. Emplacements (emplacementToolkit.jsx):
+   - emplacements/liste: { emplacements: [...] } - Array d'emplacements
+   - emplacements/operations/{DDMMYYYY}: { operations: [...] } - Opérations du jour
+   - stock/emplacements: { [id]: { ...emplacement avec stock_actuel } } - Map pour intégration stock
+
+B. Stock (stockToolkit.jsx) - AVEC QUEUE ANTI-COLLISION:
+   - stock/liste: { elements: [...] } - Array d'éléments de stock
+   - stock/resume: { [id]: { ...element avec quantite_totale } } - Map résumé global
+   - stock/emplacements: { [id]: { ...emplacement avec stock_actuel } } - Map emplacements+stock
+   - stock/transactions/liste/{DDMMYYYY}: { transactions: [...] } - Transactions du jour
+   - stock/operationsQueue: { operations: [...] } - Queue d'opérations atomiques
+   - stock/queueMetadata: Métadonnées de gestion de la queue
+
+C. Comptabilité (comptabiliteToolkit.jsx) - AVEC QUEUE ANTI-COLLISION:
+   - comptabilite/comptes: { comptes: [...] } - Plan comptable OHADA
+   - comptabilite/tresorerie: { comptes: [...] } - Comptes de trésorerie
+   - comptabilite/today: { operations: [...] } - Opérations du jour courant
+   - comptabilite/historique/days/{DDMMYYYY}: { operations: [...] } - Opérations par jour
+   - comptabilite/statistiques/weeks/{weekKey}: { ... } - Statistiques hebdomadaires
+   - comptabilite/bilan/weeks/{weekKey}: { ... } - Bilans hebdomadaires
+   - comptabilite/operationsQueue: { operations: [...] } - Queue d'opérations
+
+D. Ventes/Commandes (commandeToolkit.jsx) - AVEC QUEUE ANTI-COLLISION:
+   - ventes/today: { liste: [...] } - Commandes du jour
+   - ventes/archives/liste/{DDMMYYYY}: { liste: [...] } - Archives par jour
+   - ventes/ventes_en_attente: { liste: [...] } - Commandes non soldées
+   - ventes/statistiques: { liste: [...] } - Statistiques des ventes
+   - ventes/operationsQueue: { operations: [...] } - Queue d'opérations
+
+PERMISSIONS:
+
+1. Lecture (Read):
+   - Tous les utilisateurs authentifiés peuvent lire
+   - Les documents emplacements/* et stock/*
+
+2. Écriture (Write):
+   - Seuls les admins peuvent créer/modifier/supprimer
+   - Validé par isAdmin() qui vérifie users/{uid}.role == 'admin'
+
+3. Transactions Firestore:
+   - runTransaction() requiert à la fois create et update
+   - Les règles permettent create + update pour les admins
+
+SYSTÈME DE QUEUE:
+
+Le stockToolkit utilise une queue d'opérations pour éviter les collisions:
+1. Opérations ajoutées à stock/operationsQueue
+2. Exécutées chronologiquement via runTransaction()
+3. Garantit atomicité et quantités non-négatives
+4. Nettoyage automatique quotidien
+
+TESTS RECOMMANDÉS:
+
+1. Admin - Créer emplacement:
+   ✓ Devrait réussir
+
+2. Admin - Transaction stock via queue:
+   ✓ Devrait réussir
+
+3. User authentifié - Lire emplacements:
+   ✓ Devrait réussir
+
+4. User authentifié - Modifier stock:
+   ✗ Devrait échouer (PERMISSION_DENIED)
+
+5. Non authentifié - Lire stock:
+   ✗ Devrait échouer (PERMISSION_DENIED)
+
+DÉPLOIEMENT:
+
+1. Tester en mode simulation:
+   firebase deploy --only firestore:rules --dry-run
+
+2. Déployer en production:
+   firebase deploy --only firestore:rules
+
+3. Vérifier dans Firebase Console > Firestore > Règles
+
+MONITORING:
+
+1. Surveiller les PERMISSION_DENIED dans Cloud Logging
+2. Auditer les écritures sur stock/* et emplacements/*
+3. Monitorer la taille de operationsQueue
+
+*/

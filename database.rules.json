@@ -1,0 +1,178 @@
+{
+  "rules": {
+    "presence": {
+      ".read": "auth != null",
+
+      "$presenceId": {
+        ".write": "auth != null",
+
+        ".validate": "newData.hasChildren(['userId', 'status', 'updatedAt']) && (newData.hasChildren(['lastSeen']) || !newData.hasChildren(['lastSeen']))",
+
+        "userId": {
+          ".validate": "newData.isString()"
+        },
+        "status": {
+          ".validate": "newData.isString() && (newData.val() == 'online' || newData.val() == 'offline' || newData.val() == 'away')"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastSeen": {
+          ".validate": "!newData.exists() || newData.isNumber()"
+        },
+        "userName": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "notification": {
+      ".read": "auth != null",
+
+      "$notificationId": {
+        ".write": "auth != null",
+
+        ".validate": "newData.hasChildren(['title', 'message', 'timestamp'])",
+
+        "userId": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "userName": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "title": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "message": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+        },
+        "type": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'info' || newData.val() == 'warning' || newData.val() == 'error' || newData.val() == 'success'))"
+        },
+        "read": {
+          ".validate": "!newData.exists() || newData.isBoolean()"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "notifications": {
+      ".read": "auth != null",
+
+      "commandes": {
+        ".read": "auth != null",
+
+        "$notificationId": {
+          ".write": "auth != null",
+
+          ".validate": "newData.hasChildren(['title', 'message', 'timestamp'])",
+
+          "title": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+          },
+          "message": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500"
+          },
+          "type": {
+            ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'info' || newData.val() == 'warning' || newData.val() == 'error' || newData.val() == 'success'))"
+          },
+          "timestamp": {
+            ".validate": "newData.isNumber() && newData.val() > 0"
+          },
+
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+
+      "$other": {
+        ".validate": false
+      }
+    },
+
+    "todos": {
+      ".read": "auth != null",
+
+      "$todoId": {
+        ".write": "auth != null",
+
+        ".validate": "newData.hasChildren(['userId', 'title', 'completed', 'createdAt'])",
+
+        "userId": {
+          ".validate": "newData.isString()"
+        },
+        "title": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+        },
+        "description": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "completed": {
+          ".validate": "newData.isBoolean()"
+        },
+        "priority": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'low' || newData.val() == 'medium' || newData.val() == 'high'))"
+        },
+        "dueDate": {
+          ".validate": "!newData.exists() || newData.isNumber()"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "updatedAt": {
+          ".validate": "!newData.exists() || newData.isNumber()"
+        },
+
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "users": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && auth.uid == $userId",
+
+        "role": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'admin' || newData.val() == 'user' || newData.val() == 'superviseur' || newData.val() == 'vendeur' || newData.val() == 'cuisinier' || newData.val() == 'livreur'))"
+        },
+        "email": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "displayName": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "photoURL": {
+          ".validate": "!newData.exists() || newData.isString()"
+        },
+        "createdAt": {
+          ".validate": "!newData.exists() || newData.isNumber()"
+        },
+        "updatedAt": {
+          ".validate": "!newData.exists() || newData.isNumber()"
+        },
+
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
