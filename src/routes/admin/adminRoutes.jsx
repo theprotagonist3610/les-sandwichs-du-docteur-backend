@@ -21,6 +21,8 @@ import Statistiques from "@/pages/admin/statistiques/Statistiques";
 import statistiqueSubRoutes from "@/pages/admin/statistiques/statistiquesRoutes";
 import Stock from "@/pages/admin/stock/Stock";
 import stockSubRoutes from "@/pages/admin/stock/stockRoutes";
+import Notifications from "@/pages/admin/notifications/Notifications";
+import notificationSubRoutes from "@/pages/admin/notifications/notificationRoutes";
 const adminRoutes = {
   path: "admin",
   element: <Layout />,
@@ -30,6 +32,14 @@ const adminRoutes = {
       element: (
         <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
           <Dashboard />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "notifications",
+      element: (
+        <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+          <Notifications />
         </ProtectedRoute>
       ),
     },

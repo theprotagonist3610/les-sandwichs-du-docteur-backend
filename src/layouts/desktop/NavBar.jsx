@@ -10,10 +10,11 @@ C'est le composant de navigation desktop
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@/toolkits/global/userToolkit";
 import { logoutUser } from "@/toolkits/admin/userToolkit";
-import { LogOut } from "lucide-react";
+import { LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeSwitcher from "./ThemeSwitcher";
 import UserResume from "./UserResume";
+import useNotifications from "@/pages/admin/dashboard/hooks/useNotifications";
 
 const routesByRoles = {
   admin: [
@@ -51,11 +52,20 @@ const NavBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Hook pour les notifications
+  const { unreadCount } = useNotifications();
+
   const handleLogout = async () => {
     try {
       await logoutUser(navigate, "/login");
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
+    }
+  };
+
+  const handleNotificationsClick = () => {
+    if (user?.role) {
+      navigate(`/${user.role}/notifications`);
     }
   };
 
@@ -117,9 +127,25 @@ const NavBar = () => {
             })}
           </div>
 
-          {/* User Resume, Logout & Theme Switcher */}
+          {/* User Resume, Notifications, Logout & Theme Switcher */}
           <div className="flex items-center gap-2">
             <UserResume />
+
+            {/* Bouton Notifications */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNotificationsClick}
+              title="Notifications"
+              className="relative hover:bg-accent/10">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Button>
+
             <Button
               variant="ghost"
               size="icon"
