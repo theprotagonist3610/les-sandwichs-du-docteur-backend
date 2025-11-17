@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { rtdb } from "@/lib/firebase";
+import { rtdb } from "@/firebase";
 import { ref, onValue } from "firebase/database";
 import {
   getAllLivraisons,

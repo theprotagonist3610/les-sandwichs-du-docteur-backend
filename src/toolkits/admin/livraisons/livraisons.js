@@ -3,7 +3,7 @@
  * Fonctions CRUD pour la gestion des livraisons (Option C - Hybride)
  */
 
-import { db, rtdb } from "@/lib/firebase";
+import { db, rtdb } from "@/firebase";
 import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { ref, set, update, remove } from "firebase/database";
 import { nanoid } from "nanoid";
@@ -195,11 +195,15 @@ export async function getLivraisonsEnCours() {
   try {
     const livraisons = await getAllLivraisons();
     return livraisons.filter(
-      (l) => l.statut !== STATUTS_LIVRAISON.LIVREE && l.statut !== STATUTS_LIVRAISON.ANNULEE
+      (l) =>
+        l.statut !== STATUTS_LIVRAISON.LIVREE &&
+        l.statut !== STATUTS_LIVRAISON.ANNULEE
     );
   } catch (error) {
     console.error("❌ Erreur getLivraisonsEnCours:", error);
-    throw new Error(`Impossible de charger les livraisons en cours: ${error.message}`);
+    throw new Error(
+      `Impossible de charger les livraisons en cours: ${error.message}`
+    );
   }
 }
 
@@ -212,7 +216,9 @@ export async function getLivraisonsByStatut(statut) {
     return livraisons.filter((l) => l.statut === statut);
   } catch (error) {
     console.error("❌ Erreur getLivraisonsByStatut:", error);
-    throw new Error(`Impossible de charger les livraisons par statut: ${error.message}`);
+    throw new Error(
+      `Impossible de charger les livraisons par statut: ${error.message}`
+    );
   }
 }
 
@@ -225,7 +231,9 @@ export async function getLivraisonsByLivreur(livreurId) {
     return livraisons.filter((l) => l.livreur?.id === livreurId);
   } catch (error) {
     console.error("❌ Erreur getLivraisonsByLivreur:", error);
-    throw new Error(`Impossible de charger les livraisons du livreur: ${error.message}`);
+    throw new Error(
+      `Impossible de charger les livraisons du livreur: ${error.message}`
+    );
   }
 }
 
@@ -282,9 +290,13 @@ export async function createLivraison(input, userId) {
       }
 
       // Vérifier si le code commande existe déjà
-      const existant = livraisons.find((l) => l.commande_code === validated.commande_code);
+      const existant = livraisons.find(
+        (l) => l.commande_code === validated.commande_code
+      );
       if (existant) {
-        throw new Error(`Une livraison pour la commande ${validated.commande_code} existe déjà`);
+        throw new Error(
+          `Une livraison pour la commande ${validated.commande_code} existe déjà`
+        );
       }
 
       // Ajouter la nouvelle livraison
@@ -450,7 +462,9 @@ export async function marquerColisRecupere(livraisonId, userId) {
     return updatedLivraison;
   } catch (error) {
     console.error("❌ Erreur marquerColisRecupere:", error);
-    throw new Error(`Impossible de marquer le colis comme récupéré: ${error.message}`);
+    throw new Error(
+      `Impossible de marquer le colis comme récupéré: ${error.message}`
+    );
   }
 }
 
@@ -459,7 +473,11 @@ export async function marquerColisRecupere(livraisonId, userId) {
  */
 export async function demarrerLivraison(livraisonId, userId) {
   try {
-    return await updateStatutLivraison(livraisonId, STATUTS_LIVRAISON.EN_COURS, userId);
+    return await updateStatutLivraison(
+      livraisonId,
+      STATUTS_LIVRAISON.EN_COURS,
+      userId
+    );
   } catch (error) {
     console.error("❌ Erreur demarrerLivraison:", error);
     throw new Error(`Impossible de démarrer la livraison: ${error.message}`);
@@ -532,7 +550,11 @@ export async function terminerLivraison(livraisonId, userId) {
 /**
  * Met à jour le statut d'une livraison
  */
-export async function updateStatutLivraison(livraisonId, nouveauStatut, userId) {
+export async function updateStatutLivraison(
+  livraisonId,
+  nouveauStatut,
+  userId
+) {
   try {
     const now = Date.now();
     const docRef = doc(db, LIVRAISONS_DOC);
@@ -646,7 +668,9 @@ export async function updateLivraison(livraisonId, updates, userId) {
     return updatedLivraison;
   } catch (error) {
     console.error("❌ Erreur updateLivraison:", error);
-    throw new Error(`Impossible de mettre à jour la livraison: ${error.message}`);
+    throw new Error(
+      `Impossible de mettre à jour la livraison: ${error.message}`
+    );
   }
 }
 
