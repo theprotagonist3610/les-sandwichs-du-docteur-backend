@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Home, ShieldAlert, ArrowLeft } from "lucide-react";
+import { useUser } from "@/toolkits/global/userToolkit";
 
 const NotAuthorized = () => {
+  const { user } = useUser();
+  const homeRoute = user?.role ? `/${user.role}/dashboard` : "/";
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="text-center space-y-6 max-w-md">
@@ -35,7 +39,7 @@ const NotAuthorized = () => {
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
           <Button asChild variant="default">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to={homeRoute} className="flex items-center gap-2">
               <Home size={18} />
               Retour à l'accueil
             </Link>

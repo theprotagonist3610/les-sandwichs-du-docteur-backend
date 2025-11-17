@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useLoginStore from "@/stores/global/loginStore";
-import { loginUser } from "@/toolkits/global/userToolkit";
+import { loginUser, getUserFromLocalStorage } from "@/toolkits/global/userToolkit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,8 +37,18 @@ const MobileLogin = () => {
       const result = await loginUser(email, password);
       resetForm();
 
+      // Récupérer l'utilisateur complet depuis le localStorage (sauvegardé par loginUser)
+      const user = getUserFromLocalStorage();
+
       // Rediriger vers le dashboard basé sur le rôle
-      const role = result.user?.role || "admin";
+      // Priority: role dans result > role dans user
+      const role = result.role || user?.role;
+
+      if (!role) {
+        throw new Error("Impossible de déterminer votre rôle. Veuillez contacter l'administrateur.");
+      }
+
+      console.log("🔀 Redirection vers:", `/${role}/dashboard`);
       navigate(`/${role}/dashboard`);
     } catch (error) {
       setLocalError(error.message || "Erreur lors de la connexion");
