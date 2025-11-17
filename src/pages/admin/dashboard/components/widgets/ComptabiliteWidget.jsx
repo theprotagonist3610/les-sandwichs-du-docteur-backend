@@ -27,19 +27,7 @@ const CustomTooltip = ({ active, payload }) => {
  * Composant ComptabiliteWidget
  */
 const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
-  const { details } = kpiData;
-
-  // Données simulées pour le graphique (7 derniers jours)
-  // TODO: Remplacer par vraies données depuis le toolkit
-  const evolutionData = [
-    { jour: "L", solde: 2200000 },
-    { jour: "M", solde: 2280000 },
-    { jour: "M", solde: 2150000 },
-    { jour: "J", solde: 2320000 },
-    { jour: "V", solde: 2400000 },
-    { jour: "S", solde: 2380000 },
-    { jour: "D", solde: 2450000 },
-  ];
+  const { details, evolutionData = [] } = kpiData;
 
   const isPositive = details.balanceJour >= 0;
 
@@ -111,10 +99,12 @@ const ComptabiliteWidget = ({ kpiData, onViewMore }) => {
                 <Line
                   type="monotone"
                   dataKey="solde"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
+                  stroke="#a41624"
+                  strokeWidth={3}
+                  fill="none"
+                  dot={{ r: 3, fill: "#a41624", strokeWidth: 1, stroke: "#fff" }}
+                  activeDot={{ r: 5, fill: "#a41624", strokeWidth: 2, stroke: "#fff" }}
+                  isAnimationActive={true}
                 />
               </LineChart>
             </ResponsiveContainer>

@@ -602,18 +602,36 @@ const DesktopDashboard = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={evolutionTresorerie}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => `${formatMontant(value)} FCFA`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  stroke="hsl(var(--border))"
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  stroke="hsl(var(--border))"
+                />
+                <Tooltip
+                  formatter={(value) => `${formatMontant(value)} FCFA`}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    color: "hsl(var(--card-foreground))",
+                  }}
+                />
                 <Legend />
                 <Line
                   type="monotone"
                   dataKey="solde"
-                  stroke="#2563eb"
-                  strokeWidth={2}
+                  stroke="#a41624"
+                  strokeWidth={3}
                   name="Solde"
-                  dot={{ r: 4 }}
+                  fill="none"
+                  dot={{ r: 5, fill: "#a41624", strokeWidth: 2, stroke: "#fff" }}
+                  activeDot={{ r: 7, fill: "#a41624", strokeWidth: 2, stroke: "#fff" }}
+                  isAnimationActive={true}
                 />
               </LineChart>
             </ResponsiveContainer>

@@ -3,6 +3,7 @@
  * Vue d'ensemble globale de toutes les fonctionnalités de la sandwicherie
  */
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import KPIGrid from "./components/kpis/KPIGrid";
@@ -16,18 +17,23 @@ import AlertesWidget from "./components/widgets/AlertesWidget";
 import ActivityTimeline from "./components/timeline/ActivityTimeline";
 import useDashboardGlobal from "./hooks/useDashboardGlobal";
 import useNotificationCleanup from "@/hooks/useNotificationCleanup";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 /**
  * Composant Dashboard principal
  */
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("indicateurs");
   const {
     isLoading,
     error,
     kpis,
     alertes,
     livraisonsEnCours,
+    commandesJour,
+    productionsJour,
+    alertesStock,
     refresh,
   } = useDashboardGlobal();
 
@@ -55,10 +61,7 @@ const Dashboard = () => {
   // État d'erreur
   if (error) {
     return (
-      <DashboardLayout
-        onRefresh={refresh}
-        isLoading={isLoading}
-      >
+      <DashboardLayout onRefresh={refresh} isLoading={isLoading}>
         <div className="flex items-center justify-center py-24">
           <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-8 max-w-md">
             <h3 className="text-destructive font-bold text-lg mb-2">
@@ -67,8 +70,7 @@ const Dashboard = () => {
             <p className="text-destructive/80 text-sm mb-4">{error}</p>
             <button
               onClick={refresh}
-              className="w-full px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors font-medium"
-            >
+              className="w-full px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors font-medium">
               Réessayer
             </button>
           </div>
@@ -78,85 +80,107 @@ const Dashboard = () => {
   }
 
   return (
-    <DashboardLayout
-      onRefresh={refresh}
-      isLoading={isLoading}
-    >
-      <div className="space-y-8">
-        {/* ================================================================ */}
-        {/* SECTION 1: KPIs GLOBAUX */}
-        {/* ================================================================ */}
-        <section>
-          <h2 className="text-xl font-semibold text-foreground mb-6">
-            Indicateurs Clés de Performance
-          </h2>
-          <KPIGrid kpis={kpis} onKPIClick={handleNavigate} />
-        </section>
+    <DashboardLayout onRefresh={refresh} isLoading={isLoading}>
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="indicateurs">Indicateurs</TabsTrigger>
+          <TabsTrigger value="ventes">Ventes</TabsTrigger>
+          <TabsTrigger value="production">Production</TabsTrigger>
+          <TabsTrigger value="livraisons">Livraisons</TabsTrigger>
+        </TabsList>
 
         {/* ================================================================ */}
-        {/* SECTION 2: ACTIONS RAPIDES */}
+        {/* TAB 1: INDICATEURS */}
         {/* ================================================================ */}
-        <section>
-          <QuickActions onAction={handleQuickAction} />
-        </section>
-
-        {/* ================================================================ */}
-        {/* SECTION 3: WIDGETS MODULES (Grid 2 colonnes) */}
-        {/* ================================================================ */}
-        <section>
-          <h2 className="text-xl font-semibold text-foreground mb-6">
-            Aperçu des Modules
-          </h2>
-
+        <TabsContent value="indicateurs" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Widget Comptabilité */}
+            {/* Colonne gauche: Indicateurs + Actions rapides */}
+            <div className="space-y-6">
+              <section>
+                <h2 className="text-xl font-semibold text-foreground mb-6">
+                  Indicateurs Clés de Performance
+                </h2>
+                <KPIGrid kpis={kpis} onKPIClick={handleNavigate} />
+              </section>
+
+              <section>
+                <QuickActions onAction={handleQuickAction} />
+              </section>
+            </div>
+
+            {/* Colonne droite: Flux d'activités + Alertes */}
+            <div className="space-y-6">
+              <section>
+                <h2 className="text-xl font-semibold text-foreground mb-6">
+                  Flux d'Activités
+                </h2>
+                <ActivityTimeline maxItems={10} />
+              </section>
+
+              <section>
+                <AlertesWidget
+                  alertes={alertes}
+                  onViewMore={() => handleNavigate("alertes")}
+                />
+              </section>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ================================================================ */}
+        {/* TAB 2: VENTES */}
+        {/* ================================================================ */}
+        <TabsContent value="ventes" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Colonne gauche: Ventes */}
+            <VentesWidget
+              kpiData={kpis.commandes}
+              commandesJour={commandesJour}
+              onViewMore={() => handleNavigate("commandes")}
+            />
+
+            {/* Colonne droite: Comptabilité */}
             <ComptabiliteWidget
               kpiData={kpis.tresorerie}
               onViewMore={() => handleNavigate("comptabilite")}
             />
+          </div>
+        </TabsContent>
 
-            {/* Widget Ventes */}
-            <VentesWidget
-              kpiData={kpis.commandes}
-              onViewMore={() => handleNavigate("commandes")}
-            />
-
-            {/* Widget Livraisons */}
-            <LivraisonsWidget
-              kpiData={kpis.livraisons}
-              livraisonsEnCours={livraisonsEnCours}
-              onViewMore={() => handleNavigate("livraisons")}
-            />
-
-            {/* Widget Production */}
+        {/* ================================================================ */}
+        {/* TAB 3: PRODUCTION */}
+        {/* ================================================================ */}
+        <TabsContent value="production" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Colonne gauche: Production */}
             <ProductionWidget
               kpiData={kpis.production}
+              productionsJour={productionsJour}
               onViewMore={() => handleNavigate("production")}
             />
 
-            {/* Widget Stock */}
+            {/* Colonne droite: Stock */}
             <StockWidget
               kpiData={kpis.stock}
+              alertesStock={alertesStock}
               onViewMore={() => handleNavigate("stock")}
             />
-
-            {/* Widget Alertes */}
-            <AlertesWidget
-              alertes={alertes}
-              onViewMore={() => handleNavigate("alertes")}
-            />
           </div>
-        </section>
+        </TabsContent>
 
         {/* ================================================================ */}
-        {/* SECTION 4: TIMELINE ACTIVITÉS (Temps réel) */}
+        {/* TAB 4: LIVRAISONS */}
         {/* ================================================================ */}
-        <section>
-          <h2 className="text-xl font-semibold text-foreground mb-6">
-            Flux d'Activités
-          </h2>
-          <ActivityTimeline maxItems={10} />
-        </section>
+        <TabsContent value="livraisons" className="space-y-6">
+          <LivraisonsWidget
+            kpiData={kpis.livraisons}
+            livraisonsEnCours={livraisonsEnCours}
+            onViewMore={() => handleNavigate("livraisons")}
+          />
+        </TabsContent>
 
         {/* ================================================================ */}
         {/* FOOTER */}
@@ -164,7 +188,7 @@ const Dashboard = () => {
         <div className="text-center text-sm text-muted-foreground py-4 border-t border-border">
           Centre de Contrôle - Les Sandwichs du Docteur © 2025
         </div>
-      </div>
+      </Tabs>
     </DashboardLayout>
   );
 };

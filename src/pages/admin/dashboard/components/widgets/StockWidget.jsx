@@ -9,92 +9,17 @@ import WidgetContainer from "./WidgetContainer";
 /**
  * Composant StockWidget
  */
-const StockWidget = ({ kpiData, onViewMore }) => {
+const StockWidget = ({ kpiData, alertesStock = [], onViewMore }) => {
   const { details } = kpiData;
 
-  // Données simulées - TODO: Récupérer depuis stockToolkit
-  const alertesStock = [
-    {
-      id: 1,
-      element: "Tomates",
-      quantite: 12,
-      unite: "kg",
-      seuil: 20,
-      emplacement: "Entrepôt Central",
-      niveau: "critique",
-    },
-    {
-      id: 2,
-      element: "Pain",
-      quantite: 8,
-      unite: "unités",
-      seuil: 15,
-      emplacement: "Point Vente Akpakpa",
-      niveau: "critique",
-    },
-    {
-      id: 3,
-      element: "Oignons",
-      quantite: 22,
-      unite: "kg",
-      seuil: 20,
-      emplacement: "Entrepôt Central",
-      niveau: "attention",
-    },
-    {
-      id: 4,
-      element: "Coca 33cl",
-      quantite: 18,
-      unite: "unités",
-      seuil: 15,
-      emplacement: "Stand Marché",
-      niveau: "attention",
-    },
-    {
-      id: 5,
-      element: "Mayonnaise",
-      quantite: 3,
-      unite: "L",
-      seuil: 2,
-      emplacement: "Entrepôt",
-      niveau: "attention",
-    },
-  ];
-
-  const derniersMouvements = [
-    {
-      id: 1,
-      type: "sortie",
-      element: "Tomates",
-      quantite: 3,
-      unite: "kg",
-      raison: "Production",
-      temps: "Il y a 15 min",
-    },
-    {
-      id: 2,
-      type: "sortie",
-      element: "Pain",
-      quantite: 30,
-      unite: "u",
-      raison: "Production",
-      temps: "Il y a 20 min",
-    },
-    {
-      id: 3,
-      type: "entree",
-      element: "Viande",
-      quantite: 15,
-      unite: "kg",
-      raison: "Achat",
-      temps: "Il y a 45 min",
-    },
-  ];
+  // Utiliser les vraies données depuis alertesStock
+  // Les derniers mouvements ne sont pas encore disponibles dans le toolkit
+  const derniersMouvements = []; // TODO: Ajouter depuis stockToolkit quand disponible
 
   const stats = {
-    critiques: alertesStock.filter((a) => a.niveau === "critique").length,
-    attention: alertesStock.filter((a) => a.niveau === "attention").length,
-    mouvementsJour: 23, // TODO: Récupérer depuis toolkit
+    critiques: details.critiques || 0,
+    attention: details.attention || 0,
+    mouvementsJour: 0, // TODO: Récupérer depuis toolkit
   };
 
   /**
@@ -212,34 +137,36 @@ const StockWidget = ({ kpiData, onViewMore }) => {
           )}
         </div>
 
-        {/* Derniers mouvements */}
-        <div>
-          <h4 className="text-sm font-medium text-muted-foreground mb-3">Derniers mouvements</h4>
+        {/* Derniers mouvements - Masqué si pas de données */}
+        {derniersMouvements.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">Derniers mouvements</h4>
 
-          <div className="space-y-1.5">
-            {derniersMouvements.map((mvt) => {
-              const Icon = mvt.type === "entree" ? TrendingUp : TrendingDown;
-              const colorClass = mvt.type === "entree" ? "text-green-600 dark:text-green-400" : "text-destructive";
+            <div className="space-y-1.5">
+              {derniersMouvements.map((mvt) => {
+                const Icon = mvt.type === "entree" ? TrendingUp : TrendingDown;
+                const colorClass = mvt.type === "entree" ? "text-green-600 dark:text-green-400" : "text-destructive";
 
-              return (
-                <div
-                  key={mvt.id}
-                  className="flex items-center gap-2 py-2 px-3 bg-muted/50 rounded-lg text-xs"
-                >
-                  <Icon className={`w-3.5 h-3.5 ${colorClass} flex-shrink-0`} />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-card-foreground">{mvt.element}</span>
-                    <span className="text-muted-foreground mx-1">
-                      {mvt.quantite} {mvt.unite}
-                    </span>
-                    <span className="text-muted-foreground">({mvt.raison})</span>
+                return (
+                  <div
+                    key={mvt.id}
+                    className="flex items-center gap-2 py-2 px-3 bg-muted/50 rounded-lg text-xs"
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${colorClass} flex-shrink-0`} />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-card-foreground">{mvt.element}</span>
+                      <span className="text-muted-foreground mx-1">
+                        {mvt.quantite} {mvt.unite}
+                      </span>
+                      <span className="text-muted-foreground">({mvt.raison})</span>
+                    </div>
+                    <span className="text-muted-foreground flex-shrink-0">{mvt.temps}</span>
                   </div>
-                  <span className="text-muted-foreground flex-shrink-0">{mvt.temps}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </WidgetContainer>
   );

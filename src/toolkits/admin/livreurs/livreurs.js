@@ -3,7 +3,7 @@
  * Fonctions CRUD pour la gestion des livreurs
  */
 
-import { db, rtdb } from "@/lib/firebase";
+import { db, rtdb } from "@/firebase";
 import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
 import { ref, set } from "firebase/database";
 import { nanoid } from "nanoid";
@@ -160,7 +160,9 @@ export async function getLivreursActifs() {
     return livreurs.filter((l) => l.actif);
   } catch (error) {
     console.error("❌ Erreur getLivreursActifs:", error);
-    throw new Error(`Impossible de charger les livreurs actifs: ${error.message}`);
+    throw new Error(
+      `Impossible de charger les livreurs actifs: ${error.message}`
+    );
   }
 }
 
@@ -209,10 +211,13 @@ export async function createLivreur(input, userId) {
 
       // Vérifier si le nom existe déjà
       const existant = livreurs.find(
-        (l) => l.denomination.toLowerCase() === validated.denomination.toLowerCase()
+        (l) =>
+          l.denomination.toLowerCase() === validated.denomination.toLowerCase()
       );
       if (existant) {
-        throw new Error(`Un livreur avec le nom "${validated.denomination}" existe déjà`);
+        throw new Error(
+          `Un livreur avec le nom "${validated.denomination}" existe déjà`
+        );
       }
 
       // Ajouter le nouveau livreur
@@ -277,10 +282,13 @@ export async function updateLivreur(livreurId, updates, userId) {
         const existant = livreurs.find(
           (l) =>
             l.id !== livreurId &&
-            l.denomination.toLowerCase() === validatedUpdates.denomination.toLowerCase()
+            l.denomination.toLowerCase() ===
+              validatedUpdates.denomination.toLowerCase()
         );
         if (existant) {
-          throw new Error(`Un livreur avec le nom "${validatedUpdates.denomination}" existe déjà`);
+          throw new Error(
+            `Un livreur avec le nom "${validatedUpdates.denomination}" existe déjà`
+          );
         }
       }
 
@@ -377,6 +385,8 @@ export async function hardDeleteLivreur(livreurId) {
     console.log(`✅ Livreur supprimé définitivement: ${livreurId}`);
   } catch (error) {
     console.error("❌ Erreur hardDeleteLivreur:", error);
-    throw new Error(`Impossible de supprimer définitivement le livreur: ${error.message}`);
+    throw new Error(
+      `Impossible de supprimer définitivement le livreur: ${error.message}`
+    );
   }
 }

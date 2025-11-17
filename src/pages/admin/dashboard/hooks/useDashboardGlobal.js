@@ -11,6 +11,7 @@ import { rtdb } from "@/firebase.js";
 import {
   getAllComptesTresorerie,
   getOperationsToday,
+  getOperationsForPeriod,
 } from "@/toolkits/admin/comptabilite";
 import { getAllLivraisons, getLivraisonsEnCours } from "@/toolkits/admin/livraisons";
 import { GetCommandes } from "@/toolkits/admin/commandeToolkit";
@@ -79,8 +80,9 @@ const getAlertesStock = async () => {
         quantite: element.quantite_actuelle || 0,
         seuil: element.seuil_alerte || 0,
         niveau: (element.quantite_actuelle || 0) === 0 ? "critique" : "attention",
-        unite: element.unite,
+        unite: element.unite?.symbol || element.unite?.nom || element.unite || "",
         type: element.type,
+        emplacement: element.emplacement || "N/A",
       }));
 
     return { alertes };
@@ -134,6 +136,7 @@ const useDashboardGlobal = () => {
   // Données Comptabilité/Trésorerie
   const [comptesTresorerie, setComptesTresorerie] = useState([]);
   const [operationsJour, setOperationsJour] = useState([]);
+  const [operations7Jours, setOperations7Jours] = useState([]);
 
   // Données Commandes/Ventes
   const [commandesJour, setCommandesJour] = useState([]);
@@ -166,6 +169,7 @@ const useDashboardGlobal = () => {
       const [
         comptesData,
         opsToday,
+        ops7Days,
         livraisonsData,
         livraisonsEnCoursData,
         commandesData,
@@ -175,6 +179,7 @@ const useDashboardGlobal = () => {
       ] = await Promise.all([
         getAllComptesTresorerie(),
         getOperationsToday(),
+        getOperationsForPeriod(7).catch(() => ({ operations: [], dayKeys: [] })),
         getAllLivraisons().catch(() => ({ livraisons: [] })),
         getLivraisonsEnCours().catch(() => ({ livraisons: [] })),
         getCommandesJour().catch(() => ({ commandes: [] })),
@@ -185,6 +190,7 @@ const useDashboardGlobal = () => {
 
       setComptesTresorerie(comptesData.comptes || []);
       setOperationsJour(opsToday.operations || []);
+      setOperations7Jours(ops7Days.operations || []);
       setLivraisons(livraisonsData.livraisons || []);
       setLivraisonsEnCours(livraisonsEnCoursData.livraisons || []);
       setCommandesJour(commandesData.commandes || []);
@@ -320,6 +326,57 @@ const useDashboardGlobal = () => {
     // Calcul variation (simplifié pour l'instant)
     const variation = soldeTotal > 0 ? ((balanceJour / soldeTotal) * 100).toFixed(1) : 0;
 
+    // Générer les données d'évolution sur 7 jours
+    const evolutionData = (() => {
+      // Grouper les opérations par jour
+      const operationsByDay = {};
+
+      operations7Jours.forEach((op) => {
+        if (op.dates?.creation) {
+          const date = new Date(op.dates.creation);
+          const dayKey = formatDayKey(date);
+
+          if (!operationsByDay[dayKey]) {
+            operationsByDay[dayKey] = { entrees: 0, sorties: 0 };
+          }
+
+          if (op.type_operation === "entree") {
+            operationsByDay[dayKey].entrees += op.montant || 0;
+          } else if (op.type_operation === "sortie") {
+            operationsByDay[dayKey].sorties += op.montant || 0;
+          }
+        }
+      });
+
+      // Créer les 7 derniers jours
+      const evolution = [];
+      let soldeAccumule = soldeTotal;
+
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dayKey = formatDayKey(date);
+
+        const dayData = operationsByDay[dayKey] || { entrees: 0, sorties: 0 };
+        const balanceDay = dayData.entrees - dayData.sorties;
+
+        // Pour le jour actuel, utiliser le solde total
+        // Pour les jours précédents, soustraire les balances des jours suivants
+        if (i === 0) {
+          soldeAccumule = soldeTotal;
+        } else {
+          soldeAccumule -= balanceDay;
+        }
+
+        evolution.push({
+          date: dayKey,
+          solde: Math.round(soldeAccumule),
+        });
+      }
+
+      return evolution;
+    })();
+
     return {
       titre: "Trésorerie",
       valeur: soldeTotal,
@@ -335,8 +392,9 @@ const useDashboardGlobal = () => {
         balanceJour,
         nbOperations: operationsJour.length,
       },
+      evolutionData,
     };
-  }, [comptesTresorerie, operationsJour]);
+  }, [comptesTresorerie, operationsJour, operations7Jours]);
 
   // ============================================================================
   // KPI 2: COMMANDES
@@ -410,10 +468,10 @@ const useDashboardGlobal = () => {
   const kpiProduction = useMemo(() => {
     const nbProductions = productionsJour.length;
 
-    // Calculer stats par statut
-    const terminees = productionsJour.filter((p) => p.statut === "termine").length;
-    const enCours = productionsJour.filter((p) => p.statut === "en_cours").length;
-    const planifiees = productionsJour.filter((p) => p.statut === "planifie").length;
+    // Calculer stats par status (pas statut)
+    const terminees = productionsJour.filter((p) => p.status === "termine").length;
+    const enCours = productionsJour.filter((p) => p.status === "en_cours").length;
+    const planifiees = productionsJour.filter((p) => p.status === "planifie").length;
 
     return {
       titre: "Production",
@@ -548,8 +606,14 @@ const useDashboardGlobal = () => {
       tresorerie: kpiTresorerie,
       commandes: kpiCommandes,
       livraisons: kpiLivraisons,
-      production: kpiProduction,
-      stock: kpiStock,
+      production: {
+        ...kpiProduction,
+        productions: productionsJour, // Ajouter les productions complètes
+      },
+      stock: {
+        ...kpiStock,
+        alertesStock, // Ajouter les alertes stock complètes
+      },
       presence: kpiPresence,
     },
 
@@ -561,6 +625,9 @@ const useDashboardGlobal = () => {
     livraisonsEnCours,
     comptesTresorerie,
     operationsJour,
+    commandesJour, // Ajouter les commandes pour le widget Ventes
+    productionsJour, // Ajouter les productions
+    alertesStock, // Ajouter les alertes stock
 
     // Actions
     refresh: loadData,

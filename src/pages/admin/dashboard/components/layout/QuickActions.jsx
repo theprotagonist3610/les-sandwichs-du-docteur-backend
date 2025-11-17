@@ -3,50 +3,69 @@
  * Boutons pour les actions courantes du dashboard
  */
 
+import { useNavigate } from "react-router-dom";
 import { Plus, ShoppingCart, DollarSign, ChefHat, Truck, Package, BarChart3 } from "lucide-react";
 
 /**
  * Composant QuickActions
  */
 const QuickActions = ({ onAction = null }) => {
+  const navigate = useNavigate();
+
   const actions = [
     {
       id: "vente",
       label: "Nouvelle Vente",
       icon: ShoppingCart,
-      color: "bg-green-600 hover:bg-green-700",
+      color: "bg-primary hover:bg-primary/90",
+      route: "/admin/commandes/panneau_de_ventes",
     },
     {
       id: "operation",
       label: "Opération Compta",
       icon: DollarSign,
-      color: "bg-blue-600 hover:bg-blue-700",
+      color: "bg-secondary hover:bg-secondary/90",
+      route: "/admin/comptabilite",
     },
     {
       id: "production",
       label: "Production",
       icon: ChefHat,
-      color: "bg-purple-600 hover:bg-purple-700",
+      color: "bg-accent hover:bg-accent/90",
+      route: "/admin/production",
     },
     {
       id: "livraison",
       label: "Livraison",
       icon: Truck,
-      color: "bg-orange-600 hover:bg-orange-700",
+      color: "bg-muted hover:bg-muted/90",
+      route: "/admin/livraisons/livraisons",
     },
     {
       id: "stock",
       label: "Mouvement Stock",
       icon: Package,
-      color: "bg-yellow-600 hover:bg-yellow-700",
+      color: "bg-primary/80 hover:bg-primary/70",
+      route: "/admin/stock/operations/create",
     },
     {
       id: "statistiques",
       label: "Statistiques",
       icon: BarChart3,
-      color: "bg-indigo-600 hover:bg-indigo-700",
+      color: "bg-secondary/80 hover:bg-secondary/70",
+      route: "/admin/statistiques",
     },
   ];
+
+  const handleClick = (action) => {
+    // Appeler le callback si fourni
+    onAction?.(action.id);
+
+    // Naviguer vers la route
+    if (action.route) {
+      navigate(action.route);
+    }
+  };
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-sm p-6">
@@ -58,10 +77,10 @@ const QuickActions = ({ onAction = null }) => {
           return (
             <button
               key={action.id}
-              onClick={() => onAction?.(action.id)}
+              onClick={() => handleClick(action)}
               className={`
                 flex flex-col items-center gap-2 p-4 rounded-lg
-                text-white transition-all duration-200
+                text-foreground transition-all duration-200
                 ${action.color}
               `}
             >

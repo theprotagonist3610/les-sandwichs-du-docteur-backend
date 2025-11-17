@@ -55,7 +55,7 @@ import {
   Filter,
   RefreshCw,
 } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
+import { useUser } from "@/toolkits/global/userToolkit";
 import { useLivraisonsEnCours, useStatistiquesLivraisons } from "@/toolkits/admin/livraisons";
 import { getAllLivreurs, createLivreur, updateLivreur, deleteLivreur } from "@/toolkits/admin/livreurs";
 import { assignerLivreur, marquerColisRecupere, demarrerLivraison, terminerLivraison } from "@/toolkits/admin/livraisons";
@@ -63,7 +63,7 @@ import { STATUT_LABELS, STATUT_COLORS, STATUTS_LIVRAISON } from "@/toolkits/admi
 import { toast } from "sonner";
 
 const DesktopLivraisons = () => {
-  const user = useAuthStore((state) => state.user);
+  const { user } = useUser();
 
   // États pour les livraisons
   const { livraisons, loading: loadingLivraisons, error: errorLivraisons, refetch: refetchLivraisons } = useLivraisonsEnCours();
