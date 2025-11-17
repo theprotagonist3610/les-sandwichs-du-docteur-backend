@@ -443,31 +443,49 @@ const MenuCard = ({ menu }) => {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.2 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.97 }}
         onClick={() => setIsOpen(true)}
-        className="relative">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardContent className="p-3 space-y-2">
-            <h4 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">
+        className="relative group">
+        <Card className="cursor-pointer overflow-hidden border-l-4 border-l-orange-500 hover:shadow-xl hover:border-l-orange-600 transition-all duration-300 bg-gradient-to-br from-orange-50/50 via-background to-background dark:from-orange-950/20 dark:via-background dark:to-background">
+          <CardContent className="space-y-3">
+            {/* Icône menu */}
+            <div className="flex items-start justify-between">
+              <div className="p-1 rounded-lg bg-orange-100 dark:bg-orange-900/30 group-hover:scale-110 transition-transform duration-300">
+                <UtensilsCrossed className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              {cartQuantity > 0 && (
+                <div className="bg-orange-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg animate-in zoom-in-50">
+                  {cartQuantity}
+                </div>
+              )}
+            </div>
+
+            {/* Dénomination avec typographie élégante */}
+            <h4 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem] tracking-tight">
               {menu.denomination}
             </h4>
-            <p className="text-base font-bold text-primary">
-              {menu.prix.toLocaleString()}
-            </p>
+
+            {/* Prix avec style premium */}
+            <div className="flex items-baseline gap-1">
+              <p className="text-xl font-bold text-orange-600 dark:text-orange-400 tracking-tight">
+                {menu.prix.toLocaleString()}
+              </p>
+              <span className="text-xs text-muted-foreground font-medium">
+                FCFA
+              </span>
+            </div>
           </CardContent>
         </Card>
-        {/* Badge quantité dans le coin supérieur droit */}
-        {cartQuantity > 0 && (
-          <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg">
-            {cartQuantity}
-          </div>
-        )}
       </motion.div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{menu.denomination}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UtensilsCrossed className="w-5 h-5 text-orange-600" />
+              {menu.denomination}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -484,7 +502,7 @@ const MenuCard = ({ menu }) => {
                     handleAdd();
                   }
                 }}
-                className="text-2xl text-center"
+                className="text-2xl text-center font-bold"
               />
             </div>
             <div className="flex gap-2">
@@ -555,31 +573,49 @@ const BoissonCard = ({ boisson }) => {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.2 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.97 }}
         onClick={() => setIsOpen(true)}
-        className="relative">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardContent className="p-3 space-y-2">
-            <h4 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">
+        className="relative group">
+        <Card className="cursor-pointer overflow-hidden border-l-4 border-l-blue-500 hover:shadow-xl hover:border-l-blue-600 transition-all duration-300 bg-gradient-to-br from-blue-50/50 via-background to-background dark:from-blue-950/20 dark:via-background dark:to-background">
+          <CardContent className="space-y-3">
+            {/* Icône boisson */}
+            <div className="flex items-start justify-between">
+              <div className="p-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 group-hover:scale-110 transition-transform duration-300">
+                <Coffee className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              {cartQuantity > 0 && (
+                <div className="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg animate-in zoom-in-50">
+                  {cartQuantity}
+                </div>
+              )}
+            </div>
+
+            {/* Dénomination avec typographie élégante */}
+            <h4 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem] tracking-tight">
               {boisson.denomination}
             </h4>
-            <p className="text-base font-bold text-primary">
-              {boisson.prix.toLocaleString()}
-            </p>
+
+            {/* Prix avec style premium */}
+            <div className="flex items-baseline gap-1">
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
+                {boisson.prix.toLocaleString()}
+              </p>
+              <span className="text-xs text-muted-foreground font-medium">
+                FCFA
+              </span>
+            </div>
           </CardContent>
         </Card>
-        {/* Badge quantité dans le coin supérieur droit */}
-        {cartQuantity > 0 && (
-          <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg">
-            {cartQuantity}
-          </div>
-        )}
       </motion.div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{boisson.denomination}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Coffee className="w-5 h-5 text-blue-600" />
+              {boisson.denomination}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -596,7 +632,7 @@ const BoissonCard = ({ boisson }) => {
                     handleAdd();
                   }
                 }}
-                className="text-2xl text-center"
+                className="text-2xl text-center font-bold"
               />
             </div>
             <div className="flex gap-2">

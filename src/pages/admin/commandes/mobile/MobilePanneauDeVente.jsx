@@ -482,27 +482,42 @@ const MenuCard = ({ menu }) => {
       <motion.div
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
-        className="relative">
-        <div className="h-16 rounded-lg border bg-card cursor-pointer hover:shadow-md transition-shadow p-1.5 flex flex-col justify-between">
-          <h4 className="font-medium text-[12px] leading-tight line-clamp-2">
+        className="relative group">
+        <div className="h-20 rounded-lg border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50/50 via-background to-background dark:from-orange-950/20 dark:via-background dark:to-background cursor-pointer hover:shadow-lg transition-all duration-300 p-1 flex flex-col justify-between overflow-hidden">
+          {/* Icône et badge en haut */}
+          <div className="flex items-start justify-between mb-1">
+            <div className="p-1 rounded bg-orange-100 dark:bg-orange-900/30">
+              <UtensilsCrossed className="w-3 h-3 text-orange-600 dark:text-orange-400" />
+            </div>
+            {cartQuantity > 0 && (
+              <div className="bg-orange-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md">
+                {cartQuantity}
+              </div>
+            )}
+          </div>
+
+          {/* Dénomination */}
+          <h4 className="font-semibold text-[11px] leading-tight  tracking-tight mb-1">
             {menu.denomination}
           </h4>
-          <p className="text-xs font-bold text-primary">
-            {menu.prix.toLocaleString()}
-          </p>
-        </div>
-        {/* Badge quantité dans le coin supérieur droit */}
-        {cartQuantity > 0 && (
-          <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md">
-            {cartQuantity}
+
+          {/* Prix */}
+          <div className="flex items-baseline gap-0.5">
+            <p className="text-sm font-bold text-orange-600 dark:text-orange-400 tracking-tight">
+              {menu.prix.toLocaleString()}
+            </p>
+            <span className="text-[9px] text-muted-foreground font-medium">
+              F
+            </span>
           </div>
-        )}
+        </div>
       </motion.div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-center">
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <UtensilsCrossed className="w-4 h-4 text-orange-600" />
               {menu.denomination}
             </DialogTitle>
           </DialogHeader>
@@ -558,21 +573,35 @@ const BoissonCard = ({ boisson }) => {
       <motion.div
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
-        className="relative">
-        <div className="h-16 rounded-lg border bg-card cursor-pointer hover:shadow-md transition-shadow p-1.5 flex flex-col justify-between">
-          <h4 className="font-medium text-[12px] leading-tight line-clamp-2">
+        className="relative group">
+        <div className="h-20 rounded-lg border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50/50 via-background to-background dark:from-blue-950/20 dark:via-background dark:to-background cursor-pointer hover:shadow-lg transition-all duration-300 p-1 flex flex-col justify-between overflow-hidden">
+          {/* Icône et badge en haut */}
+          <div className="flex items-start justify-between mb-1">
+            <div className="p-1 rounded bg-blue-100 dark:bg-blue-900/30">
+              <Coffee className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            </div>
+            {cartQuantity > 0 && (
+              <div className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md">
+                {cartQuantity}
+              </div>
+            )}
+          </div>
+
+          {/* Dénomination */}
+          <h4 className="font-semibold text-[11px] leading-tight line-clamp-2 tracking-tight mb-1">
             {boisson.denomination}
           </h4>
-          <p className="text-xs font-bold text-primary">
-            {boisson.prix.toLocaleString()}
-          </p>
-        </div>
-        {/* Badge quantité dans le coin supérieur droit */}
-        {cartQuantity > 0 && (
-          <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow-md">
-            {cartQuantity}
+
+          {/* Prix */}
+          <div className="flex items-baseline gap-0.5">
+            <p className="text-sm font-bold text-blue-600 dark:text-blue-400 tracking-tight">
+              {boisson.prix.toLocaleString()}
+            </p>
+            <span className="text-[9px] text-muted-foreground font-medium">
+              F
+            </span>
           </div>
-        )}
+        </div>
       </motion.div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
