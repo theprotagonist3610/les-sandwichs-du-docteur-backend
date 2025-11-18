@@ -199,34 +199,34 @@ const DesktopVendeurs = () => {
 
       {/* Top Performer */}
       {enrichedSummary.top_vendeur && (
-        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+        <Card className="bg-accent/10 border-accent shadow-accent">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-yellow-600" />
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <Award className="h-5 w-5" />
               Top Performer - {period} derniers jours
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-sm opacity-70">Vendeur</p>
+                <p className="text-sm text-muted-foreground">Vendeur</p>
                 <p className="text-xl font-bold">{enrichedSummary.top_vendeur.nom}</p>
               </div>
               <div>
-                <p className="text-sm opacity-70">Ventes</p>
-                <p className="text-xl font-bold text-green-600">
+                <p className="text-sm text-muted-foreground">Ventes</p>
+                <p className="text-xl font-bold text-primary">
                   {enrichedSummary.top_vendeur.total_ventes.toLocaleString()} FCFA
                 </p>
               </div>
               <div>
-                <p className="text-sm opacity-70">Commandes</p>
+                <p className="text-sm text-muted-foreground">Commandes</p>
                 <p className="text-xl font-bold">
                   {enrichedSummary.top_vendeur.total_commandes}
                 </p>
               </div>
               <div>
-                <p className="text-sm opacity-70">Part du CA</p>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-sm text-muted-foreground">Part du CA</p>
+                <p className="text-xl font-bold text-accent-foreground">
                   {enrichedSummary.top_vendeur.pourcentage_ca.toFixed(1)}%
                 </p>
               </div>

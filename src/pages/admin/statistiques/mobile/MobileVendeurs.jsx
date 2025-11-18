@@ -150,10 +150,10 @@ const MobileVendeurs = () => {
 
       {/* Top Performer */}
       {enrichedSummary.top_vendeur && (
-        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+        <Card className="bg-accent/10 border-accent shadow-accent">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Award className="h-4 w-4 text-yellow-600" />
+            <CardTitle className="flex items-center gap-2 text-base text-primary">
+              <Award className="h-4 w-4" />
               Top Performer
             </CardTitle>
           </CardHeader>
@@ -161,14 +161,14 @@ const MobileVendeurs = () => {
             <p className="font-bold text-lg">{enrichedSummary.top_vendeur.nom}</p>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <p className="opacity-70">Ventes</p>
-                <p className="font-bold text-green-600">
+                <p className="text-muted-foreground">Ventes</p>
+                <p className="font-bold text-primary">
                   {(enrichedSummary.top_vendeur.total_ventes / 1000).toFixed(0)}k FCFA
                 </p>
               </div>
               <div>
-                <p className="opacity-70">Part CA</p>
-                <p className="font-bold text-blue-600">
+                <p className="text-muted-foreground">Part CA</p>
+                <p className="font-bold text-accent-foreground">
                   {enrichedSummary.top_vendeur.pourcentage_ca.toFixed(1)}%
                 </p>
               </div>
