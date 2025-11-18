@@ -1004,14 +1004,15 @@ export async function CreateCommande(commandeData, userId = "system") {
  * @param {string} commandeId - ID de la commande
  * @param {Object} updates - Modifications à appliquer
  * @param {string} userId - ID de l'utilisateur
+ * @param {string} archiveDate - (Optionnel) Si la commande est archivée, la date de l'archive (format DDMMYYYY)
  * @returns {Promise<Object>} L'opération en queue
  */
-export async function UpdateCommande(commandeId, updates, userId = "system") {
+export async function UpdateCommande(commandeId, updates, userId = "system", archiveDate = null) {
   try {
     // Ajouter l'opération à la queue
     const operation = await enqueueCommandeOperation(
       OPERATION_TYPES.UPDATE,
-      { commandeId, updates },
+      { commandeId, updates, archiveDate },
       userId
     );
 
@@ -1028,6 +1029,63 @@ export async function UpdateCommande(commandeId, updates, userId = "system") {
     return operation;
   } catch (error) {
     console.error("❌ Erreur UpdateCommande:", error);
+    throw error;
+  }
+}
+
+/**
+ * Mettre à jour une commande archivée
+ * Note: Cette fonction ne passe PAS par la queue car les archives ne sont pas affectées
+ * par les opérations concurrentes du jour en cours
+ * @param {string} commandeId - ID de la commande
+ * @param {string} archiveDate - Date de l'archive (format DDMMYYYY)
+ * @param {Object} updates - Modifications à appliquer
+ * @param {string} userId - ID de l'utilisateur
+ * @returns {Promise<void>}
+ */
+export async function UpdateArchivedCommande(commandeId, archiveDate, updates, userId = "system") {
+  try {
+    const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, archiveDate);
+
+    await runTransaction(db, async (transaction) => {
+      const archiveDoc = await transaction.get(archiveRef);
+
+      if (!archiveDoc.exists()) {
+        throw new Error(`Archive ${archiveDate} non trouvée`);
+      }
+
+      const commandes = archiveDoc.data().liste || [];
+      const index = commandes.findIndex((c) => c.id === commandeId);
+
+      if (index === -1) {
+        throw new Error(`Commande ${commandeId} non trouvée dans l'archive ${archiveDate}`);
+      }
+
+      // Mettre à jour la commande
+      commandes[index] = {
+        ...commandes[index],
+        ...updates,
+        updatedBy: userId,
+        updatedAt: Date.now(),
+      };
+
+      // Sauvegarder
+      transaction.set(archiveRef, { liste: commandes });
+    });
+
+    console.log(`✅ Commande archivée ${commandeId} mise à jour dans ${archiveDate}`);
+
+    // Invalider le cache de cette archive
+    clearCache(`archives_${archiveDate}`);
+
+    // Notification
+    await createRTDBNotification(
+      "Commande archivée modifiée",
+      `Commande ${commandeId} mise à jour`,
+      "info"
+    );
+  } catch (error) {
+    console.error("❌ Erreur UpdateArchivedCommande:", error);
     throw error;
   }
 }
@@ -1690,6 +1748,106 @@ export function useFilteredCommandes(options = {}) {
   }, [fetchCommandes]);
 
   return { commandes, loading, error, refetch: fetchCommandes };
+}
+
+/**
+ * Hook pour récupérer une commande spécifique par ID
+ * Cherche d'abord dans ventes/today, puis dans les archives des derniers 30 jours
+ * @param {string} commandeId - L'ID de la commande à récupérer
+ * @returns {Object} { commande, loading, error, refetch }
+ */
+export function useCommande(commandeId) {
+  const [commande, setCommande] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchCommande = useCallback(async () => {
+    if (!commandeId) {
+      setCommande(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      // 1. Chercher d'abord dans ventes/today
+      const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+      const todayDoc = await getDoc(todayRef);
+
+      if (todayDoc.exists()) {
+        const todayCommandes = todayDoc.data().liste || [];
+        const found = todayCommandes.find((cmd) => cmd.id === commandeId);
+        if (found) {
+          setCommande({ ...found, source: "today" });
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Si pas trouvée dans today, chercher dans les archives des 30 derniers jours
+      const today = new Date();
+      const searchDays = 30; // Chercher dans les 30 derniers jours d'archives
+
+      for (let i = 1; i <= searchDays; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateKey = getDateKey(date);
+
+        const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, dateKey);
+        try {
+          const archiveDoc = await getDoc(archiveRef);
+          if (archiveDoc.exists()) {
+            const archiveCommandes = archiveDoc.data().liste || [];
+            const found = archiveCommandes.find((cmd) => cmd.id === commandeId);
+            if (found) {
+              setCommande({ ...found, source: "archive", archiveDate: dateKey });
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          // Archive n'existe pas pour ce jour, continuer
+          continue;
+        }
+      }
+
+      // 3. Commande non trouvée
+      setCommande(null);
+      setError(`Commande ${commandeId} non trouvée`);
+    } catch (err) {
+      console.error("❌ Erreur useCommande:", err);
+      setError(err.message);
+      setCommande(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [commandeId]);
+
+  useEffect(() => {
+    fetchCommande();
+  }, [fetchCommande]);
+
+  // Écouter les notifications RTDB pour synchronisation
+  useEffect(() => {
+    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+
+    const handleNotification = (snapshot) => {
+      const notification = snapshot.val();
+      if (notification) {
+        clearCache("today");
+        fetchCommande();
+      }
+    };
+
+    onChildAdded(notificationsRef, handleNotification);
+
+    return () => {
+      off(notificationsRef, "child_added", handleNotification);
+    };
+  }, [fetchCommande]);
+
+  return { commande, loading, error, refetch: fetchCommande };
 }
 
 /**

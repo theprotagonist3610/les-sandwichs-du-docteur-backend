@@ -36,7 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useCommandes, UpdateCommande } from "@/toolkits/admin/commandeToolkit";
+import { useCommande, UpdateCommande, UpdateArchivedCommande } from "@/toolkits/admin/commandeToolkit";
 import { useUsers } from "@/toolkits/admin/userToolkit";
 import { useMenus } from "@/toolkits/admin/menuToolkit";
 import { useBoissons } from "@/toolkits/admin/boissonToolkit";
@@ -45,21 +45,16 @@ import useEditCommande from "@/stores/admin/useEditCommande";
 const MobileGererUneVente = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { commandes, loading } = useCommandes({ filter: "today" });
+  const { commande, loading, error } = useCommande(id);
   const { users } = useUsers();
-  const [commande, setCommande] = useState(null);
 
   const loadCommande = useEditCommande((state) => state.loadCommande);
 
   useEffect(() => {
-    if (!loading && commandes.length > 0) {
-      const found = commandes.find((c) => c.id === id);
-      if (found) {
-        setCommande(found);
-        loadCommande(found);
-      }
+    if (!loading && commande) {
+      loadCommande(commande);
     }
-  }, [id, commandes, loading, loadCommande]);
+  }, [loading, commande, loadCommande]);
 
   if (loading) {
     return (
@@ -542,15 +537,29 @@ const DetailsStatutCard = ({ commande }) => {
         newStatut = commande.type === "a livrer" ? "livree" : "servi";
       }
 
-      await UpdateCommande(
-        commande.id,
-        {
-          statut: newStatut,
-          incident: incident,
-          commentaire: commentaire,
-        },
-        commande.createdBy
-      );
+      // Utiliser la fonction appropriée selon la source de la commande
+      if (commande.source === "archive") {
+        await UpdateArchivedCommande(
+          commande.id,
+          commande.archiveDate,
+          {
+            statut: newStatut,
+            incident: incident,
+            commentaire: commentaire,
+          },
+          commande.createdBy
+        );
+      } else {
+        await UpdateCommande(
+          commande.id,
+          {
+            statut: newStatut,
+            incident: incident,
+            commentaire: commentaire,
+          },
+          commande.createdBy
+        );
+      }
 
       // Attendre un peu que l'opération soit traitée par la queue
       await new Promise((resolve) => setTimeout(resolve, 1500));
