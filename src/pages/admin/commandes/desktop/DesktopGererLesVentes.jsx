@@ -37,7 +37,7 @@ import { useBoissons } from "@/toolkits/admin/boissonToolkit";
 import { useNavigate } from "react-router-dom";
 
 const DesktopGererLesVentes = () => {
-  const { commandes, loading } = useCommandes({ filter: "today" });
+  const { commandes, loading } = useCommandes({ filter: "all" });
   const { users } = useUsers();
   const { emplacements } = useEmplacements();
   const { menus } = useMenus();
