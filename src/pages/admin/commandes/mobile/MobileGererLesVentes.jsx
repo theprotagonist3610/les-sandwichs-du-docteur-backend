@@ -23,6 +23,8 @@ import {
   MessageSquare,
   XCircle,
   Calendar,
+  Banknote,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -739,15 +741,59 @@ const CommandeCard = ({ commande, users = [] }) => {
             </div>
           </div>
 
-          {/* Ligne 3: Statut + Détails livraison */}
+          {/* Ligne 3: Paiement badges */}
           <div className="border-t pt-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <StatutBadge statut={commande.statut} />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {commande.paiement.montant_espece_recu > 0 && (
+                <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Banknote className="w-2.5 h-2.5" />
+                  Espèces
+                </div>
+              )}
+              {commande.paiement.montant_momo_recu > 0 && (
+                <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CreditCard className="w-2.5 h-2.5" />
+                  MoMo
+                </div>
+              )}
               {commande.paiement.dette > 0 && (
                 <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">
                   Dette: {commande.paiement.dette.toLocaleString()} F
                 </span>
               )}
+            </div>
+
+            {/* Détails livraison (si commande à livrer) */}
+            {commande.type === "a livrer" && (
+              <div className="space-y-1 pt-1 border-t">
+                {commande.paiement.livraison > 0 && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <Truck className="w-2.5 h-2.5" />
+                    <span>Livraison: {commande.paiement.livraison.toLocaleString()} F</span>
+                  </div>
+                )}
+                {commande.adresse_livraison && (
+                  <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                    <Home className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                    <span className="line-clamp-1">{commande.adresse_livraison}</span>
+                  </div>
+                )}
+                {commande.date_heure_livraison && (commande.date_heure_livraison.date || commande.date_heure_livraison.heure) && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span>
+                      {commande.date_heure_livraison.date && new Date(commande.date_heure_livraison.date).toLocaleDateString("fr-FR")}
+                      {commande.date_heure_livraison.date && commande.date_heure_livraison.heure && " à "}
+                      {commande.date_heure_livraison.heure}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Statut */}
+            <div className="flex items-center justify-between pt-1 border-t">
+              <StatutBadge statut={commande.statut} />
             </div>
 
             {/* Incident ou Commentaire */}

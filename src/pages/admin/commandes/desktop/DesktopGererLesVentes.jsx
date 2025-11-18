@@ -21,6 +21,8 @@ import {
   MessageSquare,
   X,
   Calendar,
+  Banknote,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -744,29 +746,65 @@ const CommandeCard = ({ commande, users }) => {
                 <span>{commande.paiement.total.toLocaleString()} F</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <CreditCard className="w-3 h-3" />
-              <span>
-                {commande.paiement.montant_espece_recu > 0 && commande.paiement.montant_momo_recu > 0
-                  ? "Mixte"
-                  : commande.paiement.montant_momo_recu > 0
-                  ? "Mobile Money"
-                  : "Espèces"}
-              </span>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Ligne 3 : Statut + Détails livraison */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <StatutBadge statut={commande.statut} />
+            {/* Badges de paiement */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {commande.paiement.montant_espece_recu > 0 && (
+                <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Banknote className="w-3 h-3" />
+                  Espèces
+                </div>
+              )}
+              {commande.paiement.montant_momo_recu > 0 && (
+                <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CreditCard className="w-3 h-3" />
+                  MoMo
+                </div>
+              )}
               {commande.paiement.dette > 0 && (
                 <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">
                   Dette: {commande.paiement.dette.toLocaleString()} F
                 </span>
               )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Détails livraison (si commande à livrer) */}
+          {commande.type === "a livrer" && (
+            <>
+              <div className="space-y-1.5">
+                {commande.paiement.livraison > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Truck className="w-3 h-3" />
+                    <span>Livraison: {commande.paiement.livraison.toLocaleString()} F</span>
+                  </div>
+                )}
+                {commande.adresse_livraison && (
+                  <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <Home className="w-3 h-3 mt-0.5 shrink-0" />
+                    <span className="line-clamp-1">{commande.adresse_livraison}</span>
+                  </div>
+                )}
+                {commande.date_heure_livraison && (commande.date_heure_livraison.date || commande.date_heure_livraison.heure) && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span>
+                      {commande.date_heure_livraison.date && new Date(commande.date_heure_livraison.date).toLocaleDateString("fr-FR")}
+                      {commande.date_heure_livraison.date && commande.date_heure_livraison.heure && " à "}
+                      {commande.date_heure_livraison.heure}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Separator />
+            </>
+          )}
+
+          {/* Ligne 3 : Statut + Détails */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <StatutBadge statut={commande.statut} />
             </div>
 
             {/* Incidents/Commentaires */}
