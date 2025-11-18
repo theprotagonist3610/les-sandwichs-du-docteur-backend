@@ -2838,7 +2838,7 @@ export function useVendeursAnalytics(days = 30) {
             }
             const article = vendeur.articles_vendus.get(articleId);
             article.quantite += detail.quantite;
-            article.total_ventes += detail.prixTotal;
+            article.total_ventes += detail.prix * detail.quantite;
           });
 
           totalCommandes += 1;
@@ -3034,7 +3034,7 @@ export function useVendeurDetailAnalytics(vendeurId, days = 30) {
             }
             const article = stats.articles_vendus.get(articleId);
             article.quantite += detail.quantite;
-            article.total_ventes += detail.prixTotal;
+            article.total_ventes += detail.prix * detail.quantite;
           });
         });
       }
