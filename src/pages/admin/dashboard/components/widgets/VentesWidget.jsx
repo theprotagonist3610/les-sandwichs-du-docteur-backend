@@ -3,14 +3,70 @@
  * Affiche le top vendeurs et les produits les plus vendus
  */
 
+import { useState, useEffect } from "react";
 import { ShoppingCart, TrendingUp, Award, Package } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/firebase";
 import WidgetContainer from "./WidgetContainer";
+
+/**
+ * Calcule l'objectif journalier basé sur la moyenne des 30 derniers jours
+ */
+const calculateObjectifFromHistory = async () => {
+  try {
+    const today = new Date();
+    let totalCA = 0;
+    let joursAvecVentes = 0;
+
+    // Parcourir les 30 derniers jours
+    for (let i = 1; i <= 30; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+
+      const dayKey = `${String(date.getDate()).padStart(2, "0")}${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}${date.getFullYear()}`;
+
+      // Récupérer les archives du jour
+      const archiveRef = doc(db, `commandes/archives/${dayKey}`);
+      const archiveDoc = await getDoc(archiveRef);
+
+      if (archiveDoc.exists()) {
+        const commandes = archiveDoc.data()?.liste || [];
+        const caJour = commandes.reduce((sum, cmd) => sum + (cmd.paiement?.total || 0), 0);
+
+        if (caJour > 0) {
+          totalCA += caJour;
+          joursAvecVentes++;
+        }
+      }
+    }
+
+    // Calculer la moyenne (avec un minimum de 500k si pas assez de données)
+    const moyenne = joursAvecVentes > 0 ? totalCA / joursAvecVentes : 500000;
+
+    console.log(`📊 Objectif calculé: ${Math.round(moyenne).toLocaleString()} FCFA (moyenne de ${joursAvecVentes} jours)`);
+
+    return Math.round(moyenne);
+  } catch (error) {
+    console.error("❌ Erreur calcul objectif:", error);
+    return 800000; // Valeur par défaut en cas d'erreur
+  }
+};
 
 /**
  * Composant VentesWidget
  */
 const VentesWidget = ({ kpiData, commandesJour = [], onViewMore }) => {
   const { details } = kpiData;
+  const [objectif, setObjectif] = useState(800000); // Valeur par défaut initiale
+
+  // Charger l'objectif dynamique au montage
+  useEffect(() => {
+    calculateObjectifFromHistory().then((nouvelObjectif) => {
+      setObjectif(nouvelObjectif);
+    });
+  }, []); // Charger une seule fois au montage
 
   // Calculer le CA total réalisé
   const caRealise = commandesJour.reduce((sum, cmd) => sum + (cmd.montant || 0), 0);
@@ -58,7 +114,7 @@ const VentesWidget = ({ kpiData, commandesJour = [], onViewMore }) => {
 
   // Stats depuis les vraies données
   const stats = {
-    objectif: 800000, // TODO: Récupérer depuis configuration
+    objectif: objectif, // Objectif calculé dynamiquement basé sur la moyenne des 30 derniers jours
     realise: caRealise,
     surPlace: details.surPlace || 0,
     aLivrer: details.aLivrer || 0,
