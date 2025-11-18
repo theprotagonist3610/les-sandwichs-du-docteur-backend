@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useCommandes } from "@/toolkits/admin/commandeToolkit";
+import { useFilteredCommandes } from "@/toolkits/admin/commandeToolkit";
 import { useUsers } from "@/toolkits/admin/userToolkit";
 import { useEmplacements } from "@/toolkits/admin/emplacementToolkit";
 import { useMenus } from "@/toolkits/admin/menuToolkit";
@@ -37,7 +37,6 @@ import { useBoissons } from "@/toolkits/admin/boissonToolkit";
 import { useNavigate } from "react-router-dom";
 
 const DesktopGererLesVentes = () => {
-  const { commandes, loading } = useCommandes({ filter: "all" });
   const { users } = useUsers();
   const { emplacements } = useEmplacements();
   const { menus } = useMenus();
@@ -56,6 +55,13 @@ const DesktopGererLesVentes = () => {
     prixMax: "",
     moyensPaiement: [], // Multi-select
     statuts: [], // Multi-select
+  });
+
+  // Charger les commandes avec le nouveau hook qui gère les archives
+  const { commandes, loading } = useFilteredCommandes({
+    periode: filters.periode,
+    dateDebut: filters.dateDebut,
+    dateFin: filters.dateFin,
   });
 
   // Combine menus et boissons pour le filtre article

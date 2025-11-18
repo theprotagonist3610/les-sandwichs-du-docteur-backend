@@ -1567,6 +1567,132 @@ export function useCommandes(options = {}) {
 }
 
 /**
+ * Hook pour récupérer les commandes avec chargement automatique des archives selon la période
+ * @param {Object} options - Options de filtrage
+ * @param {string} options.periode - Période : "today", "week", "month", "custom"
+ * @param {string} options.dateDebut - Date de début pour période custom (format YYYY-MM-DD)
+ * @param {string} options.dateFin - Date de fin pour période custom (format YYYY-MM-DD)
+ * @returns {Object} { commandes, loading, error, refetch }
+ */
+export function useFilteredCommandes(options = {}) {
+  const { periode = "today", dateDebut = "", dateFin = "" } = options;
+
+  const [commandes, setCommandes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchCommandes = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let commandesToLoad = [];
+
+      if (periode === "today") {
+        // Charger uniquement les commandes d'aujourd'hui
+        const cached = getCache("today");
+        if (cached) {
+          commandesToLoad = cached;
+        } else {
+          const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+          const todayDoc = await getDoc(todayRef);
+          commandesToLoad = todayDoc.exists() ? todayDoc.data().liste || [] : [];
+          setCache("today", commandesToLoad);
+        }
+      } else {
+        // Charger les commandes d'aujourd'hui + archives
+        const todayRef = doc(db, VENTES_PATH, TODAY_DOC);
+        const todayDoc = await getDoc(todayRef);
+        const todayCommandes = todayDoc.exists() ? todayDoc.data().liste || [] : [];
+
+        // Déterminer la plage de dates à charger
+        const today = new Date();
+        const startDate = new Date();
+
+        if (periode === "week") {
+          startDate.setDate(startDate.getDate() - 7);
+        } else if (periode === "month") {
+          startDate.setDate(startDate.getDate() - 30);
+        } else if (periode === "custom") {
+          if (dateDebut) {
+            startDate.setTime(new Date(dateDebut).getTime());
+          } else {
+            // Si pas de date de début, prendre 30 jours par défaut
+            startDate.setDate(startDate.getDate() - 30);
+          }
+        }
+
+        // Charger les archives pour chaque jour de la plage
+        const archiveCommandes = [];
+        const currentDate = new Date(startDate);
+        currentDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        while (currentDate < today) {
+          const dateKey = getDateKey(currentDate);
+          const cacheKey = `archives_${dateKey}`;
+
+          // Vérifier le cache
+          const cached = getCache(cacheKey);
+          if (cached) {
+            archiveCommandes.push(...cached);
+          } else {
+            const archiveRef = doc(db, VENTES_PATH, ARCHIVES_PATH, dateKey);
+
+            try {
+              const archiveDoc = await getDoc(archiveRef);
+              if (archiveDoc.exists()) {
+                const dayCommandes = archiveDoc.data().liste || [];
+                archiveCommandes.push(...dayCommandes);
+                setCache(cacheKey, dayCommandes);
+              }
+            } catch (err) {
+              console.warn(`⚠️ Pas d'archives pour ${dateKey}`);
+            }
+          }
+
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        commandesToLoad = [...todayCommandes, ...archiveCommandes];
+      }
+
+      setCommandes(commandesToLoad);
+    } catch (err) {
+      console.error("❌ Erreur useFilteredCommandes:", err);
+      setError(err.message);
+      setCommandes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [periode, dateDebut, dateFin]);
+
+  useEffect(() => {
+    fetchCommandes();
+  }, [fetchCommandes]);
+
+  // Écouter les notifications RTDB pour synchronisation
+  useEffect(() => {
+    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+
+    const handleNotification = (snapshot) => {
+      const notification = snapshot.val();
+      if (notification) {
+        clearCache("today");
+        fetchCommandes();
+      }
+    };
+
+    onChildAdded(notificationsRef, handleNotification);
+
+    return () => {
+      off(notificationsRef, "child_added", handleNotification);
+    };
+  }, [fetchCommandes]);
+
+  return { commandes, loading, error, refetch: fetchCommandes };
+}
+
+/**
  * Hook pour récupérer les statistiques des commandes
  * Détecte automatiquement le changement de jour et archive les commandes clôturées
  * @returns {Object} { statistiques, loading, error, refetch, isArchiving }

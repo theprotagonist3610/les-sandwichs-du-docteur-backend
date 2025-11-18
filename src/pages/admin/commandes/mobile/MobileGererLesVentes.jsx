@@ -32,7 +32,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { useCommandes } from "@/toolkits/admin/commandeToolkit";
+import { useFilteredCommandes } from "@/toolkits/admin/commandeToolkit";
 import { useUsers } from "@/toolkits/admin/userToolkit";
 import { useEmplacements } from "@/toolkits/admin/emplacementToolkit";
 import { useMenus } from "@/toolkits/admin/menuToolkit";
@@ -40,7 +40,6 @@ import { useBoissons } from "@/toolkits/admin/boissonToolkit";
 import { useNavigate } from "react-router-dom";
 
 const MobileGererLesVentes = () => {
-  const { commandes, loading } = useCommandes({ filter: "all" });
   const { users } = useUsers();
   const { emplacements } = useEmplacements();
   const { menus } = useMenus();
@@ -59,6 +58,13 @@ const MobileGererLesVentes = () => {
     prixMax: "",
     moyensPaiement: [], // Multi-select moyens de paiement
     statuts: [], // Multi-select statuts
+  });
+
+  // Charger les commandes avec le nouveau hook qui gère les archives
+  const { commandes, loading } = useFilteredCommandes({
+    periode: filters.periode,
+    dateDebut: filters.dateDebut,
+    dateFin: filters.dateFin,
   });
 
   // Helper function pour toggle array items
