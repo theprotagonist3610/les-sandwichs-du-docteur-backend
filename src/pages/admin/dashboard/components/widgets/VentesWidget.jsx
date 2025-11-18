@@ -3,55 +3,47 @@
  * Affiche le top vendeurs et les produits les plus vendus
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ShoppingCart, TrendingUp, Award, Package } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/firebase";
+import { useFilteredCommandes } from "@/toolkits/admin/commandeToolkit";
 import WidgetContainer from "./WidgetContainer";
 
 /**
  * Calcule l'objectif journalier basé sur la moyenne des 30 derniers jours
+ * @param {Array} commandes30jours - Commandes des 30 derniers jours
+ * @returns {number} Objectif journalier calculé
  */
-const calculateObjectifFromHistory = async () => {
-  try {
-    const today = new Date();
-    let totalCA = 0;
-    let joursAvecVentes = 0;
+const calculateObjectifFromCommandes = (commandes30jours) => {
+  if (!commandes30jours || commandes30jours.length === 0) {
+    console.log("📊 Pas de données historiques, objectif par défaut: 500 000 FCFA");
+    return 500000;
+  }
 
-    // Parcourir les 30 derniers jours
-    for (let i = 1; i <= 30; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
+  // Grouper les commandes par jour
+  const ventesParJour = {};
 
+  commandes30jours.forEach((cmd) => {
+    if (cmd.dates?.creation) {
+      const date = new Date(cmd.dates.creation);
       const dayKey = `${String(date.getDate()).padStart(2, "0")}${String(
         date.getMonth() + 1
       ).padStart(2, "0")}${date.getFullYear()}`;
 
-      // Récupérer les archives du jour
-      const archiveRef = doc(db, `commandes/archives/${dayKey}`);
-      const archiveDoc = await getDoc(archiveRef);
-
-      if (archiveDoc.exists()) {
-        const commandes = archiveDoc.data()?.liste || [];
-        const caJour = commandes.reduce((sum, cmd) => sum + (cmd.paiement?.total || 0), 0);
-
-        if (caJour > 0) {
-          totalCA += caJour;
-          joursAvecVentes++;
-        }
+      if (!ventesParJour[dayKey]) {
+        ventesParJour[dayKey] = 0;
       }
+      ventesParJour[dayKey] += cmd.paiement?.total || 0;
     }
+  });
 
-    // Calculer la moyenne (avec un minimum de 500k si pas assez de données)
-    const moyenne = joursAvecVentes > 0 ? totalCA / joursAvecVentes : 500000;
+  // Calculer la moyenne des jours avec ventes
+  const joursAvecVentes = Object.keys(ventesParJour).length;
+  const totalCA = Object.values(ventesParJour).reduce((sum, ca) => sum + ca, 0);
+  const moyenne = joursAvecVentes > 0 ? totalCA / joursAvecVentes : 500000;
 
-    console.log(`📊 Objectif calculé: ${Math.round(moyenne).toLocaleString()} FCFA (moyenne de ${joursAvecVentes} jours)`);
+  console.log(`📊 Objectif calculé: ${Math.round(moyenne).toLocaleString()} FCFA (moyenne de ${joursAvecVentes} jours sur 30)`);
 
-    return Math.round(moyenne);
-  } catch (error) {
-    console.error("❌ Erreur calcul objectif:", error);
-    return 800000; // Valeur par défaut en cas d'erreur
-  }
+  return Math.round(moyenne);
 };
 
 /**
@@ -59,14 +51,14 @@ const calculateObjectifFromHistory = async () => {
  */
 const VentesWidget = ({ kpiData, commandesJour = [], onViewMore }) => {
   const { details } = kpiData;
-  const [objectif, setObjectif] = useState(800000); // Valeur par défaut initiale
 
-  // Charger l'objectif dynamique au montage
-  useEffect(() => {
-    calculateObjectifFromHistory().then((nouvelObjectif) => {
-      setObjectif(nouvelObjectif);
-    });
-  }, []); // Charger une seule fois au montage
+  // Récupérer les commandes des 30 derniers jours pour calculer l'objectif
+  const { commandes: commandes30jours } = useFilteredCommandes({ periode: "month" });
+
+  // Calculer l'objectif basé sur les 30 derniers jours
+  const objectif = useMemo(() => {
+    return calculateObjectifFromCommandes(commandes30jours);
+  }, [commandes30jours]);
 
   // Calculer le CA total réalisé
   const caRealise = commandesJour.reduce((sum, cmd) => sum + (cmd.montant || 0), 0);
