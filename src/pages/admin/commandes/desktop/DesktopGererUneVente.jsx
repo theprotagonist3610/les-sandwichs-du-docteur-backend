@@ -383,6 +383,9 @@ const DetailsCommandeCard = ({ commande }) => {
   const { menus } = useMenus();
   const { boissons } = useBoissons();
 
+  // Vérifier si la commande est clôturée
+  const isCloturee = commande.statut === "livree" || commande.statut === "servi" || commande.statut === "annulee";
+
   const allArticles = [
     ...(menus || []).map((m) => ({ id: m.id, denomination: m.denomination, prix: m.prix })),
     ...(boissons || []).map((b) => ({ id: b.id, denomination: b.denomination, prix: b.prix })),
@@ -432,7 +435,7 @@ const DetailsCommandeCard = ({ commande }) => {
             </CardTitle>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" disabled={isCloturee}>
                   <Plus className="w-4 h-4 mr-2" />
                   Ajouter
                 </Button>
@@ -483,6 +486,7 @@ const DetailsCommandeCard = ({ commande }) => {
                   onChange={(e) => handleUpdateQuantite(index, e.target.value)}
                   className="h-8 text-center"
                   min="1"
+                  disabled={isCloturee}
                 />
                 <span className="text-right font-semibold">
                   {(detail.quantite * detail.prix).toLocaleString()} F
@@ -491,7 +495,8 @@ const DetailsCommandeCard = ({ commande }) => {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => handleRemove(index)}>
+                  onClick={() => handleRemove(index)}
+                  disabled={isCloturee}>
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
@@ -519,6 +524,9 @@ const DetailsCommandeCard = ({ commande }) => {
 const DetailsPaiementCard = ({ commande }) => {
   const paiement = useEditCommande((state) => state.paiement);
   const updatePaiementField = useEditCommande((state) => state.updatePaiementField);
+
+  // Vérifier si la commande est clôturée
+  const isCloturee = commande.statut === "livree" || commande.statut === "servi" || commande.statut === "annulee";
 
   // Calculer automatiquement le total reçu et la dette
   useEffect(() => {
@@ -566,6 +574,7 @@ const DetailsPaiementCard = ({ commande }) => {
               label="Réduction"
               value={paiement.reduction}
               onChange={(v) => handleInputChange("reduction", v)}
+              disabled={isCloturee}
             />
 
             {/* Livraison (éditable) */}
@@ -575,6 +584,7 @@ const DetailsPaiementCard = ({ commande }) => {
                   label="Livraison"
                   value={paiement.livraison}
                   onChange={(v) => handleInputChange("livraison", v)}
+                  disabled={isCloturee}
                 />
                 <InfoRow
                   label="Total avec livraison"
@@ -591,6 +601,7 @@ const DetailsPaiementCard = ({ commande }) => {
               label="Espèces reçu"
               value={paiement.montant_espece_recu}
               onChange={(v) => handleInputChange("montant_espece_recu", v)}
+              disabled={isCloturee}
             />
 
             {/* Mobile Money reçu (éditable) */}
@@ -598,6 +609,7 @@ const DetailsPaiementCard = ({ commande }) => {
               label="Mobile Money reçu"
               value={paiement.montant_momo_recu}
               onChange={(v) => handleInputChange("montant_momo_recu", v)}
+              disabled={isCloturee}
             />
 
             <div className="border-t pt-2" />
@@ -649,7 +661,7 @@ const InfoRow = ({ label, value, icon, mono, bold, valueClassName }) => {
 /**
  * Component helper: EditableField (input numérique)
  */
-const EditableField = ({ label, value, onChange }) => {
+const EditableField = ({ label, value, onChange, disabled = false }) => {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -659,6 +671,7 @@ const EditableField = ({ label, value, onChange }) => {
         onChange={(e) => onChange(e.target.value)}
         className="h-8 w-32 text-right"
         min="0"
+        disabled={disabled}
       />
     </div>
   );

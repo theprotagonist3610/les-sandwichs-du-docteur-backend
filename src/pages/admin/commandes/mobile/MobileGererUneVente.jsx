@@ -235,6 +235,9 @@ const DetailsCommandeCard = ({ commande }) => {
   const { menus } = useMenus();
   const { boissons } = useBoissons();
 
+  // Vérifier si la commande est clôturée
+  const isCloturee = commande.statut === "livree" || commande.statut === "servi" || commande.statut === "annulee";
+
   // Filtrer uniquement les articles actifs
   const allArticles = [
     ...(menus || []).filter((m) => m.status).map((m) => ({ id: m.id, denomination: m.denomination, prix: m.prix })),
@@ -284,7 +287,7 @@ const DetailsCommandeCard = ({ commande }) => {
             </CardTitle>
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" disabled={isCloturee}>
                   <Plus className="w-3 h-3 mr-1" />
                   Ajouter
                 </Button>
@@ -337,6 +340,7 @@ const DetailsCommandeCard = ({ commande }) => {
                   onChange={(e) => handleUpdateQuantite(index, e.target.value)}
                   className="h-7 text-center text-xs"
                   min="1"
+                  disabled={isCloturee}
                 />
                 <span className="text-right font-semibold">
                   {(detail.quantite * detail.prix).toLocaleString()} F
@@ -345,7 +349,8 @@ const DetailsCommandeCard = ({ commande }) => {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  onClick={() => handleRemove(index)}>
+                  onClick={() => handleRemove(index)}
+                  disabled={isCloturee}>
                   <Trash2 className="w-3 h-3 text-destructive" />
                 </Button>
               </div>
@@ -373,6 +378,9 @@ const DetailsCommandeCard = ({ commande }) => {
 const DetailsPaiementCard = ({ commande }) => {
   const paiement = useEditCommande((state) => state.paiement);
   const updatePaiementField = useEditCommande((state) => state.updatePaiementField);
+
+  // Vérifier si la commande est clôturée
+  const isCloturee = commande.statut === "livree" || commande.statut === "servi" || commande.statut === "annulee";
 
   // Calculer automatiquement le total reçu et la dette
   useEffect(() => {
@@ -427,6 +435,7 @@ const DetailsPaiementCard = ({ commande }) => {
                 onChange={(e) => handleInputChange("reduction", e.target.value)}
                 className="h-7 w-24 text-right text-xs"
                 min="0"
+                disabled={isCloturee}
               />
             </div>
 
@@ -441,6 +450,7 @@ const DetailsPaiementCard = ({ commande }) => {
                     onChange={(e) => handleInputChange("livraison", e.target.value)}
                     className="h-7 w-24 text-right text-xs"
                     min="0"
+                    disabled={isCloturee}
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs">
@@ -461,6 +471,7 @@ const DetailsPaiementCard = ({ commande }) => {
                 onChange={(e) => handleInputChange("montant_espece_recu", e.target.value)}
                 className="h-7 w-24 text-right text-xs"
                 min="0"
+                disabled={isCloturee}
               />
             </div>
 
@@ -473,6 +484,7 @@ const DetailsPaiementCard = ({ commande }) => {
                 onChange={(e) => handleInputChange("montant_momo_recu", e.target.value)}
                 className="h-7 w-24 text-right text-xs"
                 min="0"
+                disabled={isCloturee}
               />
             </div>
 
