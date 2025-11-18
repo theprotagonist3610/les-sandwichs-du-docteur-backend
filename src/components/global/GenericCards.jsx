@@ -97,13 +97,79 @@ const GenericCard = ({
 };
 
 /**
+ * GenericCardMobile - Carte horizontale pour mobile
+ */
+const GenericCardMobile = ({
+  nom,
+  description,
+  url,
+  icon: Icon,
+  to,
+  className = "",
+}) => {
+  return (
+    <NavLink
+      to={to}
+      className={`
+        group flex items-center gap-4 bg-card border border-border rounded-lg p-4
+        hover:shadow-md hover:border-primary/20 transition-all duration-200
+        focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+        ${className}
+      `}>
+      {/* Icône à gauche */}
+      <div className="flex-shrink-0 w-14 h-14 flex items-center justify-center bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors duration-200">
+        {Icon ? (
+          <Icon className="h-7 w-7 text-primary group-hover:scale-110 transition-transform duration-200" />
+        ) : url ? (
+          <img
+            src={url}
+            alt={nom}
+            className="h-10 w-10 object-contain opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200"
+          />
+        ) : (
+          <div className="h-7 w-7 bg-muted rounded-full flex items-center justify-center">
+            <span className="text-muted-foreground text-xs">?</span>
+          </div>
+        )}
+      </div>
+
+      {/* Contenu à droite */}
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors duration-200 line-clamp-1">
+          {nom}
+        </h3>
+        <p className="text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors duration-200 line-clamp-2 mt-0.5">
+          {description}
+        </p>
+      </div>
+
+      {/* Indicateur visuel (chevron) */}
+      <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <svg
+          className="w-5 h-5 text-primary"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </div>
+    </NavLink>
+  );
+};
+
+/**
  * Composant principal GenericCards
  */
 const GenericCards = ({
   liste = [],
   className = "",
   cardClassName = "",
-  cols = 2, // ✅ Nouveau paramètre par défaut
+  cols = 2, // Paramètre conservé pour rétro-compatibilité mais non utilisé
 }) => {
   const { mobile } = useBreakpoint();
 
@@ -119,18 +185,17 @@ const GenericCards = ({
 
   return (
     <div className={className}>
-      {/* Version Mobile - Grid avec colonnes dynamiques */}
+      {/* Version Mobile - Liste verticale avec layout horizontal */}
       {mobile && (
-        <div className={`grid grid-cols-${cols} gap-4`}>
+        <div className="space-y-3">
           {liste.map((item, index) => (
-            <GenericCard
+            <GenericCardMobile
               key={item.to || index}
               nom={item.nom}
               description={item.description}
               url={item.url}
               icon={item.icon}
               to={item.to}
-              isMobile={true}
               className={cardClassName}
             />
           ))}
