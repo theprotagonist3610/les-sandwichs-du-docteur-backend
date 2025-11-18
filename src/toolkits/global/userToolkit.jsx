@@ -239,8 +239,9 @@ export async function createUserWithPrecheck(userData) {
     // Créer l'utilisateur avec le toolkit approprié
     const result = await userToolkit.createUser(userData);
 
-    // Supprimer de la liste des pré-utilisateurs après création réussie
-    await removePreUser(userData.email);
+    // NOTE: On ne supprime plus l'utilisateur de preusers pour simplifier loginUser
+    // L'utilisateur reste dans la liste des pré-utilisateurs après création
+    // await removePreUser(userData.email);
 
     console.log("✅ Utilisateur créé avec role:", preuser.role);
 
