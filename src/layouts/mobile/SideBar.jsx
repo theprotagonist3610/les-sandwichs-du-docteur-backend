@@ -6,6 +6,7 @@
 - le themeswicther
 - le userResume
  */
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "@/toolkits/global/userToolkit";
 import { logoutUser } from "@/toolkits/admin/userToolkit";
@@ -57,6 +58,12 @@ const SideBar = () => {
   const { user } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  // Fermer le sidebar quand la route change
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -75,7 +82,7 @@ const SideBar = () => {
     : [];
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Ouvrir le menu">
           <Menu className="h-6 w-6" />
