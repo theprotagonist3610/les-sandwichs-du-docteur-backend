@@ -22,6 +22,7 @@ import {
   AlertCircle,
   MessageSquare,
   XCircle,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +49,9 @@ const MobileGererLesVentes = () => {
   // États des filtres (multi-select avec arrays)
   const [filters, setFilters] = useState({
     createdBy: [], // Multi-select vendeurs
-    periode: "today", // today, week, month, all
+    periode: "today", // today, week, month, custom
+    dateDebut: "", // Pour période custom
+    dateFin: "", // Pour période custom
     articles: [], // Multi-select articles
     emplacements: [], // Multi-select emplacements
     types: [], // Multi-select types (sur place, a livrer)
@@ -77,6 +80,50 @@ const MobileGererLesVentes = () => {
   // Filtrage des commandes
   const commandesFiltrees = useMemo(() => {
     let result = [...commandes];
+
+    // Filtre par période
+    if (filters.periode) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (filters.periode === "today") {
+        result = result.filter((cmd) => {
+          const cmdDate = new Date(cmd.createdAt);
+          return cmdDate >= today;
+        });
+      } else if (filters.periode === "week") {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        result = result.filter((cmd) => {
+          const cmdDate = new Date(cmd.createdAt);
+          return cmdDate >= weekAgo;
+        });
+      } else if (filters.periode === "month") {
+        const monthAgo = new Date(today);
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        result = result.filter((cmd) => {
+          const cmdDate = new Date(cmd.createdAt);
+          return cmdDate >= monthAgo;
+        });
+      } else if (filters.periode === "custom") {
+        if (filters.dateDebut) {
+          const startDate = new Date(filters.dateDebut);
+          startDate.setHours(0, 0, 0, 0);
+          result = result.filter((cmd) => {
+            const cmdDate = new Date(cmd.createdAt);
+            return cmdDate >= startDate;
+          });
+        }
+        if (filters.dateFin) {
+          const endDate = new Date(filters.dateFin);
+          endDate.setHours(23, 59, 59, 999);
+          result = result.filter((cmd) => {
+            const cmdDate = new Date(cmd.createdAt);
+            return cmdDate <= endDate;
+          });
+        }
+      }
+    }
 
     // Filtre createdBy (multi-select)
     if (filters.createdBy.length > 0) {
@@ -136,6 +183,8 @@ const MobileGererLesVentes = () => {
     setFilters({
       createdBy: [],
       periode: "today",
+      dateDebut: "",
+      dateFin: "",
       articles: [],
       emplacements: [],
       types: [],
@@ -147,7 +196,14 @@ const MobileGererLesVentes = () => {
   };
 
   const activeFiltersCount = Object.entries(filters).reduce((count, [key, value]) => {
-    if (key === "periode") return count;
+    // Ne pas compter la période "today" par défaut
+    if (key === "periode") {
+      return count + (value !== "today" ? 1 : 0);
+    }
+    // Ne pas compter dateDebut/dateFin séparément (déjà compté avec periode)
+    if (key === "dateDebut" || key === "dateFin") {
+      return count;
+    }
     if (key === "prixMin" || key === "prixMax") {
       return count + (value !== "" ? 1 : 0);
     }
@@ -229,6 +285,76 @@ const MobileGererLesVentes = () => {
 const FilterForm = ({ filters, setFilters, toggleArrayItem, users, emplacements, articles, onReset }) => {
   return (
     <div className="space-y-6 pb-4 px-4">
+      {/* Période */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium flex items-center gap-2">
+          <Calendar className="w-4 h-4" />
+          Période
+        </Label>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant={filters.periode === "today" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilters({ ...filters, periode: "today" })}
+              className="w-full text-xs"
+            >
+              Aujourd'hui
+            </Button>
+            <Button
+              variant={filters.periode === "week" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilters({ ...filters, periode: "week" })}
+              className="w-full text-xs"
+            >
+              7 jours
+            </Button>
+            <Button
+              variant={filters.periode === "month" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilters({ ...filters, periode: "month" })}
+              className="w-full text-xs"
+            >
+              30 jours
+            </Button>
+            <Button
+              variant={filters.periode === "custom" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilters({ ...filters, periode: "custom" })}
+              className="w-full text-xs"
+            >
+              Personnalisé
+            </Button>
+          </div>
+          {filters.periode === "custom" && (
+            <div className="space-y-2 pt-2">
+              <div className="space-y-1">
+                <Label htmlFor="dateDebut" className="text-xs">Début</Label>
+                <Input
+                  id="dateDebut"
+                  type="date"
+                  value={filters.dateDebut}
+                  onChange={(e) => setFilters({ ...filters, dateDebut: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="dateFin" className="text-xs">Fin</Label>
+                <Input
+                  id="dateFin"
+                  type="date"
+                  value={filters.dateFin}
+                  onChange={(e) => setFilters({ ...filters, dateFin: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Vendeurs - Multi-select */}
       <div className="space-y-3">
         <Label className="text-sm font-medium flex items-center gap-2">
