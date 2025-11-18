@@ -775,7 +775,11 @@ const CommandeCard = ({ commande, users = [] }) => {
                 {commande.adresse_livraison && (
                   <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
                     <Home className="w-2.5 h-2.5 mt-0.5 shrink-0" />
-                    <span className="line-clamp-1">{commande.adresse_livraison}</span>
+                    <span className="line-clamp-1">
+                      {commande.adresse_livraison.commune && commande.adresse_livraison.commune.toLowerCase() !== "inconnu"
+                        ? `${commande.adresse_livraison.commune} | ${commande.adresse_livraison.quartier}`
+                        : commande.adresse_livraison.quartier}
+                    </span>
                   </div>
                 )}
                 {commande.date_heure_livraison && (commande.date_heure_livraison.date || commande.date_heure_livraison.heure) && (
