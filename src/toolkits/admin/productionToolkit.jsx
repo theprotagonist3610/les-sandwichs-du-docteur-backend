@@ -605,7 +605,9 @@ export async function executeProductionOperations() {
         transaction.get(enAttenteRef),
       ]);
 
-      let definitions = listeDoc.exists() ? listeDoc.data().productions || [] : [];
+      // Structure: { liste: { productions: [...] } }
+      const listeData = listeDoc.exists() ? listeDoc.data() : {};
+      let definitions = listeData.liste?.productions || listeData.productions || [];
       let enAttente = enAttenteDoc.exists() ? enAttenteDoc.data().items || [] : [];
 
       // Map pour stocker les documents de jour déjà chargés
@@ -874,7 +876,8 @@ export async function executeProductionOperations() {
       }
 
       // 6. ÉCRITURES: Sauvegarder toutes les modifications
-      transaction.set(listeRef, { productions: definitions });
+      // Structure: { liste: { productions: [...] } }
+      transaction.set(listeRef, { liste: { productions: definitions } });
       transaction.set(enAttenteRef, { items: enAttente });
 
       // Sauvegarder tous les documents de jour
@@ -1081,7 +1084,8 @@ export async function getAllProductionDefinitions() {
     }
 
     const data = listSnap.data();
-    const definitions = data.productions || [];
+    // Structure: { liste: { productions: [...] } }
+    const definitions = data.liste?.productions || data.productions || [];
 
     // Valider avec Zod
     const validatedDefinitions = definitions
