@@ -268,23 +268,14 @@ service cloud.firestore {
     // Structure: Documents de budgets prévisionnels par mois
     // Chaque budget contient:
     // - id: budget_{nano(10)}
-    // - mois: format MMYYYY
+    // - mois: format MMYYYY (AAAAMMDD)
     // - lignes_budget: array de lignes avec compte_id, montant_previsionnel, etc.
+    // - statut: actif, archive, depasse
     // - createdBy, updatedBy, createdAt, updatedAt
     // ========================================
     match /comptabilite_budgets/{budgetId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() &&
-                     request.resource.data.keys().hasAll(['id', 'mois', 'nom', 'montant_total_previsionnel', 'lignes_budget', 'createdBy', 'createdAt', 'updatedAt']) &&
-                     request.resource.data.mois.matches('^[0-9]{6}$') &&
-                     request.resource.data.createdAt is int &&
-                     request.resource.data.updatedAt is int;
-      allow update: if isAdmin() &&
-                     request.resource.data.keys().hasAll(['id', 'mois', 'nom', 'montant_total_previsionnel', 'lignes_budget', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt']) &&
-                     request.resource.data.mois.matches('^[0-9]{6}$') &&
-                     request.resource.data.createdAt is int &&
-                     request.resource.data.updatedAt is int;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     // ========================================
