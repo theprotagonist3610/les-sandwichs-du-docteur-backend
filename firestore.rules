@@ -122,28 +122,22 @@ service cloud.firestore {
     // - ventes/operationsQueue: Queue d'opérations anti-collision
     // ========================================
 
-    // 4.1 Document today - commandes du jour
+    // 4.1 Document today - commandes du jour (transactions)
     match /ventes/today {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
-    // 4.2 Documents d'archives par jour
+    // 4.2 Documents d'archives par jour (transactions)
     match /ventes/archives/liste/{dayKey} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
-    // 4.3 Document ventes en attente
+    // 4.3 Document ventes en attente (transactions)
     match /ventes/ventes_en_attente {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
     // 4.4 Document statistiques
@@ -154,12 +148,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 4.5 Queue d'opérations commandes
+    // 4.5 Queue d'opérations commandes (transactions)
     match /ventes/operationsQueue {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
     // 4.6 Autres sous-collections de ventes (pour extensions futures)
@@ -172,12 +164,11 @@ service cloud.firestore {
     // 5. COLLECTION "adresses"
     // Admin: CRUD
     // User authentifié: Read only
+    // IMPORTANT: Compatible avec transactions atomiques (runTransaction)
     // ========================================
     match /adresses/{adresseId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
 
       // Sous-collections de adresses
       match /{subcollection=**} {
@@ -249,12 +240,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 6.7 Queue d'opérations comptabilité
+    // 6.7 Queue d'opérations comptabilité (transactions)
     match /comptabilite/operationsQueue {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
     // 6.8 Statistiques mensuelles
@@ -321,15 +310,15 @@ service cloud.firestore {
     // Admin: CRUD
     // User authentifié: Read only
     //
-    // Structure: Document unique contenant la liste des livreurs
+    // IMPORTANT: Compatible avec transactions atomiques (runTransaction)
     // - livreurs/liste: { livreurs: [...], updatedAt }
-    // Chaque livreur contient: id, denomination, contact, actif, timestamps
+    // Structure de chaque livreur:
+    //   - id, denomination, contact, actif, createdBy, updatedBy, timestamps
+    // Index RTDB pour sync temps réel: livreurs_trigger
     // ========================================
     match /livreurs/liste {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Permet create, update, delete pour transactions
     }
 
     // Autres sous-collections de livreurs
@@ -383,14 +372,13 @@ service cloud.firestore {
     // 12. COLLECTION "emplacements"
     // Admin: CRUD complet
     // User authentifié: Read only
+    // IMPORTANT: Compatible avec transactions atomiques (runTransaction)
     // ========================================
 
-    // 12.1 Document liste des emplacements
+    // 12.1 Document liste des emplacements (transactions)
     match /emplacements/liste {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
     // 12.2 Opérations quotidiennes sur emplacements
@@ -437,12 +425,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 13.3 Document des emplacements avec stock actuel
+    // 13.3 Document des emplacements avec stock actuel (transactions)
     match /stock/emplacements {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
     // 13.4 Documents de transactions par jour
@@ -453,12 +439,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 13.5 Queue d'opérations
+    // 13.5 Queue d'opérations (transactions)
     match /stock/operationsQueue {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Transactions
     }
 
     // 13.6 Métadonnées de la queue
