@@ -246,6 +246,7 @@ function saveDefinitionsToCache(definitions) {
 
 /**
  * Récupère les définitions depuis le LocalStorage
+ * Vérifie si le cache est encore valide (< 5 minutes)
  */
 function getDefinitionsFromCache() {
   try {
@@ -253,7 +254,18 @@ function getDefinitionsFromCache() {
     if (!data) return null;
 
     const parsed = JSON.parse(data);
-    console.log("✅ Définitions de production récupérées du cache");
+
+    // Vérifier l'expiration du cache (5 minutes = 300000 ms)
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+    const cacheAge = now - parsed.lastSync;
+
+    if (cacheAge > CACHE_DURATION) {
+      console.log("⏰ [getDefinitionsFromCache] Cache expiré (", Math.round(cacheAge / 60000), "minutes)");
+      return null; // Cache expiré
+    }
+
+    console.log("✅ [getDefinitionsFromCache] Cache valide (", Math.round(cacheAge / 1000), "secondes)");
     return parsed;
   } catch (error) {
     console.error("❌ Erreur lecture cache définitions:", error);
@@ -1708,16 +1720,22 @@ export function useProductionDefinitions() {
     }
   }, []);
 
-  // Charger depuis le cache au montage
+  // Charger depuis le cache au montage et TOUJOURS sync avec Firestore
   useEffect(() => {
-    console.log("🚀 [useProductionDefinitions] Hook monté, chargement du cache...");
+    console.log("🚀 [useProductionDefinitions] Hook monté");
     const cached = getDefinitionsFromCache();
+
     if (cached && cached.data) {
-      console.log("💾 [useProductionDefinitions] Cache trouvé:", cached.data.length, "définitions");
+      console.log("💾 [useProductionDefinitions] Cache valide trouvé:", cached.data.length, "définitions");
+      // Charger le cache immédiatement pour une UI réactive
       setDefinitions(cached.data);
       setLoading(false);
+
+      // Mais TOUJOURS sync en arrière-plan pour comparer avec Firestore
+      console.log("🔄 [useProductionDefinitions] Sync en arrière-plan pour vérifier...");
+      sync();
     } else {
-      console.log("⚠️ [useProductionDefinitions] Pas de cache, déclenchement sync Firestore...");
+      console.log("⚠️ [useProductionDefinitions] Cache expiré ou absent, sync Firestore...");
       sync();
     }
   }, [sync]);
@@ -1735,17 +1753,20 @@ export function useProductionDefinitions() {
         ...value,
       }));
 
-      // Chercher une notification "Production:Liste:Update" récente (< 5 secondes)
+      // Chercher une notification "nouvelle_recette" récente (< 10 secondes)
       const now = Date.now();
       const recentNotif = notificationsList.find(
         (notif) =>
-          notif.title === "Production:Liste:Update" && now - notif.createdAt < 5000
+          (notif.title === "nouvelle_recette" ||
+           notif.title === "Production:Liste:Update") &&
+          now - notif.createdAt < 10000
       );
 
       if (recentNotif) {
         console.log(
-          "🔔 Notification détectée: Production:Liste:Update - Synchronisation..."
+          "🔔 [useProductionDefinitions] Notification détectée:", recentNotif.title, "- Synchronisation..."
         );
+        clearDefinitionsCache(); // Forcer le rafraîchissement
         sync();
       }
     };
