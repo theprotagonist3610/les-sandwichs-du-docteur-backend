@@ -340,24 +340,22 @@ service cloud.firestore {
 
     // ========================================
     // 10. COLLECTION "livraisons"
-    // Admin: CRUD
+    // Admin: CRUD complet
     // User authentifié: Read only
     //
-    // Structure: Document unique contenant la liste des livraisons (Option C - Hybride)
+    // IMPORTANT: Compatible avec transactions atomiques (runTransaction)
     // - livraisons/liste: { livraisons: [...], updatedAt }
-    // Chaque livraison contient:
+    // Structure de chaque livraison:
     //   - id, commande_code, statut, client, livreur, colis_recupere
-    //   - priorite, dates, notes, timestamps
-    // Index RTDB pour sync temps réel
+    //   - priorite, dates, notes, createdBy, updatedBy, updatedAt
+    // Index RTDB pour sync temps réel: livraisons/{commande_code}
     // ========================================
     match /livraisons/liste {
       allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin(); // Permet create, update, delete pour transactions
     }
 
-    // Autres sous-collections de livraisons
+    // Autres sous-collections de livraisons (pour extensions futures)
     match /livraisons/{document=**} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
