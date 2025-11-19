@@ -159,7 +159,7 @@ const MobileGererLesProductions = () => {
         </TabsList>
 
         {/* Tab 1: Recettes */}
-        <TabsContent value="recettes" className="flex-1 overflow-y-auto space-y-4 mt-4">
+        <TabsContent value="recettes" className="flex-1 overflow-y-auto mt-4">
           {loadingDefinitions ? (
             <div className="flex items-center justify-center py-12">
               <AlertCircle className="w-8 h-8 animate-pulse text-muted-foreground" />
@@ -170,8 +170,9 @@ const MobileGererLesProductions = () => {
               <p>Aucune recette disponible</p>
             </div>
           ) : (
-            <AnimatePresence>
-              {definitions.map((def, index) => (
+            <div className="space-y-4">
+              <AnimatePresence>
+                {definitions.map((def, index) => (
                 <motion.div
                   key={def.id}
                   initial="hidden"
@@ -267,7 +268,8 @@ const MobileGererLesProductions = () => {
                   </Card>
                 </motion.div>
               ))}
-            </AnimatePresence>
+              </AnimatePresence>
+            </div>
           )}
         </TabsContent>
 
