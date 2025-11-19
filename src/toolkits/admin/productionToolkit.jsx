@@ -1717,10 +1717,10 @@ export function useProductionDefinitions() {
       setDefinitions(cached.data);
       setLoading(false);
     } else {
-      console.log("⚠️ [useProductionDefinitions] Pas de cache, sync nécessaire");
-      setLoading(false);
+      console.log("⚠️ [useProductionDefinitions] Pas de cache, déclenchement sync Firestore...");
+      sync();
     }
-  }, []);
+  }, [sync]);
 
   // Écouter les notifications RTDB pour synchronisation automatique
   useEffect(() => {
