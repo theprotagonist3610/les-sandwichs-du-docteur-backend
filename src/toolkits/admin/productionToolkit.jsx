@@ -1075,17 +1075,24 @@ async function addResultToEmplacement({ emplacementId, resultItem }) {
  */
 export async function getAllProductionDefinitions() {
   try {
+    console.log("📡 [getAllProductionDefinitions] Début récupération depuis Firestore...");
+    console.log("📡 [getAllProductionDefinitions] Document path:", PRODUCTIONS_LIST_DOC);
     const listRef = doc(db, PRODUCTIONS_LIST_DOC);
     const listSnap = await getDoc(listRef);
 
     if (!listSnap.exists()) {
-      console.log("ℹ️ Aucune définition de production trouvée");
+      console.log("⚠️ [getAllProductionDefinitions] Document n'existe pas");
       return [];
     }
 
     const data = listSnap.data();
+    console.log("📄 [getAllProductionDefinitions] Data brute:", data);
+    console.log("📄 [getAllProductionDefinitions] data.liste:", data.liste);
+    console.log("📄 [getAllProductionDefinitions] data.productions:", data.productions);
+
     // Structure: { liste: { productions: [...] } }
     const definitions = data.liste?.productions || data.productions || [];
+    console.log("📦 [getAllProductionDefinitions] Définitions extraites:", definitions.length);
 
     // Valider avec Zod
     const validatedDefinitions = definitions
@@ -1099,13 +1106,15 @@ export async function getAllProductionDefinitions() {
       })
       .filter((def) => def !== null);
 
+    console.log("✅ [getAllProductionDefinitions] Définitions validées:", validatedDefinitions.length);
+
     // Sauvegarder dans le cache
     saveDefinitionsToCache(validatedDefinitions);
 
     console.log(`✅ ${validatedDefinitions.length} définitions de production récupérées`);
     return validatedDefinitions;
   } catch (error) {
-    console.error("❌ Erreur récupération définitions:", error);
+    console.error("❌ [getAllProductionDefinitions] Erreur récupération définitions:", error);
     throw error;
   }
 }
@@ -1684,11 +1693,15 @@ export function useProductionDefinitions() {
    */
   const sync = useCallback(async () => {
     try {
+      console.log("🔄 [useProductionDefinitions] Début sync avec Firestore...");
       setLoading(true);
       setError(null);
       const freshDefinitions = await getAllProductionDefinitions();
+      console.log("✅ [useProductionDefinitions] Définitions récupérées:", freshDefinitions.length);
+      console.log("📦 [useProductionDefinitions] Première définition:", freshDefinitions[0]);
       setDefinitions(freshDefinitions);
     } catch (err) {
+      console.error("❌ [useProductionDefinitions] Erreur sync:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -1697,11 +1710,14 @@ export function useProductionDefinitions() {
 
   // Charger depuis le cache au montage
   useEffect(() => {
+    console.log("🚀 [useProductionDefinitions] Hook monté, chargement du cache...");
     const cached = getDefinitionsFromCache();
     if (cached && cached.data) {
+      console.log("💾 [useProductionDefinitions] Cache trouvé:", cached.data.length, "définitions");
       setDefinitions(cached.data);
       setLoading(false);
     } else {
+      console.log("⚠️ [useProductionDefinitions] Pas de cache, sync nécessaire");
       setLoading(false);
     }
   }, []);
