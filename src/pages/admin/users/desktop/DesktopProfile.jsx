@@ -39,7 +39,12 @@ import { motion } from "framer-motion";
 const DesktopProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user, loading: loadingUser, error: errorUser, refetch } = useUser(userId);
+  const {
+    user,
+    loading: loadingUser,
+    error: errorUser,
+    refetch,
+  } = useUser(userId);
   const { presence, loading: loadingPresence } = useUserPresence(userId);
   const [activeTab, setActiveTab] = useState("infos");
 
@@ -178,10 +183,6 @@ const DesktopProfile = () => {
             </p>
           </div>
         </div>
-        <Button onClick={() => navigate(`/admin/users/profiles/${userId}`)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Modifier
-        </Button>
       </div>
 
       {/* Main Content */}

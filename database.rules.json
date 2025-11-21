@@ -104,39 +104,19 @@
     "todos": {
       ".read": "auth != null",
 
-      "$todoId": {
+      "liste_todos": {
+        ".read": "auth != null",
         ".write": "auth != null",
 
-        ".validate": "newData.hasChildren(['userId', 'title', 'completed', 'createdAt'])",
-
-        "userId": {
-          ".validate": "newData.isString()"
-        },
-        "title": {
-          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
-        },
-        "description": {
-          ".validate": "!newData.exists() || newData.isString()"
-        },
-        "completed": {
-          ".validate": "newData.isBoolean()"
-        },
-        "priority": {
-          ".validate": "!newData.exists() || (newData.isString() && (newData.val() == 'low' || newData.val() == 'medium' || newData.val() == 'high'))"
-        },
-        "dueDate": {
-          ".validate": "!newData.exists() || newData.isNumber()"
-        },
-        "createdAt": {
-          ".validate": "newData.isNumber() && newData.val() > 0"
-        },
-        "updatedAt": {
-          ".validate": "!newData.exists() || newData.isNumber()"
-        },
+        ".validate": "newData.isString() || (!newData.exists())",
 
         "$other": {
           ".validate": false
         }
+      },
+
+      "$other": {
+        ".validate": false
       }
     },
 

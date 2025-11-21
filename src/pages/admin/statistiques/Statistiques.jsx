@@ -14,12 +14,6 @@ import {
 const Statistiques = () => {
   const liste = [
     {
-      nom: "Tableau de bord",
-      description: "Analyses statistiques",
-      to: "/admin/statistiques/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
       nom: "Ventes",
       description: "Analyses statistiques des ventes",
       to: "/admin/statistiques/ventes",

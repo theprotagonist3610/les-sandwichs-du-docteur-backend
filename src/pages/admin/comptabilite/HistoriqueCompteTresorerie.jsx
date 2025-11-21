@@ -8,9 +8,9 @@ import DesktopHistoriqueCompteTresorerie from "./desktop/DesktopHistoriqueCompte
 import MobileHistoriqueCompteTresorerie from "./mobile/MobileHistoriqueCompteTresorerie";
 
 const HistoriqueCompteTresorerie = () => {
-  const { isMobile } = useBreakpoint();
+  const { mobile } = useBreakpoint();
 
-  return isMobile ? <MobileHistoriqueCompteTresorerie /> : <DesktopHistoriqueCompteTresorerie />;
+  return mobile ? <MobileHistoriqueCompteTresorerie /> : <DesktopHistoriqueCompteTresorerie />;
 };
 
 export default HistoriqueCompteTresorerie;

@@ -8,8 +8,8 @@ import DesktopEmplacement from "./desktop/DesktopEmplacement";
 import MobileEmplacement from "./mobile/MobileEmplacement";
 
 const Emplacement = () => {
-  const { isMobile } = useBreakpoint();
-  return isMobile ? <MobileEmplacement /> : <DesktopEmplacement />;
+  const { mobile } = useBreakpoint();
+  return mobile ? <MobileEmplacement /> : <DesktopEmplacement />;
 };
 
 export default Emplacement;

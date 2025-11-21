@@ -22,9 +22,10 @@ import statistiqueSubRoutes from "@/pages/admin/statistiques/statistiquesRoutes"
 import Stock from "@/pages/admin/stock/Stock";
 import stockSubRoutes from "@/pages/admin/stock/stockRoutes";
 import Notifications from "@/pages/admin/notifications/Notifications";
-//import notificationSubRoutes from "@/pages/admin/notifications/notificationRoutes";
 import livraisonsSubRoutes from "@/pages/admin/livraisons/livraisonsRoutes";
 import Livraisons from "@/pages/admin/livraisons/Livraisons";
+import todoSubRoutes from "@/pages/admin/todos/todoRoutes";
+import Todos from "@/pages/admin/todos/Todos";
 const adminRoutes = {
   path: "admin",
   element: <Layout />,
@@ -430,6 +431,29 @@ const adminRoutes = {
               </ProtectedRoute>
             ),
           });
+          if(child.children && child.children.length>0){
+            child.children.forEach((grandChild)=>{
+              routes.push({
+                path: `statistiques/${route.path}/${child.path}/${grandChild.path}`,
+                element: (
+                  <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+                    {grandChild.component ? (
+                      <grandChild.component />
+                    ) : (
+                      <div className="container mx-auto p-6">
+                        <h1 className="text-3xl font-bold text-foreground">
+                          {grandChild.nom}
+                        </h1>
+                        <p className="text-muted-foreground mt-2">
+                          Composant à créer pour cette route
+                        </p>
+                      </div>
+                    )}
+                  </ProtectedRoute>
+                ),
+              });
+            })
+          }
         });
       }
 
@@ -541,6 +565,69 @@ const adminRoutes = {
         route.children.forEach((child) => {
           routes.push({
             path: `livraisons/${route.path}/${child.path}`,
+            element: (
+              <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+                {child.component ? (
+                  <child.component />
+                ) : (
+                  <div className="container mx-auto p-6">
+                    <h1 className="text-3xl font-bold text-foreground">
+                      {child.nom}
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                      Composant à créer pour cette route
+                    </p>
+                  </div>
+                )}
+              </ProtectedRoute>
+            ),
+          });
+        });
+      }
+
+      return routes;
+    }),
+    {
+      path: "todos",
+      element: (
+        <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+          <Todos />
+        </ProtectedRoute>
+      ),
+    },
+    // Générer dynamiquement les sous-routes de settings
+    ...todoSubRoutes.flatMap((route) => {
+      const routes = [];
+      // Route principale
+      routes.push({
+        path: `todos/${route.path}`,
+        element: (
+          <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
+            {route.component ? (
+              <route.component />
+            ) : (
+              <div className="container mx-auto p-6">
+                <h1 className="text-3xl font-bold text-foreground">
+                  {route.nom}
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  {route.description}
+                </p>
+                <div className="mt-8 p-6 bg-muted/20 rounded-lg border border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Cette page est en cours de développement.
+                  </p>
+                </div>
+              </div>
+            )}
+          </ProtectedRoute>
+        ),
+      });
+      // Ajouter les routes enfants si elles existent
+      if (route.children && route.children.length > 0) {
+        route.children.forEach((child) => {
+          routes.push({
+            path: `todos/${route.path}/${child.path}`,
             element: (
               <ProtectedRoute requireAuth={true} allowedRoles={["admin"]}>
                 {child.component ? (

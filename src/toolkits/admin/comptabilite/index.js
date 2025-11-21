@@ -180,6 +180,36 @@ export {
 } from "./budgets";
 
 // ============================================================================
+// BUDGET SUGGESTIONS FUNCTIONS
+// ============================================================================
+export {
+  calculerSuggestionBudget,
+  calculerSuggestionsPourComptes,
+  getDescriptionSuggestion,
+  getCouleurConfiance,
+} from "./budgetSuggestions";
+
+// ============================================================================
+// BUDGET ANALYSIS FUNCTIONS
+// ============================================================================
+export {
+  analyserMotifsLigneBudget,
+  analyserMotifsBudgetComplet,
+} from "./budgetAnalysis";
+
+// ============================================================================
+// CLOTURE QUOTIDIENNE FUNCTIONS
+// ============================================================================
+export {
+  verifierClotureRequise,
+  getDonneesJourneePourCloture,
+  isClotureEnCours,
+  lancerClotureAvecQueue,
+  marquerNotification23hEnvoyee,
+  resetNotification23h,
+} from "./cloture";
+
+// ============================================================================
 // PREVISIONS FUNCTIONS
 // ============================================================================
 export {

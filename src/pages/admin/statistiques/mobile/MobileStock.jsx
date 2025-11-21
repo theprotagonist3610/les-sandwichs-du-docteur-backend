@@ -160,7 +160,9 @@ const MobileStock = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <SalesDonutChart data={typesDonutData} colors={typesColors} height={200} />
+          <div className="w-full h-[200px] flex items-center justify-center">
+            <SalesDonutChart data={typesDonutData} colors={typesColors} height={200} />
+          </div>
           <div className="grid grid-cols-2 gap-2 mt-4">
             {typesDonutData.map((item) => (
               <div key={item.name} className="text-center p-2 border rounded-lg">

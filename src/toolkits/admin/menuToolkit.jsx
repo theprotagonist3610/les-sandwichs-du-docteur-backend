@@ -522,16 +522,17 @@ export function useIngredients() {
     }
   }, []);
 
-  // Charger depuis le cache au montage
+  // Charger depuis le cache au montage et synchroniser avec Firestore
   useEffect(() => {
     const cached = getIngredientsFromCache();
     if (cached && cached.ingredients) {
       setIngredients(cached.ingredients);
       setLoading(false);
-    } else {
-      setLoading(false);
     }
-  }, []);
+    
+    // Vérification initiale avec Firestore pour s'assurer que le cache est à jour
+    sync();
+  }, [sync]);
 
   // Écouter les notifications RTDB pour synchronisation automatique
   useEffect(() => {
@@ -606,16 +607,17 @@ export function useMenus() {
     }
   }, []);
 
-  // Charger depuis le cache au montage
+  // Charger depuis le cache au montage et synchroniser avec Firestore
   useEffect(() => {
     const cached = getMenusFromCache();
     if (cached && cached.menus) {
       setMenus(cached.menus);
       setLoading(false);
-    } else {
-      setLoading(false);
     }
-  }, []);
+    
+    // Vérification initiale avec Firestore pour s'assurer que le cache est à jour
+    sync();
+  }, [sync]);
 
   // Écouter les notifications RTDB pour synchronisation automatique
   useEffect(() => {

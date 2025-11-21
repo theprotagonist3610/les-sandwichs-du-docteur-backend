@@ -2487,8 +2487,8 @@ export function useFinanceAnalysis(days = 7) {
         }
       }
 
-      stats.evolution_tarif_moyen = dailyData.map(d => ({ date: d.date, value: d.tarif_moyen }));
-      stats.evolution_ca = dailyData.map(d => ({ date: d.date, value: d.ca }));
+      stats.evolution_tarif_moyen = dailyData.map(d => ({ date: d.date, tarif_moyen: d.tarif_moyen }));
+      stats.evolution_ca = dailyData.map(d => ({ date: d.date, ca: d.ca }));
 
       // Calculer le tarif moyen global
       stats.tarif_moyen = stats.totalCommandes > 0

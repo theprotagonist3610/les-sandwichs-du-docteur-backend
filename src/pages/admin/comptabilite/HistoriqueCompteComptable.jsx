@@ -3,8 +3,8 @@ import DesktopHistoriqueCompteComptable from "./desktop/DesktopHistoriqueCompteC
 import MobileHistoriqueCompteComptable from "./mobile/MobileHistoriqueCompteComptable";
 
 const HistoriqueCompteComptable = () => {
-  const { isMobile } = useBreakpoint();
-  return isMobile ? <MobileHistoriqueCompteComptable /> : <DesktopHistoriqueCompteComptable />;
+  const { mobile } = useBreakpoint();
+  return mobile ? <MobileHistoriqueCompteComptable /> : <DesktopHistoriqueCompteComptable />;
 };
 
 export default HistoriqueCompteComptable;

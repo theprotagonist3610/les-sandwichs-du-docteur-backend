@@ -1,5 +1,11 @@
-import React from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from "recharts";
 
 /**
  * Graphique en donut pour la répartition des ventes
@@ -10,7 +16,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 const SalesDonutChart = ({
   data = [],
   colors = ["#22c55e", "#3b82f6"],
-  height = 300,
+  height = 200,
   showLegend = true,
 }) => {
   const CustomTooltip = ({ active, payload }) => {
@@ -51,22 +57,21 @@ const SalesDonutChart = ({
           innerRadius={60}
           outerRadius={100}
           paddingAngle={5}
-          dataKey="value"
-        >
+          dataKey="value">
           {data.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
           ))}
         </Pie>
         <Tooltip content={<CustomTooltip />} />
-        {showLegend && (
+        {/* {showLegend && (
           <Legend
             verticalAlign="bottom"
-            height={36}
+            height={18}
             formatter={(value, entry) => (
-              <span className="text-sm">{value}</span>
+              <span className="text-xs">{value}</span>
             )}
           />
-        )}
+        )} */}
       </PieChart>
     </ResponsiveContainer>
   );

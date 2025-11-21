@@ -14,6 +14,7 @@ import LivraisonsWidget from "./components/widgets/LivraisonsWidget";
 import ProductionWidget from "./components/widgets/ProductionWidget";
 import StockWidget from "./components/widgets/StockWidget";
 import AlertesWidget from "./components/widgets/AlertesWidget";
+import BudgetWidget from "./components/widgets/BudgetWidget";
 import ActivityTimeline from "./components/timeline/ActivityTimeline";
 import useDashboardGlobal from "./hooks/useDashboardGlobal";
 import useNotificationCleanup from "@/hooks/useNotificationCleanup";
@@ -97,7 +98,7 @@ const Dashboard = () => {
         {/* ================================================================ */}
         <TabsContent value="indicateurs" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Colonne gauche: Indicateurs + Actions rapides */}
+            {/* Colonne gauche: Indicateurs + Actions rapides + Budget */}
             <div className="space-y-6">
               <section>
                 <h2 className="text-xl font-semibold text-foreground mb-6">
@@ -108,6 +109,12 @@ const Dashboard = () => {
 
               <section>
                 <QuickActions onAction={handleQuickAction} />
+              </section>
+
+              <section>
+                <BudgetWidget
+                  onViewMore={() => handleNavigate("statistiques/comptabilite/budget")}
+                />
               </section>
             </div>
 

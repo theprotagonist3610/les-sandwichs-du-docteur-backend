@@ -151,19 +151,7 @@ const MobileProfile = () => {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/admin/users/profil")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl font-bold">Profil</h1>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => navigate(`/admin/users/profil/${userId}/edit`)}>
-          <Edit className="h-4 w-4" />
-        </Button>
+        <h1 className="text-xl font-bold">Profil Utilisateur</h1>
       </div>
 
       {/* Avatar et infos principales */}

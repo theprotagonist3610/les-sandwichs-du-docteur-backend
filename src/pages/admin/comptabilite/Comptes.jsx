@@ -3,15 +3,14 @@
  * Composant wrapper responsive pour les comptes comptables
  */
 
-import React from "react";
 import useBreakpoint from "../../../hooks/useBreakpoint";
 import DesktopComptes from "./desktop/DesktopComptes";
 import MobileComptes from "./mobile/MobileComptes";
 
 const Comptes = () => {
-  const { isMobile } = useBreakpoint();
+  const { mobile } = useBreakpoint();
 
-  return isMobile ? <MobileComptes /> : <DesktopComptes />;
+  return mobile ? <MobileComptes /> : <DesktopComptes />;
 };
 
 export default Comptes;

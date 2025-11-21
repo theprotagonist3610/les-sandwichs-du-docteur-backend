@@ -11,10 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, Plus, Trash2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, AlertCircle, Lightbulb, TrendingUp, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useComptesListe } from "@/toolkits/admin/comptabiliteToolkit";
 import { creerBudget } from "@/toolkits/admin/comptabilite/budgets";
+import { 
+  calculerSuggestionBudget,
+  getDescriptionSuggestion,
+  getCouleurConfiance,
+} from "@/toolkits/admin/comptabilite/budgetSuggestions";
 import { toast } from "sonner";
 
 const ComptabiliteBudgetCreer = () => {
@@ -27,6 +32,10 @@ const ComptabiliteBudgetCreer = () => {
   const [description, setDescription] = useState("");
   const [lignes, setLignes] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  // État des suggestions
+  const [suggestions, setSuggestions] = useState(new Map());
+  const [loadingSuggestions, setLoadingSuggestions] = useState(new Map());
 
   // Générer les options de mois (6 mois avant et 12 mois après)
   const optionsMois = useMemo(() => {
@@ -88,6 +97,42 @@ const ComptabiliteBudgetCreer = () => {
         ligne.id === id ? { ...ligne, [field]: value } : ligne
       )
     );
+
+    // Si changement de compte, charger la suggestion
+    if (field === "compte_id" && value && mois) {
+      chargerSuggestion(id, value);
+    }
+  };
+
+  // Charger la suggestion pour un compte
+  const chargerSuggestion = async (ligneId, compteId) => {
+    if (!compteId || !mois) return;
+
+    try {
+      setLoadingSuggestions((prev) => new Map(prev).set(ligneId, true));
+
+      const suggestion = await calculerSuggestionBudget(compteId, mois);
+
+      setSuggestions((prev) => new Map(prev).set(ligneId, suggestion));
+      setLoadingSuggestions((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(ligneId);
+        return newMap;
+      });
+    } catch (error) {
+      console.error("Erreur chargement suggestion:", error);
+      setLoadingSuggestions((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(ligneId);
+        return newMap;
+      });
+    }
+  };
+
+  // Appliquer une suggestion
+  const appliquerSuggestion = (ligneId, montant) => {
+    modifierLigne(ligneId, "montant_previsionnel", montant.toString());
+    toast.success("Suggestion appliquée");
   };
 
   // Calculer le total
@@ -335,6 +380,118 @@ const ComptabiliteBudgetCreer = () => {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {/* Suggestion intelligente */}
+                  {ligne.compte_id && mois && (
+                    <div className="md:col-span-12 mt-2">
+                      {loadingSuggestions.get(ligne.id) ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-gray-50 rounded-md">
+                          <div className="animate-spin">⏳</div>
+                          <span>Analyse de l'historique...</span>
+                        </div>
+                      ) : suggestions.get(ligne.id) ? (
+                        (() => {
+                          const suggestion = suggestions.get(ligne.id);
+                          if (!suggestion.disponible) {
+                            return (
+                              <div className="flex items-start gap-2 text-sm text-muted-foreground p-3 bg-gray-50 rounded-md">
+                                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <span>{suggestion.raison}</span>
+                              </div>
+                            );
+                          }
+
+                          const couleurConfiance = getCouleurConfiance(suggestion.confianceNiveau);
+                          const TendanceIcon = suggestion.tendance === "hausse" ? TrendingUp : 
+                                               suggestion.tendance === "baisse" ? TrendingDown : null;
+
+                          return (
+                            <div className={`p-3 border rounded-md ${couleurConfiance.replace('text-', 'border-')}`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  {/* En-tête avec icône */}
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Lightbulb className="h-4 w-4 text-yellow-600" />
+                                    <span className="font-semibold text-sm">Suggestion basée sur l'historique</span>
+                                    {TendanceIcon && (
+                                      <TendanceIcon className="h-4 w-4 ml-1" />
+                                    )}
+                                  </div>
+
+                                  {/* Description */}
+                                  <p className="text-xs text-muted-foreground mb-3">
+                                    {getDescriptionSuggestion(suggestion)}
+                                  </p>
+
+                                  {/* Détails statistiques */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                    <div>
+                                      <span className="text-muted-foreground">Moyenne:</span>
+                                      <span className="ml-1 font-medium">{suggestion.details.montantMoyen.toLocaleString()} FCFA</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Min:</span>
+                                      <span className="ml-1 font-medium">{suggestion.details.montantMin.toLocaleString()} FCFA</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Max:</span>
+                                      <span className="ml-1 font-medium">{suggestion.details.montantMax.toLocaleString()} FCFA</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Variabilité:</span>
+                                      <span className="ml-1 font-medium">{suggestion.details.coefficientVariation}%</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Historique (si disponible) */}
+                                  {suggestion.historique && suggestion.historique.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t">
+                                      <p className="text-xs text-muted-foreground mb-1">Historique récent:</p>
+                                      <div className="flex gap-2">
+                                        {suggestion.historique.map((h) => (
+                                          <div key={h.mois} className="text-xs">
+                                            <span className="font-mono">{h.mois}:</span>
+                                            <span className="ml-1 font-medium">{(h.montant / 1000).toFixed(0)}k</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Montant suggéré et bouton d'application */}
+                                <div className="flex flex-col items-end gap-2">
+                                  <div className="text-right">
+                                    <p className="text-xs text-muted-foreground">Montant suggéré</p>
+                                    <p className="text-lg font-bold">{suggestion.montantSuggere.toLocaleString()}</p>
+                                    <p className="text-xs text-muted-foreground">FCFA</p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => appliquerSuggestion(ligne.id, suggestion.montantSuggere)}
+                                    className="whitespace-nowrap"
+                                  >
+                                    Appliquer
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Badge de confiance */}
+                              <div className="mt-2 pt-2 border-t flex items-center justify-between">
+                                <span className={`text-xs px-2 py-0.5 rounded-full border ${couleurConfiance}`}>
+                                  Confiance: {suggestion.confianceNiveau}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  Basé sur {suggestion.nbMoisAnalyses} mois
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -218,7 +218,7 @@ const MobileComptes = () => {
       <div className="min-h-screen bg-background">
         {/* Header fixe */}
         <div className="sticky top-0 z-10 bg-background border-b">
-          <div className="flex items-center gap-3 p-4">
+          <div className="flex items-center gap-3 p-2">
             <Button variant="ghost" size="icon" onClick={handleRetourListe}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -444,7 +444,7 @@ const MobileComptes = () => {
                         className="cursor-pointer hover:bg-accent transition-colors"
                         onClick={() => handleVoirDetail(compte)}
                       >
-                        <CardContent className="p-4">
+                        <CardContent className="p-2">
                           <div className="flex items-center gap-3">
                             <div
                               className="p-2 rounded-full flex-shrink-0"
@@ -460,7 +460,7 @@ const MobileComptes = () => {
                                   variant={compte.categorie === "entree" ? "default" : "destructive"}
                                   className="text-xs"
                                 >
-                                  {compte.categorie === "entree" ? "E" : "S"}
+                                  {compte.categorie === "entree" ? "Entrée" : "Sortie"}
                                 </Badge>
                               </div>
                             </div>

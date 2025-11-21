@@ -74,17 +74,13 @@ const ComptabiliteBudget = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
+          <h1 className="text-3xl mb-2 font-bold flex items-center gap-3">
             <Target className="h-8 w-8" />
             Budgets Prévisionnels
           </h1>
-          <p className="text-sm opacity-70 mt-1">
-            Gestion et suivi de vos budgets mensuels
-          </p>
         </div>
-
         <Button
           onClick={() => navigate("/admin/statistiques/comptabilite/budget/creer")}
         >
@@ -92,7 +88,6 @@ const ComptabiliteBudget = () => {
           Créer un budget
         </Button>
       </div>
-
       {/* Filtres */}
       <Card>
         <CardContent className="p-4">

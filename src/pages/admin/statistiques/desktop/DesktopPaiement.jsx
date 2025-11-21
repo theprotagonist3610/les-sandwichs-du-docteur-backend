@@ -243,6 +243,7 @@ const DesktopPaiement = () => {
               xKey="date"
               yKey="ca"
               height={280}
+              lineColor="#10b981"
             />
           </CardContent>
         </Card>
@@ -261,6 +262,7 @@ const DesktopPaiement = () => {
               xKey="date"
               yKey="tarif_moyen"
               height={280}
+              lineColor="#3b82f6"
             />
           </CardContent>
         </Card>

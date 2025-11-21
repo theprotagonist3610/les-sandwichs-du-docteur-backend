@@ -12,6 +12,7 @@
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "@/toolkits/global/userToolkit";
+import { useTodos } from "@/toolkits/admin/todoToolkit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Bell, ListTodo, ShoppingCart, Bike } from "lucide-react";
@@ -22,23 +23,23 @@ const NavToolbar = () => {
   const location = useLocation();
   const { user } = useUser();
   const { unreadCount } = useNotifications();
+  const { todos } = useTodos();
 
-  // Fonction pour revenir à la route parente la plus proche
+  // Calculer le nombre de todos non terminés
+  const incompleteTodosCount = todos.filter((todo) => !todo.status).length;
+
+  // Fonction pour revenir en arrière comme le bouton natif du navigateur
   const handleGoBack = () => {
-    const pathParts = location.pathname.split("/").filter(Boolean);
-
-    if (!user?.role) {
-      navigate("/dashboard");
-      return;
-    }
-
-    if (pathParts.length <= 2) {
-      // Si on est à la racine du rôle, aller au dashboard
-      navigate(`/${user.role}/dashboard`);
+    // Si l'utilisateur a un historique de navigation, retourner en arrière
+    if (window.history.length > 1) {
+      navigate(-1);
     } else {
-      // Sinon, remonter d'un niveau
-      pathParts.pop();
-      navigate(`/${pathParts.join("/")}`);
+      // Sinon (arrivé par lien direct), fallback intelligent
+      if (user?.role) {
+        navigate(`/${user.role}/dashboard`);
+      } else {
+        navigate("/404");
+      }
     }
   };
 
@@ -94,7 +95,13 @@ const NavToolbar = () => {
         {visibleActions.map(([key, action]) => {
           const Icon = action.icon;
           const isNotifications = key === "notifications";
-          const showBadge = isNotifications && unreadCount > 0;
+          const isTodos = key === "todos";
+          const notificationsBadge = isNotifications && unreadCount > 0;
+          const todosBadge = isTodos && incompleteTodosCount > 0;
+          const showBadge = notificationsBadge || todosBadge;
+          const badgeCount = isNotifications
+            ? unreadCount
+            : incompleteTodosCount;
 
           return (
             <Button
@@ -109,7 +116,7 @@ const NavToolbar = () => {
                 <Badge
                   variant="destructive"
                   className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                  {badgeCount > 9 ? "9+" : badgeCount}
                 </Badge>
               )}
             </Button>

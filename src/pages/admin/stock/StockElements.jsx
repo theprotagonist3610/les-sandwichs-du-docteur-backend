@@ -8,8 +8,8 @@ import DesktopStockElements from "./desktop/DesktopStockElements";
 import MobileStockElements from "./mobile/MobileStockElements";
 
 const StockElements = () => {
-  const { isMobile } = useBreakpoint();
-  return isMobile ? <MobileStockElements /> : <DesktopStockElements />;
+  const { mobile } = useBreakpoint();
+  return mobile ? <MobileStockElements /> : <DesktopStockElements />;
 };
 
 export default StockElements;

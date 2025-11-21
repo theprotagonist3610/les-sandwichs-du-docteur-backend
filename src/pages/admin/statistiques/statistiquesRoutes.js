@@ -11,7 +11,6 @@
  * Ajoutez un tableau `children` avec la même structure
  */
 
-import Dashboard from "@/pages/admin/statistiques/Dashboard";
 import EmplacementId from "@/pages/admin/statistiques/EmplacementId";
 import Emplacements from "@/pages/admin/statistiques/Emplacements";
 import LivraisonId from "@/pages/admin/statistiques/LivraisonId";
@@ -42,13 +41,6 @@ import ComptabiliteInsights from "@/pages/admin/statistiques/comptabilite/Compta
 // Import des composants pour chaque section
 // À décommenter et créer au fur et à mesure
 export const statistiqueSubRoutes = [
-  {
-    path: "dashboard",
-    nom: "Tableau de bord",
-    description: "Centre des analyses statistiques",
-    url: "/users.svg",
-    component: Dashboard, // ✅ Composant activé
-  },
   {
     path: "ventes",
     nom: "Ventes",
@@ -157,7 +149,8 @@ export const statistiqueSubRoutes = [
       {
         path: "dashboard",
         nom: "Vue d'ensemble",
-        description: "Tableau de bord financier complet avec KPIs et graphiques",
+        description:
+          "Tableau de bord financier complet avec KPIs et graphiques",
         component: ComptabiliteDashboard,
       },
       {

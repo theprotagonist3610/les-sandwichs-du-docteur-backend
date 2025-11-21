@@ -277,16 +277,17 @@ export function useBoissons() {
     }
   }, []);
 
-  // Charger depuis le cache au montage
+  // Charger depuis le cache au montage et synchroniser avec Firestore
   useEffect(() => {
     const cached = getBoissonsFromCache();
     if (cached && cached.boissons) {
       setBoissons(cached.boissons);
       setLoading(false);
-    } else {
-      setLoading(false);
     }
-  }, []);
+    
+    // Vérification initiale avec Firestore pour s'assurer que le cache est à jour
+    sync();
+  }, [sync]);
 
   // Écouter RTDB pour synchronisation auto
   useEffect(() => {

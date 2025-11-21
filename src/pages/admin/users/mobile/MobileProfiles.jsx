@@ -5,7 +5,10 @@
 
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUsersWithPresence, isUserActive } from "@/toolkits/admin/userToolkit";
+import {
+  useUsersWithPresence,
+  isUserActive,
+} from "@/toolkits/admin/userToolkit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -127,8 +130,12 @@ const MobileProfiles = () => {
   // Statistiques
   const stats = useMemo(() => {
     const total = usersFiltres.length;
-    const actifs = usersFiltres.filter((u) => isUserActive(u.presence, 90000)).length;
-    const online = usersFiltres.filter((u) => u.presence?.status === "online").length;
+    const actifs = usersFiltres.filter((u) =>
+      isUserActive(u.presence, 90000)
+    ).length;
+    const online = usersFiltres.filter(
+      (u) => u.presence?.status === "online"
+    ).length;
 
     return { total, actifs, online };
   }, [usersFiltres]);
@@ -149,7 +156,15 @@ const MobileProfiles = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = ["Nom", "Prénoms", "Email", "Contact", "Sexe", "Rôle", "Statut"];
+    const headers = [
+      "Nom",
+      "Prénoms",
+      "Email",
+      "Contact",
+      "Sexe",
+      "Rôle",
+      "Statut",
+    ];
     const rows = usersFiltres.map((u) => [
       u.nom,
       u.prenoms?.join(" "),
@@ -193,10 +208,6 @@ const MobileProfiles = () => {
             <Users className="h-6 w-6" />
             Profils
           </h1>
-          <Button size="sm" onClick={() => navigate("/admin/users/nouveau")}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nouveau
-          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
           {stats.total} utilisateurs · {stats.actifs} actifs
@@ -301,7 +312,9 @@ const MobileProfiles = () => {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block">Trier par</label>
+                <label className="text-sm font-medium mb-2 block">
+                  Trier par
+                </label>
                 <Select value={tri} onValueChange={setTri}>
                   <SelectTrigger>
                     <SelectValue />
@@ -322,11 +335,12 @@ const MobileProfiles = () => {
                     setFiltreSexe("all");
                     setFiltreStatus("all");
                     setTri("nom");
-                  }}
-                >
+                  }}>
                   Réinitialiser
                 </Button>
-                <Button className="flex-1" onClick={() => setShowFilters(false)}>
+                <Button
+                  className="flex-1"
+                  onClick={() => setShowFilters(false)}>
                   Appliquer
                 </Button>
               </div>
@@ -346,15 +360,15 @@ const MobileProfiles = () => {
           </Card>
         ) : (
           usersFiltres.map((user) => {
-            const config = STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
+            const config =
+              STATUS_CONFIG[user.presence?.status] || STATUS_CONFIG.offline;
             const active = isUserActive(user.presence, 90000);
 
             return (
               <Card
                 key={user.id}
                 className="cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors"
-                onClick={() => navigate(`/admin/users/profil/${user.id}`)}
-              >
+                onClick={() => navigate(`/admin/users/profiles/${user.id}`)}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3 flex-1">
@@ -364,14 +378,15 @@ const MobileProfiles = () => {
                             active
                               ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
                               : "bg-gradient-to-br from-blue-400 to-blue-600"
-                          }`}
-                        >
+                          }`}>
                           {user.nom?.charAt(0)}
                           {user.prenoms?.[0]?.charAt(0)}
                         </div>
                         <div
                           className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
-                            active ? "bg-emerald-500 animate-pulse" : config.color
+                            active
+                              ? "bg-emerald-500 animate-pulse"
+                              : config.color
                           }`}
                         />
                       </div>
@@ -394,8 +409,7 @@ const MobileProfiles = () => {
                                 : user.role === "livreur"
                                 ? "bg-cyan-50 text-cyan-700 border-cyan-200 text-xs"
                                 : "text-xs"
-                            }
-                          >
+                            }>
                             {user.role === "admin"
                               ? "Admin"
                               : user.role === "superviseur"
@@ -414,8 +428,7 @@ const MobileProfiles = () => {
                               active
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : `${config.bgColor} ${config.textColor}`
-                            } text-xs`}
-                          >
+                            } text-xs`}>
                             {active ? (
                               <>
                                 <Activity className="h-3 w-3 mr-1" />
@@ -431,13 +444,13 @@ const MobileProfiles = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground pl-15">
+                  <div className="items-center gap-4 text-xs text-muted-foreground pl-15">
                     <div className="flex items-center gap-1">
                       <Mail className="h-3 w-3" />
                       <span className="truncate">{user.email}</span>
                     </div>
                     {user.contact && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex mt-2 items-center gap-1">
                         <Phone className="h-3 w-3" />
                         <span>{user.contact}</span>
                       </div>
@@ -446,7 +459,9 @@ const MobileProfiles = () => {
 
                   <div className="text-xs text-muted-foreground mt-2 pl-15">
                     Dernière activité:{" "}
-                    {formatRelativeTime(user.presence?.lastSeen || user.presence?.updatedAt)}
+                    {formatRelativeTime(
+                      user.presence?.lastSeen || user.presence?.updatedAt
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -457,11 +472,7 @@ const MobileProfiles = () => {
 
       {/* Bouton Export (flottant) */}
       {usersFiltres.length > 0 && (
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleExportCSV}
-        >
+        <Button variant="outline" className="w-full" onClick={handleExportCSV}>
           <Download className="h-4 w-4 mr-2" />
           Exporter en CSV ({usersFiltres.length})
         </Button>

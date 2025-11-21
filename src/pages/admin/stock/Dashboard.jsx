@@ -8,8 +8,8 @@ import DesktopDashboard from "./desktop/DesktopDashboard";
 import MobileDashboard from "./mobile/MobileDashboard";
 
 const Dashboard = () => {
-  const { isMobile } = useBreakpoint();
-  return isMobile ? <MobileDashboard /> : <DesktopDashboard />;
+  const { mobile } = useBreakpoint();
+  return mobile ? <MobileDashboard /> : <DesktopDashboard />;
 };
 
 export default Dashboard;
