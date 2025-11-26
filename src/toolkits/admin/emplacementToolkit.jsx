@@ -17,10 +17,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { doc, getDoc, runTransaction } from "firebase/firestore";
-import { ref, push, onValue, onChildAdded, off } from "firebase/database";
+import { ref, onValue, onChildAdded, off } from "firebase/database";
 import { db, rtdb } from "@/firebase.js";
 import { nanoid } from "nanoid";
 import { auth } from "@/firebase.js";
+import {
+  emplacementNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+} from "@/utils/notificationHelpers";
 
 // Import pour accéder aux commandes
 import { GetCommandes } from "./commandeToolkit";
@@ -32,7 +37,8 @@ import { GetCommandes } from "./commandeToolkit";
 const EMPLACEMENTS_LISTE_PATH = "emplacements/liste";
 const STOCK_EMPLACEMENTS_PATH = "stock/emplacements";
 const LOCAL_EMPLACEMENTS_KEY = "lsd_emplacements_liste";
-const RTDB_NOTIFICATIONS_PATH = "notification";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.NOTIFICATION, NOTIFICATION_PATHS.EMPLACEMENT];
 
 // Types d'emplacements
 export const EMPLACEMENT_TYPES = {
@@ -315,35 +321,14 @@ function getEmplacementsFromCache() {
 // Fonctions de cache non utilisées - supprimées pour simplifier le code
 
 // ============================================================================
-// RTDB HELPERS - NOTIFICATIONS
+// RTDB HELPERS - NOTIFICATIONS (utilise les helpers centralisés)
 // ============================================================================
+// Les notifications sont maintenant gérées par @/utils/notificationHelpers
+// Voir: emplacementNotifications.create(), emplacementNotifications.update(), etc.
 
 async function createRTDBNotification(title, message, type = "info") {
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn(
-        "⚠️ Utilisateur non authentifié, notification RTDB non envoyée"
-      );
-      return;
-    }
-
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notification = {
-      userId: currentUser.uid,
-      userName: currentUser.displayName || currentUser.email,
-      title,
-      message,
-      type,
-      timestamp: Date.now(),
-      read: false,
-    };
-
-    await push(notificationsRef, notification);
-    console.log("✅ Notification RTDB créée:", title);
-  } catch (error) {
-    console.error("❌ Erreur création notification RTDB:", error);
-  }
+  // Wrapper vers le helper centralisé
+  await emplacementNotifications.custom(title, message, type);
 }
 
 // Helper formatDateKey supprimé (non utilisé)
@@ -819,24 +804,33 @@ export function useEmplacement(emplacementId) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les notifications en temps réel
+  // Écouter les notifications en temps réel (paths legacy + nouveau)
   useEffect(() => {
     if (!emplacementId) return;
 
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (notification && notification.message?.includes(emplacementId)) {
-        console.log("🔔 Notification RTDB reçue, rechargement...");
-        fetchData();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onValue(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.message?.includes(emplacementId) ||
+            notification.metadata?.toolkit === "emplacement")
+        ) {
+          console.log("🔔 Notification RTDB reçue, rechargement...");
+          fetchData();
+        }
+      };
+
+      onValue(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "value", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [emplacementId, fetchData]);
 
@@ -939,34 +933,40 @@ export function useEmplacements(filter = {}) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les notifications en temps réel avec debounce
+  // Écouter les notifications en temps réel avec debounce (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
     let timeoutId = null;
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        (notification.title?.toLowerCase().includes("emplacement") ||
-          notification.message?.toLowerCase().includes("emplacement"))
-      ) {
-        console.log("🔔 Notification RTDB reçue");
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-        // Debounce: attendre 500ms avant de recharger pour éviter les rechargements multiples
-        if (timeoutId) clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          console.log("🔄 Rechargement de la liste des emplacements...");
-          fetchData();
-        }, 500);
-      }
-    };
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.toLowerCase().includes("emplacement") ||
+            notification.message?.toLowerCase().includes("emplacement") ||
+            notification.metadata?.toolkit === "emplacement")
+        ) {
+          console.log("🔔 Notification RTDB reçue");
 
-    onChildAdded(notificationsRef, handleNotification);
+          // Debounce: attendre 500ms avant de recharger pour éviter les rechargements multiples
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            console.log("🔄 Rechargement de la liste des emplacements...");
+            fetchData();
+          }, 500);
+        }
+      };
+
+      onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "child_added", handleNotification));
+    });
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
-      off(notificationsRef, "child_added", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchData]);
 

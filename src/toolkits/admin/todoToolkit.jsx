@@ -49,6 +49,7 @@ export const todoSchema = z.object({
   description: z.string().default(""),
   status: z.boolean().default(false), // false = non complété, true = complété
   deadline: z.number().positive().optional(), // Timestamp de la date butoir (optionnel)
+  createdBy: z.string().min(1, "Le créateur est requis"), // ID du user ou "système"
   createdAt: z.number().positive(),
   updatedAt: z.number().positive(),
 });
@@ -133,9 +134,20 @@ export async function getAllTodos() {
 
 /**
  * Crée un nouveau TODO
+ * @param {Object} todoData - Données du todo
+ * @param {string} todoData.title - Titre du todo (requis)
+ * @param {string[]} todoData.concern - Rôles concernés
+ * @param {string[]} todoData.concernBy - IDs des users concernés
+ * @param {string} todoData.description - Description
+ * @param {number} todoData.deadline - Timestamp de la deadline
+ * @param {string} todoData.createdBy - ID du créateur ou "système" (requis)
  */
 export async function createTodo(todoData) {
   try {
+    if (!todoData.createdBy) {
+      throw new Error("createdBy est requis pour créer un TODO");
+    }
+
     const newTodo = {
       id: `todo_${nanoid()}`,
       title: todoData.title,
@@ -144,6 +156,7 @@ export async function createTodo(todoData) {
       description: todoData.description || "",
       status: false,
       deadline: todoData.deadline || undefined,
+      createdBy: todoData.createdBy,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };

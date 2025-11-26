@@ -50,17 +50,10 @@ import GererLesProductions from "@/pages/admin/Settings/production/GererLesProdu
 import GererUneProduction from "@/pages/admin/Settings/production/GererUneProduction";
 import Comptabilite from "@/pages/admin/Settings/comptabilite/Comptabilite";
 import Production from "@/pages/admin/Settings/production/Production";
-// import Stats from "@/pages/admin/Settings/Stats";
-// import Comptabilite from "@/pages/admin/Settings/Comptabilite";
-// import Tresorerie from "@/pages/admin/Settings/Tresorerie";
-// import Adresses from "@/pages/admin/Settings/Adresses";
-// import Menus from "@/pages/admin/Settings/Menus";
-// import Boissons from "@/pages/admin/Settings/Boissons";
-// import Paiements from "@/pages/admin/Settings/Paiements";
-// import Stock from "@/pages/admin/Settings/Stock";
-// import Production from "@/pages/admin/Settings/Production";
-// import Commandes from "@/pages/admin/Settings/Commandes";
-
+import MenusComposes from "@/pages/admin/Settings/menusComposes/MenusComposes";
+import CreateMenuCompose from "@/pages/admin/Settings/menusComposes/CreateMenuCompose";
+import GererLesMenusComposes from "@/pages/admin/Settings/menusComposes/GererLesMenusComposes";
+import GererUnMenuCompose from "@/pages/admin/Settings/menusComposes/GererUnMenuCompose";
 export const settingsSubRoutes = [
   {
     path: "users",
@@ -123,13 +116,6 @@ export const settingsSubRoutes = [
       },
     ],
   },
-  // {
-  //   path: "tresorerie",
-  //   nom: "Trésorerie",
-  //   description: "Suivi trésorerie",
-  //   url: "/tresorerie.svg",
-  //   component: null, // Remplacer par : Tresorerie
-  // },
   {
     path: "adresses",
     nom: "Adresses",
@@ -241,35 +227,30 @@ export const settingsSubRoutes = [
       },
     ],
   },
-  // {
-  //   path: "ingredients",
-  //   nom: "Ingrédients",
-  //   description: "Gestion des ingrédients",
-  //   url: "/ingredients.svg",
-  //   component: Ingredients, // Remplacer par : Boissons
-  //   children: [
-  //     {
-  //       path: "init",
-  //       nom: "Initialiser les ingrédients",
-  //       component: InitialiserIngredients, // ✅ Composant activé
-  //     },
-  //     {
-  //       path: "create",
-  //       nom: "Créer un ingrédient",
-  //       component: CreateIngredient, // ✅ Composant activé
-  //     },
-  //     {
-  //       path: "gerer",
-  //       nom: "Gerer les ingrédients",
-  //       component: GererLesIngredients, // ✅ Composant activé
-  //     },
-  //     {
-  //       path: "gerer/:id",
-  //       nom: "Gerer un ingrédient",
-  //       component: GererUnIngredient, // ✅ Composant activé
-  //     },
-  //   ],
-  // },
+  {
+    path: "menuscomposes",
+    nom: "Menus Composés",
+    description: "Gestion des menus composés",
+    url: "/menusComposes.svg",
+    component: MenusComposes, // Remplacer par : Boissons
+    children: [
+      {
+        path: "create",
+        nom: "Créer un menu composé",
+        component: CreateMenuCompose, // ✅ Composant activé
+      },
+      {
+        path: "gerer",
+        nom: "Gerer les menus composés",
+        component: GererLesMenusComposes, // ✅ Composant activé
+      },
+      {
+        path: "gerer/:id",
+        nom: "Gerer un menu composé",
+        component: GererUnMenuCompose, // ✅ Composant activé
+      },
+    ],
+  },
   {
     path: "paiements",
     nom: "Paiements",

@@ -28,16 +28,22 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { doc, getDoc, runTransaction, getDocs, collection } from "firebase/firestore";
-import { ref, set as rtdbSet, onValue, off } from "firebase/database";
+import { ref, onValue, off } from "firebase/database";
 import { db, rtdb, auth } from "../../firebase.js";
 import { nanoid } from "nanoid";
+import {
+  adresseNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+} from "@/utils/notificationHelpers";
 
 // ============================================================================
 // CONSTANTES
 // ============================================================================
 
 const ADRESSES_COLLECTION = "adresses";
-const RTDB_NOTIFICATIONS_PATH = "notifications/adresses";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.ADRESSES, NOTIFICATION_PATHS.ADRESSE];
 const CACHE_KEY = "adresses_cache";
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -188,25 +194,15 @@ function isCacheStale(cachedData, maxAgeMs = 5 * 60 * 1000) {
 }
 
 // ============================================================================
-// UTILITAIRES - NOTIFICATIONS RTDB
+// UTILITAIRES - NOTIFICATIONS RTDB (utilise les helpers centralisés)
 // ============================================================================
 
 /**
  * Émettre une notification RTDB pour les adresses
  */
 async function emitNotification(message, data = {}) {
-  try {
-    const notifRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    await rtdbSet(notifRef, {
-      title: "adresse modifie",
-      message,
-      ...data,
-      timestamp: Date.now(),
-    });
-    console.log(`📡 Notification RTDB émise: ${message}`);
-  } catch (error) {
-    console.error("Erreur émission notification RTDB:", error);
-  }
+  // Utiliser le helper centralisé
+  await adresseNotifications.custom("Adresse modifiée", message, "info", data);
 }
 
 // ============================================================================
@@ -1571,25 +1567,34 @@ export function useAdresses() {
     }
   }, [sync]);
 
-  // Écouter les notifications RTDB
+  // Écouter les notifications RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notifRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handler = (snapshot) => {
-      if (!snapshot.exists()) return;
-      const data = snapshot.val();
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notifRef = ref(rtdb, path);
 
-      if (data.title === "adresse modifie") {
-        console.log("🔔 Notification RTDB adresses reçue, re-sync");
-        sync();
-      }
-    };
+      const handler = (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
 
-    onValue(notifRef, handler);
+        if (
+          data.title === "adresse modifie" ||
+          data.title === "Adresse modifiée" ||
+          data.metadata?.toolkit === "adresse"
+        ) {
+          console.log("🔔 Notification RTDB adresses reçue, re-sync");
+          sync();
+        }
+      };
+
+      onValue(notifRef, handler);
+      unsubscribers.push(() => off(notifRef, "value", handler));
+    });
 
     // Cleanup
     return () => {
-      off(notifRef, "value", handler);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 
@@ -1630,25 +1635,35 @@ export function useAdresse(id) {
     sync();
   }, [sync]);
 
-  // Écouter les notifications RTDB
+  // Écouter les notifications RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notifRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handler = (snapshot) => {
-      if (!snapshot.exists()) return;
-      const data = snapshot.val();
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notifRef = ref(rtdb, path);
 
-      if (data.title === "adresse modifie" && data.adresseId === id) {
-        console.log(`🔔 Notification RTDB pour adresse ${id}, re-sync`);
-        sync();
-      }
-    };
+      const handler = (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
 
-    onValue(notifRef, handler);
+        if (
+          (data.title === "adresse modifie" ||
+            data.title === "Adresse modifiée" ||
+            data.metadata?.toolkit === "adresse") &&
+          (data.adresseId === id || data.metadata?.adresseId === id)
+        ) {
+          console.log(`🔔 Notification RTDB pour adresse ${id}, re-sync`);
+          sync();
+        }
+      };
+
+      onValue(notifRef, handler);
+      unsubscribers.push(() => off(notifRef, "value", handler));
+    });
 
     // Cleanup
     return () => {
-      off(notifRef, "value", handler);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [id, sync]);
 
@@ -1689,25 +1704,34 @@ export function useAdressesByDepartement(departement) {
     sync();
   }, [sync]);
 
-  // Écouter les notifications RTDB
+  // Écouter les notifications RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notifRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handler = (snapshot) => {
-      if (!snapshot.exists()) return;
-      const data = snapshot.val();
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notifRef = ref(rtdb, path);
 
-      if (data.title === "adresse modifie") {
-        console.log("🔔 Notification RTDB adresses reçue, re-sync département");
-        sync();
-      }
-    };
+      const handler = (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
 
-    onValue(notifRef, handler);
+        if (
+          data.title === "adresse modifie" ||
+          data.title === "Adresse modifiée" ||
+          data.metadata?.toolkit === "adresse"
+        ) {
+          console.log("🔔 Notification RTDB adresses reçue, re-sync département");
+          sync();
+        }
+      };
+
+      onValue(notifRef, handler);
+      unsubscribers.push(() => off(notifRef, "value", handler));
+    });
 
     // Cleanup
     return () => {
-      off(notifRef, "value", handler);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 

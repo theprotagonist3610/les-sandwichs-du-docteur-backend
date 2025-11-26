@@ -189,10 +189,13 @@ const MobileSurPlace = () => {
     try {
       const userId = auth.currentUser?.uid || "system";
 
-      // Préparer les données de la commande (sans champs undefined)
+      // Préparer les données de la commande avec valeurs par défaut pour champs optionnels
       const commandeData = {
         point_de_vente: pointDeVente,
-        client,
+        client: {
+          nom: client.nom || "inconnu",
+          numero: client.numero || "000000000",
+        },
         details,
         type: "sur place",
         statut: "non servi",
@@ -202,8 +205,8 @@ const MobileSurPlace = () => {
           monnaie_rendue: monnaieRendue,
           dette,
         },
-        ...(incident && { incident }),
-        ...(commentaire && { commentaire }),
+        incident: incident || "inconnu",
+        commentaire: commentaire || "inconnu",
       };
 
       await CreateCommande(commandeData, userId);

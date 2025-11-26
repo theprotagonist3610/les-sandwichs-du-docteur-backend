@@ -107,6 +107,12 @@ const DesktopTodos = () => {
     (userId) => {
       if (!userId) return "Utilisateur";
 
+      // Cas spécial pour "système"
+      if (userId === "système") return "Système";
+
+      // Cas spécial pour "inconnu"
+      if (userId === "inconnu") return "Inconnu";
+
       // Vérifier le cache d'abord
       if (userNamesCache[userId]) {
         return userNamesCache[userId];
@@ -118,10 +124,18 @@ const DesktopTodos = () => {
           if (userData?.nom && userData?.prenoms?.length > 0) {
             const fullName = `${userData.prenoms[0]} ${userData.nom}`;
             setUserNamesCache((prev) => ({ ...prev, [userId]: fullName }));
+          } else if (userData?.nom) {
+            // Si pas de prénoms, utiliser juste le nom
+            setUserNamesCache((prev) => ({ ...prev, [userId]: userData.nom }));
+          } else {
+            // Utilisateur non trouvé ou données incomplètes
+            setUserNamesCache((prev) => ({ ...prev, [userId]: "Utilisateur supprimé" }));
           }
         })
         .catch((error) => {
           console.error("Erreur getUserName:", error);
+          // En cas d'erreur, mettre en cache pour éviter les requêtes répétées
+          setUserNamesCache((prev) => ({ ...prev, [userId]: "Utilisateur" }));
         });
 
       return "Chargement...";
@@ -220,7 +234,7 @@ const DesktopTodos = () => {
               <span className="text-muted-foreground font-medium">
                 Créé par{" "}
                 <span className="text-foreground">
-                  {getUserName(currentUser?.id)}
+                  {getUserName(todo.createdBy)}
                 </span>
               </span>
             </div>

@@ -14,10 +14,67 @@ import {
 import { formatDayKey } from "@/toolkits/admin/comptabilite/utils";
 import { ref, onValue } from "firebase/database";
 import { rtdb } from "@/firebase";
+import { createTodo, getAllTodos } from "@/toolkits/admin/todoToolkit";
 
 // LocalStorage key
 const LS_KEY = "lsd_cloture_status";
 const RTDB_CLOTURE_QUEUE = "/cloture/queue_status";
+
+/**
+ * Formate une date en français (ex: "12 nov. 2025")
+ */
+const formatDateFr = (date) => {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
+/**
+ * Crée un todo de clôture s'il n'existe pas déjà pour aujourd'hui
+ */
+const creerTodoCloture = async () => {
+  try {
+    const aujourdHui = new Date();
+    const dateStr = formatDateFr(aujourdHui);
+    const dayKey = formatDayKey(aujourdHui);
+
+    // Vérifier si un todo de clôture existe déjà pour aujourd'hui
+    const allTodos = await getAllTodos();
+    const todoClotureExiste = allTodos.some(
+      (todo) =>
+        todo.title === "Clôture" &&
+        todo.description.includes(dateStr) &&
+        !todo.status // Non terminé
+    );
+
+    if (todoClotureExiste) {
+      console.log("ℹ️ Todo de clôture déjà existant pour", dateStr);
+      return null;
+    }
+
+    // Calculer la deadline (aujourd'hui 23:59:59)
+    const deadline = new Date(aujourdHui);
+    deadline.setHours(23, 59, 59, 999);
+
+    // Créer le todo
+    const newTodo = await createTodo({
+      title: "Clôture",
+      description: `Clôturer la comptabilité du ${dateStr}`,
+      concern: [], // Visible par tous (les admins voient tout)
+      concernBy: [],
+      deadline: deadline.getTime(),
+      createdBy: "système",
+    });
+
+    console.log("✅ Todo de clôture créé pour", dateStr);
+    return newTodo;
+  } catch (error) {
+    console.error("❌ Erreur création todo clôture:", error);
+    return null;
+  }
+};
 
 /**
  * Hook de gestion de la clôture obligatoire
@@ -106,12 +163,37 @@ export function useClotureObligatoire(enabled = true) {
         if (heure === 23 && minute >= 0 && minute < 5) {
           const lsData = localStorage.getItem(LS_KEY);
           let notifCachee = false;
+          let todoClotureCree = false;
 
           if (lsData) {
             try {
               const parsed = JSON.parse(lsData);
               notifCachee = parsed.notificationCacher23h === true;
+              // Vérifier si le todo a déjà été créé aujourd'hui
+              const aujourdHui = formatDayKey(new Date());
+              todoClotureCree = parsed.todoClotureCree === aujourdHui;
             } catch (e) {}
+          }
+
+          // Créer le todo de clôture s'il n'a pas déjà été créé aujourd'hui
+          if (!todoClotureCree) {
+            creerTodoCloture().then(() => {
+              // Marquer dans localStorage que le todo a été créé
+              const currentLsData = localStorage.getItem(LS_KEY);
+              let parsed = {};
+              if (currentLsData) {
+                try {
+                  parsed = JSON.parse(currentLsData);
+                } catch (e) {}
+              }
+              localStorage.setItem(
+                LS_KEY,
+                JSON.stringify({
+                  ...parsed,
+                  todoClotureCree: formatDayKey(new Date()),
+                })
+              );
+            });
           }
 
           if (!notifCachee && !clotureRequise) {

@@ -3,6 +3,11 @@
  * Constantes et comptes OHADA par défaut pour la comptabilité
  */
 
+import {
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+} from "@/utils/notificationHelpers";
+
 // ============================================================================
 // PATHS FIRESTORE
 // ============================================================================
@@ -19,7 +24,10 @@ export const BUDGETS_COLLECTION = "comptabilite_budgets";
 // PATHS RTDB
 // ============================================================================
 
-export const RTDB_NOTIFICATIONS_PATH = "notification";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+export const RTDB_SYNC_PATHS = [LEGACY_PATHS.NOTIFICATION, NOTIFICATION_PATHS.COMPTABILITE];
+// Alias pour compatibilité
+export const RTDB_NOTIFICATIONS_PATH = LEGACY_PATHS.NOTIFICATION;
 export const RTDB_COMPTA_TRIGGER_PATH = "comptabilite_trigger";
 
 // ============================================================================

@@ -36,8 +36,16 @@ import {
   setDoc,
   runTransaction,
 } from "firebase/firestore";
-import { ref, push, onChildAdded, off } from "firebase/database";
+import { ref, onChildAdded, off } from "firebase/database";
 import { db, rtdb } from "@/firebase";
+import {
+  commandeNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+  setCacheWithTTL,
+  getCacheWithTTL,
+  CACHE_TTL,
+} from "@/utils/notificationHelpers";
 
 // Import du nouveau système de comptabilité modulaire
 import {
@@ -47,6 +55,9 @@ import {
   getAllComptesTresorerie,
   findCompteByCodeOhada,
 } from "./comptabiliteToolkit";
+
+// Import pour récupérer les informations utilisateur
+import { getUser } from "./userToolkit";
 
 // ============================================================================
 // CONSTANTES (définies avant les schémas qui les utilisent)
@@ -250,7 +261,8 @@ const ARCHIVES_PATH = "archives/liste";
 const VENTES_EN_ATTENTE_DOC = "ventes_en_attente";
 const STATISTIQUES_DOC = "statistiques";
 const COMMANDES_OPERATIONS_QUEUE_PATH = "ventes/operationsQueue";
-const RTDB_COMMANDES_NOTIFICATIONS = "notifications/commandes";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.COMMANDES_QUEUE, NOTIFICATION_PATHS.COMMANDE];
 
 const CACHE_KEY_PREFIX = "commandes_cache_";
 const CACHE_TIMESTAMP_KEY = "commandes_cache_timestamp_";
@@ -266,29 +278,18 @@ const CODE_COMPTE_CLIENT = "411"; // Clients (vente à crédit/dette)
 // ============================================================================
 
 /**
- * Crée une notification RTDB
+ * Crée une notification RTDB (utilise le helper centralisé)
  */
 async function createRTDBNotification(title, message, type = "info") {
-  try {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
-    await push(notificationsRef, {
-      title,
-      message,
-      type,
-      timestamp: Date.now(),
-    });
-  } catch (error) {
-    console.error("❌ Erreur notification RTDB:", error);
-  }
+  await commandeNotifications.custom(title, message, type);
 }
 
 /**
- * Gestion du cache local
+ * Gestion du cache local avec TTL
  */
 function setCache(key, data) {
   try {
-    localStorage.setItem(CACHE_KEY_PREFIX + key, JSON.stringify(data));
-    localStorage.setItem(CACHE_TIMESTAMP_KEY + key, Date.now().toString());
+    setCacheWithTTL(CACHE_KEY_PREFIX + key, data, CACHE_TTL.COMMANDES);
   } catch (error) {
     console.error("❌ Erreur setCache:", error);
   }
@@ -296,8 +297,8 @@ function setCache(key, data) {
 
 function getCache(key) {
   try {
-    const cached = localStorage.getItem(CACHE_KEY_PREFIX + key);
-    return cached ? JSON.parse(cached) : null;
+    const cached = getCacheWithTTL(CACHE_KEY_PREFIX + key);
+    return cached;
   } catch (error) {
     console.error("❌ Erreur getCache:", error);
     return null;
@@ -362,7 +363,7 @@ function calculateTendance(totalToday, totalYesterday) {
  * Crée automatiquement les opérations comptables pour une commande
  * Utilise le nouveau système modulaire avec queue anti-collision
  * @param {Object} commande - La commande créée
- * @param {string} userId - ID de l'utilisateur
+ * @param {string} userId - ID de l'utilisateur (vendeur)
  */
 async function createComptabiliteOperationsForCommande(commande, userId) {
   try {
@@ -374,6 +375,20 @@ async function createComptabiliteOperationsForCommande(commande, userId) {
         `ℹ️ Module comptabilité non disponible - Opérations comptables ignorées pour commande ${commande.id}`
       );
       return;
+    }
+
+    // Récupérer les informations du vendeur (nom + prénom)
+    let vendeurNom = "Vendeur inconnu";
+    try {
+      const vendeurData = await getUser(commande.createdBy || userId);
+      if (vendeurData) {
+        const prenoms = Array.isArray(vendeurData.prenoms)
+          ? vendeurData.prenoms.join(' ')
+          : (vendeurData.prenoms || '');
+        vendeurNom = `${vendeurData.nom || ''} ${prenoms}`.trim() || "Vendeur inconnu";
+      }
+    } catch (error) {
+      console.warn("⚠️ Impossible de récupérer les infos du vendeur:", error.message);
     }
 
     // Récupérer les comptes de trésorerie pour obtenir les IDs réels
@@ -406,27 +421,62 @@ async function createComptabiliteOperationsForCommande(commande, userId) {
 
     const operations = [];
 
-    // 1. Enregistrer les recettes en espèces (Caisse - 531)
-    if (paiement.montant_espece_recu > 0 && compteCaisse) {
+    // Construire le motif de base avec code commande + nom + prénom vendeur
+    const motifBase = `${commande.id} - ${vendeurNom}`;
+
+    // Vérifier si le paiement est mixte (espèces + mobile money)
+    const isMixedPayment = paiement.montant_espece_recu > 0 && paiement.montant_momo_recu > 0;
+
+    if (isMixedPayment) {
+      // Paiement mixte: créer deux opérations avec pourcentages
+      const totalPaiement = paiement.montant_espece_recu + paiement.montant_momo_recu;
+      const pourcentageEspeces = Math.round((paiement.montant_espece_recu / totalPaiement) * 100);
+      const pourcentageMomo = Math.round((paiement.montant_momo_recu / totalPaiement) * 100);
+
+      // 1. Opération espèces avec pourcentage
       operations.push({
         compte_id: compteVenteId,
         montant: paiement.montant_espece_recu,
-        motif: `Vente commande ${commande.id} - ${commande.client.nom} - Espèces`,
+        motif: `Vente ${motifBase} - Espèces [${pourcentageEspeces}% espèces]`,
         type_operation: "entree",
+        compte_tresorerie_id: compteCaisse?.id,
       });
-    }
 
-    // 2. Enregistrer les recettes Mobile Money (5121)
-    if (paiement.montant_momo_recu > 0 && compteMomo) {
+      // 2. Opération mobile money avec pourcentage
       operations.push({
         compte_id: compteVenteId,
         montant: paiement.montant_momo_recu,
-        motif: `Vente commande ${commande.id} - ${commande.client.nom} - Mobile Money`,
+        motif: `Vente ${motifBase} - Mobile Money [${pourcentageMomo}% mobile money]`,
         type_operation: "entree",
+        compte_tresorerie_id: compteMomo?.id,
       });
+    } else {
+      // Paiement simple: créer une seule opération selon le mode de paiement
+
+      // 1. Enregistrer les recettes en espèces (Compte 701 - Vente de produits finis)
+      if (paiement.montant_espece_recu > 0) {
+        operations.push({
+          compte_id: compteVenteId,
+          montant: paiement.montant_espece_recu,
+          motif: `Vente ${motifBase} - Espèces`,
+          type_operation: "entree",
+          compte_tresorerie_id: compteCaisse?.id,
+        });
+      }
+
+      // 2. Enregistrer les recettes Mobile Money (Compte 701 - Vente de produits finis)
+      if (paiement.montant_momo_recu > 0) {
+        operations.push({
+          compte_id: compteVenteId,
+          montant: paiement.montant_momo_recu,
+          motif: `Vente ${motifBase} - Mobile Money`,
+          type_operation: "entree",
+          compte_tresorerie_id: compteMomo?.id,
+        });
+      }
     }
 
-    // 3. Enregistrer la dette si présente (Compte Client - 411)
+    // 3. Enregistrer la dette si présente (Compte 411 - Clients)
     if (paiement.dette > 0) {
       try {
         const compteClient = await findCompteByCodeOhada(CODE_COMPTE_CLIENT);
@@ -434,8 +484,9 @@ async function createComptabiliteOperationsForCommande(commande, userId) {
           operations.push({
             compte_id: compteClient.id,
             montant: paiement.dette,
-            motif: `Dette commande ${commande.id} - Client: ${commande.client.nom}`,
+            motif: `Crédit ${motifBase} - Client: ${commande.client.nom}`,
             type_operation: "entree",
+            compte_tresorerie_id: null, // Pas de trésorerie pour une dette
           });
         }
       } catch (error) {
@@ -1601,23 +1652,55 @@ export function useCommandes(options = {}) {
     if (autoFetch) fetchCommandes();
   }, [autoFetch, fetchCommandes]);
 
-  // Écouter les notifications RTDB pour synchronisation
+  // Écouter RTDB pour synchronisation auto (pattern stockToolkit optimal)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+    let isInitialLoad = true; // Grace period flag
+    let debounceTimer = null; // Debounce timer
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (notification) {
-        clearCache("today");
-        clearCache("attente");
-        fetchCommandes();
-      }
-    };
+    // Écouter les deux paths (legacy et nouveau) avec onChildAdded
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        if (isInitialLoad) return; // Ignorer pendant grace period
+
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("commande") || // Détection flexible
+            notification.title?.includes("Commande") ||
+            notification.title?.includes("vente") ||
+            notification.title?.includes("Vente") ||
+            notification.metadata?.toolkit === "commande")
+        ) {
+          console.log("🔔 [useCommandes] Notification détectée - Rechargement différé");
+
+          // Debounce: annuler le timer précédent
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // Lancer sync après 500ms
+          debounceTimer = setTimeout(() => {
+            clearCache("today");
+            clearCache("attente");
+            fetchCommandes();
+          }, 500);
+        }
+      };
+
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
+
+    // Grace period: 1s pour ignorer les notifications initiales
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ useCommandes - Écoute des nouvelles notifications activée");
+    }, 1000);
 
     return () => {
-      off(notificationsRef, "child_added", handleNotification);
+      clearTimeout(initTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchCommandes]);
 
@@ -1728,22 +1811,27 @@ export function useFilteredCommandes(options = {}) {
     fetchCommandes();
   }, [fetchCommandes]);
 
-  // Écouter les notifications RTDB pour synchronisation
+  // Écouter les notifications RTDB pour synchronisation (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (notification) {
-        clearCache("today");
-        fetchCommandes();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (notification) {
+          clearCache("today");
+          fetchCommandes();
+        }
+      };
+
+      onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "child_added", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "child_added", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchCommandes]);
 
@@ -1828,22 +1916,27 @@ export function useCommande(commandeId) {
     fetchCommande();
   }, [fetchCommande]);
 
-  // Écouter les notifications RTDB pour synchronisation
+  // Écouter les notifications RTDB pour synchronisation (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (notification) {
-        clearCache("today");
-        fetchCommande();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (notification) {
+          clearCache("today");
+          fetchCommande();
+        }
+      };
+
+      onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "child_added", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "child_added", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchCommande]);
 
@@ -1942,25 +2035,31 @@ export function useCommandeStatistiques() {
     };
   }, [checkAndArchiveIfNewDay]);
 
-  // Écouter les notifications RTDB
+  // Écouter les notifications RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        (notification.title.toLowerCase().includes("statistiques") ||
-          notification.title.toLowerCase().includes("archivage"))
-      ) {
-        fetchStatistiques();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.toLowerCase().includes("statistiques") ||
+            notification.title?.toLowerCase().includes("archivage") ||
+            notification.metadata?.toolkit === "commande")
+        ) {
+          fetchStatistiques();
+        }
+      };
+
+      onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "child_added", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "child_added", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchStatistiques]);
 
@@ -2011,24 +2110,30 @@ export function useCommandeStatistiquesWeek() {
     fetchStatistiquesWeek();
   }, [fetchStatistiquesWeek]);
 
-  // Écouter les notifications RTDB
+  // Écouter les notifications RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        notification.title.toLowerCase().includes("statistiques")
-      ) {
-        fetchStatistiquesWeek();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.toLowerCase().includes("statistiques") ||
+            notification.metadata?.toolkit === "commande")
+        ) {
+          fetchStatistiquesWeek();
+        }
+      };
+
+      onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "child_added", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "child_added", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchStatistiquesWeek]);
 
@@ -2124,26 +2229,32 @@ export function useCommandeQueue(filter = {}) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les mises à jour en temps réel via RTDB
+  // Écouter les mises à jour en temps réel via RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_COMMANDES_NOTIFICATIONS);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        (notification.title?.toLowerCase().includes("opération") ||
-          notification.title?.toLowerCase().includes("queue"))
-      ) {
-        console.log("🔔 Notification RTDB reçue - Rechargement de la queue");
-        fetchData();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.toLowerCase().includes("opération") ||
+            notification.title?.toLowerCase().includes("queue") ||
+            notification.metadata?.toolkit === "commande")
+        ) {
+          console.log("🔔 Notification RTDB reçue - Rechargement de la queue");
+          fetchData();
+        }
+      };
+
+      onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "child_added", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "child_added", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchData]);
 
@@ -3117,6 +3228,6 @@ export {
   ARCHIVES_PATH,
   VENTES_EN_ATTENTE_DOC,
   STATISTIQUES_DOC,
-  RTDB_COMMANDES_NOTIFICATIONS,
+  RTDB_SYNC_PATHS as RTDB_COMMANDES_NOTIFICATIONS, // Alias pour compatibilité
   COMMANDES_OPERATIONS_QUEUE_PATH,
 };

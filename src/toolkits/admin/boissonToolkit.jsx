@@ -8,17 +8,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { ref, push, onValue, off } from "firebase/database";
+import { ref, onChildAdded } from "firebase/database";
 import { db, rtdb } from "@/firebase.js";
 import { nanoid } from "nanoid";
-import { auth } from "@/firebase.js";
+import {
+  boissonNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+  setCacheWithTTL,
+  getCacheWithTTL,
+  CACHE_TTL,
+} from "@/utils/notificationHelpers";
 
 // ============================================================================
 // CONSTANTES
 // ============================================================================
 const BOISSONS_DOC_PATH = "menus/liste_boissons";
 const LOCAL_BOISSONS_KEY = "local_lsd_boissons";
-const RTDB_NOTIFICATIONS_PATH = "notification";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.NOTIFICATION, NOTIFICATION_PATHS.BOISSON];
 
 // ============================================================================
 // SCHEMAS ZOD
@@ -42,14 +50,12 @@ export const boissonSchema = z.object({
 });
 
 // ============================================================================
-// GESTION DU CACHE LOCAL - BOISSONS
+// GESTION DU CACHE LOCAL AVEC TTL - BOISSONS
 // ============================================================================
 
 function saveBoissonsToCache(boissons) {
   try {
-    const dataToStore = { boissons, lastSync: Date.now() };
-    localStorage.setItem(LOCAL_BOISSONS_KEY, JSON.stringify(dataToStore));
-    console.log("✅ Boissons sauvegardées en cache");
+    setCacheWithTTL(LOCAL_BOISSONS_KEY, boissons, CACHE_TTL.BOISSONS);
     return true;
   } catch (error) {
     console.error("❌ Erreur sauvegarde cache boissons:", error);
@@ -59,11 +65,8 @@ function saveBoissonsToCache(boissons) {
 
 function getBoissonsFromCache() {
   try {
-    const data = localStorage.getItem(LOCAL_BOISSONS_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    console.log("✅ Boissons récupérées du cache");
-    return parsed;
+    const cached = getCacheWithTTL(LOCAL_BOISSONS_KEY);
+    return cached; // Retourne null si expiré ou inexistant
   } catch (error) {
     console.error("❌ Erreur lecture cache boissons:", error);
     return null;
@@ -76,43 +79,10 @@ export function clearBoissonsCache() {
 }
 
 // ============================================================================
-// RTDB HELPERS - NOTIFICATIONS
+// RTDB HELPERS - NOTIFICATIONS (utilise les helpers centralisés)
 // ============================================================================
-
-/**
- * Crée une notification dans RTDB pour signaler une modification
- * @param {string} title - "Modification Boissons"
- * @param {string} message - Message descriptif
- * @param {string} type - "info" | "success" | "warning" | "error"
- */
-async function createRTDBNotification(title, message, type = "info") {
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn(
-        "⚠️ Utilisateur non authentifié, notification RTDB non envoyée"
-      );
-      return;
-    }
-
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notification = {
-      userId: currentUser.uid,
-      title,
-      message,
-      type,
-      read: false,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    await push(notificationsRef, notification);
-    console.log(`✅ Notification RTDB créée: ${title}`);
-  } catch (error) {
-    console.error("❌ Erreur création notification RTDB:", error);
-    // On ne bloque pas le flux si l'envoi de notif échoue
-  }
-}
+// Les notifications sont maintenant gérées par @/utils/notificationHelpers
+// Voir: boissonNotifications.create(), boissonNotifications.update(), etc.
 
 // ============================================================================
 // CRUD BOISSONS
@@ -177,12 +147,8 @@ export async function createBoisson(boissonData) {
     // Cache
     saveBoissonsToCache(updated);
 
-    // Notification RTDB
-    await createRTDBNotification(
-      "Modification Boissons",
-      `Nouvelle boisson créée: ${validated.denomination}`,
-      "success"
-    );
+    // Notification RTDB (helper centralisé)
+    await boissonNotifications.create(validated.denomination);
 
     console.log("✅ Boisson créée:", validated.id);
     return validated;
@@ -223,12 +189,8 @@ export async function updateBoisson(boissonId, updateData) {
     // Cache
     saveBoissonsToCache(current);
 
-    // Notification RTDB
-    await createRTDBNotification(
-      "Modification Boissons",
-      `Boisson modifiée: ${validated.denomination}`,
-      "info"
-    );
+    // Notification RTDB (helper centralisé)
+    await boissonNotifications.update(validated.denomination);
 
     console.log("✅ Boisson mise à jour:", boissonId);
     return validated;
@@ -280,45 +242,58 @@ export function useBoissons() {
   // Charger depuis le cache au montage et synchroniser avec Firestore
   useEffect(() => {
     const cached = getBoissonsFromCache();
-    if (cached && cached.boissons) {
-      setBoissons(cached.boissons);
+    if (cached) {
+      setBoissons(cached);
       setLoading(false);
     }
-    
+
     // Vérification initiale avec Firestore pour s'assurer que le cache est à jour
     sync();
   }, [sync]);
 
-  // Écouter RTDB pour synchronisation auto
+  // Écouter RTDB pour synchronisation auto (pattern stockToolkit optimal)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    let isInitialLoad = true; // Grace period flag
+    let debounceTimer = null; // Debounce timer
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    // Écouter les deux paths (legacy et nouveau) avec onChildAdded
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(
-        ([key, value]) => ({ id: key, ...value })
-      );
+      const handleNotification = (snapshot) => {
+        if (isInitialLoad) return; // Ignorer pendant grace period
 
-      // Détecter une notif récente "Modification Boissons" (< 5s)
-      const now = Date.now();
-      const recent = notificationsList.find(
-        (n) => n.title === "Modification Boissons" && now - n.createdAt < 5000
-      );
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("boisson") || // Détection flexible
+            notification.title?.includes("Boisson") ||
+            notification.metadata?.toolkit === "boisson")
+        ) {
+          console.log("🔔 Notification boisson détectée - Rechargement différé");
 
-      if (recent) {
-        console.log(
-          "🔔 Notification détectée: Modification Boissons - Synchronisation…"
-        );
-        sync();
-      }
-    };
+          // Debounce: annuler le timer précédent
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // Lancer sync après 500ms
+          debounceTimer = setTimeout(() => sync(), 500);
+        }
+      };
 
-    onValue(notificationsRef, handleNotification);
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
+
+    // Grace period: 1s pour ignorer les notifications initiales
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ useBoissons - Écoute des nouvelles notifications activée");
+    }, 1000);
 
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      clearTimeout(initTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 

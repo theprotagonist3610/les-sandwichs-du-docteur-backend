@@ -23,10 +23,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
-import { ref, push, onChildAdded } from "firebase/database";
+import { ref, onChildAdded } from "firebase/database";
 import { db, rtdb } from "@/firebase.js";
 import { nanoid } from "nanoid";
-import { auth } from "@/firebase.js";
+import {
+  stockNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+} from "@/utils/notificationHelpers";
 
 // ============================================================================
 // CONSTANTES
@@ -41,7 +45,8 @@ const STOCK_QUEUE_METADATA_PATH = "stock/queueMetadata";
 const LOCAL_STOCK_KEY = "lsd_stock_liste";
 const LOCAL_TRANSACTIONS_KEY = "lsd_stock_transactions";
 const LOCAL_LAST_CLEANUP_KEY = "lsd_stock_last_cleanup";
-const RTDB_NOTIFICATIONS_PATH = "notification";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.NOTIFICATION, NOTIFICATION_PATHS.STOCK];
 
 // Statuts des opérations dans la queue
 export const OPERATION_STATUS = {
@@ -288,7 +293,11 @@ export const queuedOperationSchema = z.object({
     quantite: z.number().positive("La quantité doit être positive"),
     emplacement_id: z.string().min(1, "emplacement_id est requis"),
     emplacement_dest_id: z.string().nullable().optional(),
-    prix_unitaire: z.number().min(0, "Le prix unitaire doit être positif").optional().default(0),
+    prix_unitaire: z
+      .number()
+      .min(0, "Le prix unitaire doit être positif")
+      .optional()
+      .default(0),
     motif: z.string().optional().default(""),
     user_id: z.string().optional(),
   }),
@@ -368,35 +377,11 @@ export function clearTransactionsCache() {
 }
 
 // ============================================================================
-// RTDB HELPERS - NOTIFICATIONS
+// RTDB HELPERS - NOTIFICATIONS (utilise les helpers centralisés)
 // ============================================================================
-
+// Wrapper pour rétrocompatibilité - redirige vers stockNotifications.custom()
 async function createRTDBNotification(title, message, type = "info") {
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn(
-        "⚠️ Utilisateur non authentifié, notification RTDB non envoyée"
-      );
-      return;
-    }
-
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notification = {
-      userId: currentUser.uid,
-      userName: currentUser.displayName || currentUser.email,
-      title,
-      message,
-      type,
-      timestamp: Date.now(),
-      read: false,
-    };
-
-    await push(notificationsRef, notification);
-    console.log("✅ Notification RTDB créée:", title);
-  } catch (error) {
-    console.error("❌ Erreur création notification RTDB:", error);
-  }
+  await stockNotifications.custom(title, message, type);
 }
 
 // ============================================================================
@@ -599,7 +584,9 @@ export async function executeOperations() {
           // Trouver l'opération dans la queue d'origine pour la mettre à jour
           const operationInQueue = queue.find((op) => op.id === operation.id);
           if (!operationInQueue) {
-            console.error(`⚠️ Opération ${operation.id} introuvable dans la queue`);
+            console.error(
+              `⚠️ Opération ${operation.id} introuvable dans la queue`
+            );
             continue;
           }
 
@@ -677,7 +664,9 @@ export async function executeOperations() {
 
             // Mettre à jour le résumé global
             if (!resume[element_id]) {
-              throw new Error(`Élément ${element_id} non trouvé dans le résumé`);
+              throw new Error(
+                `Élément ${element_id} non trouvé dans le résumé`
+              );
             }
 
             // Vérifier que le stock global ne devient pas négatif
@@ -750,7 +739,8 @@ export async function executeOperations() {
           if (operationInQueue) {
             operationInQueue.status = OPERATION_STATUS.FAILED;
             operationInQueue.error = error.message;
-            operationInQueue.retryCount = (operationInQueue.retryCount || 0) + 1;
+            operationInQueue.retryCount =
+              (operationInQueue.retryCount || 0) + 1;
           }
 
           results.failed++;
@@ -765,8 +755,8 @@ export async function executeOperations() {
 
       // 6. Convertir les opérations réussies en transactions pour l'historique
       const successfulOps = queue.filter(
-        (op) => op.status === OPERATION_STATUS.COMPLETED &&
-                op.processedAt === now // Seulement celles traitées dans cette exécution
+        (op) =>
+          op.status === OPERATION_STATUS.COMPLETED && op.processedAt === now // Seulement celles traitées dans cette exécution
       );
       for (const operation of successfulOps) {
         const element = resume[operation.payload.element_id];
@@ -794,7 +784,8 @@ export async function executeOperations() {
 
           // Prix unitaire uniquement pour les entrées
           if (operation.type === TRANSACTION_TYPES.ENTREE) {
-            transactionRecord.prix_unitaire = operation.payload.prix_unitaire || 0;
+            transactionRecord.prix_unitaire =
+              operation.payload.prix_unitaire || 0;
           }
 
           currentTransactions.push(transactionRecord);
@@ -1453,7 +1444,8 @@ export function useStockElements(filter = {}) {
 
       // Comparer avec les données actuelles pour éviter les re-renders inutiles
       setElements((prevElements) => {
-        const isDifferent = JSON.stringify(prevElements) !== JSON.stringify(data);
+        const isDifferent =
+          JSON.stringify(prevElements) !== JSON.stringify(data);
         return isDifferent ? data : prevElements;
       });
     } catch (err) {
@@ -1468,52 +1460,49 @@ export function useStockElements(filter = {}) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les mises à jour en temps réel via RTDB avec debounce
+  // Écouter les mises à jour en temps réel via RTDB avec debounce (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
     let debounceTimer = null;
     let isInitialLoad = true;
 
     const handleNotification = (snapshot) => {
       // Ignorer les notifications qui existaient déjà au moment du montage
-      if (isInitialLoad) {
-        return;
-      }
+      if (isInitialLoad) return;
 
       const notification = snapshot.val();
       if (
         notification &&
         (notification.title?.includes("stock") ||
-          notification.title?.includes("Stock"))
+          notification.title?.includes("Stock") ||
+          notification.metadata?.toolkit === "stock")
       ) {
-        console.log("🔔 Notification RTDB reçue - Rechargement différé des éléments de stock");
+        console.log("🔔 Notification stock détectée - Rechargement différé");
 
         // Annuler le timer précédent
-        if (debounceTimer) {
-          clearTimeout(debounceTimer);
-        }
+        if (debounceTimer) clearTimeout(debounceTimer);
 
         // Attendre 500ms avant de recharger (debounce)
-        debounceTimer = setTimeout(() => {
-          fetchData();
-        }, 500);
+        debounceTimer = setTimeout(() => fetchData(), 500);
       }
     };
 
-    // Écouter les nouvelles notifications ajoutées
-    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+    // Écouter les deux paths (legacy et nouveau)
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
 
     // Après un court délai, considérer le chargement initial terminé
     const initTimer = setTimeout(() => {
       isInitialLoad = false;
-      console.log("✅ useStockElements - Chargement initial terminé, écoute des nouvelles notifications");
+      console.log("✅ useStockElements - Écoute des nouvelles notifications");
     }, 1000);
 
     return () => {
-      unsubscribe();
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
+      unsubscribers.forEach((unsub) => unsub());
+      if (debounceTimer) clearTimeout(debounceTimer);
       clearTimeout(initTimer);
     };
   }, [fetchData]);
@@ -1536,78 +1525,98 @@ export function useTransactions(days = 7, filter = {}) {
   const filterType = filter.type;
   const filterElementId = filter.elementId;
 
-  const fetchData = useCallback(async (forceRefresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchData = useCallback(
+    async (forceRefresh = false) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      console.log("🔍 useTransactions - Chargement des transactions...", {
-        days,
-        filterType,
-        filterElementId,
-        forceRefresh,
-      });
+        console.log("🔍 useTransactions - Chargement des transactions...", {
+          days,
+          filterType,
+          filterElementId,
+          forceRefresh,
+        });
 
-      // Essayer le cache d'abord (sauf si forceRefresh)
-      const cached = forceRefresh ? null : getTransactionsFromCache();
-      let transactionsArray = [];
+        // Essayer le cache d'abord (sauf si forceRefresh)
+        const cached = forceRefresh ? null : getTransactionsFromCache();
+        let transactionsArray = [];
 
-      // Utiliser le cache seulement s'il contient des transactions
-      if (cached && cached.transactions && cached.transactions.length > 0) {
-        transactionsArray = cached.transactions;
-        console.log("📦 Transactions chargées depuis le cache:", transactionsArray.length);
-      } else {
-        console.log("🔄 Chargement depuis Firestore...");
-        const now = new Date();
+        // Utiliser le cache seulement s'il contient des transactions
+        if (cached && cached.transactions && cached.transactions.length > 0) {
+          transactionsArray = cached.transactions;
+          console.log(
+            "📦 Transactions chargées depuis le cache:",
+            transactionsArray.length
+          );
+        } else {
+          console.log("🔄 Chargement depuis Firestore...");
+          const now = new Date();
 
-        for (let i = 0; i < days; i++) {
-          const date = new Date(now);
-          date.setDate(date.getDate() - i);
-          const dateKey = formatDateKey(date);
+          for (let i = 0; i < days; i++) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+            const dateKey = formatDateKey(date);
 
-          console.log(`📅 Chargement du ${dateKey}...`);
+            console.log(`📅 Chargement du ${dateKey}...`);
 
-          const transactionRef = doc(db, STOCK_TRANSACTIONS_BASE_PATH, dateKey);
-          const transactionDoc = await getDoc(transactionRef);
+            const transactionRef = doc(
+              db,
+              STOCK_TRANSACTIONS_BASE_PATH,
+              dateKey
+            );
+            const transactionDoc = await getDoc(transactionRef);
 
-          if (transactionDoc.exists()) {
-            const dayTransactions = transactionDoc.data().transactions || [];
-            console.log(`  ✅ ${dayTransactions.length} transactions trouvées pour ${dateKey}`);
-            transactionsArray.push(...dayTransactions);
-          } else {
-            console.log(`  ⚪ Aucune transaction pour ${dateKey}`);
+            if (transactionDoc.exists()) {
+              const dayTransactions = transactionDoc.data().transactions || [];
+              console.log(
+                `  ✅ ${dayTransactions.length} transactions trouvées pour ${dateKey}`
+              );
+              transactionsArray.push(...dayTransactions);
+            } else {
+              console.log(`  ⚪ Aucune transaction pour ${dateKey}`);
+            }
           }
+
+          console.log(
+            `💾 Total chargé depuis Firestore: ${transactionsArray.length} transactions`
+          );
+          saveTransactionsToCache(transactionsArray);
         }
 
-        console.log(`💾 Total chargé depuis Firestore: ${transactionsArray.length} transactions`);
-        saveTransactionsToCache(transactionsArray);
+        // Appliquer les filtres
+        let filtered = transactionsArray;
+
+        console.log(`🔍 Avant filtrage: ${filtered.length} transactions`);
+
+        if (filterType) {
+          filtered = filtered.filter((t) => t.type === filterType);
+          console.log(
+            `  → Filtre type "${filterType}": ${filtered.length} transactions`
+          );
+        }
+
+        if (filterElementId) {
+          const beforeFilter = filtered.length;
+          filtered = filtered.filter(
+            (t) => t.element && t.element.id === filterElementId
+          );
+          console.log(
+            `  → Filtre elementId "${filterElementId}": ${filtered.length} transactions (avant: ${beforeFilter})`
+          );
+        }
+
+        console.log(`✅ Transactions finales: ${filtered.length}`);
+        setTransactions(filtered.sort((a, b) => b.date - a.date));
+      } catch (err) {
+        console.error("❌ Erreur useTransactions:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-
-      // Appliquer les filtres
-      let filtered = transactionsArray;
-
-      console.log(`🔍 Avant filtrage: ${filtered.length} transactions`);
-
-      if (filterType) {
-        filtered = filtered.filter((t) => t.type === filterType);
-        console.log(`  → Filtre type "${filterType}": ${filtered.length} transactions`);
-      }
-
-      if (filterElementId) {
-        const beforeFilter = filtered.length;
-        filtered = filtered.filter((t) => t.element && t.element.id === filterElementId);
-        console.log(`  → Filtre elementId "${filterElementId}": ${filtered.length} transactions (avant: ${beforeFilter})`);
-      }
-
-      console.log(`✅ Transactions finales: ${filtered.length}`);
-      setTransactions(filtered.sort((a, b) => b.date - a.date));
-    } catch (err) {
-      console.error("❌ Erreur useTransactions:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [days, filterType, filterElementId]);
+    },
+    [days, filterType, filterElementId]
+  );
 
   useEffect(() => {
     fetchData(false); // Premier chargement avec cache
@@ -1618,28 +1627,36 @@ export function useTransactions(days = 7, filter = {}) {
     return fetchData(true); // Forcer le rechargement sans cache
   }, [fetchData]);
 
-  // Écouter les mises à jour en temps réel via RTDB
+  // Écouter les mises à jour en temps réel via RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        (notification.title?.includes("Transaction stock") ||
-          notification.title?.includes("Transaction") ||
-          notification.title?.includes("Transfert"))
-      ) {
-        console.log("🔔 Notification RTDB reçue - Rechargement des transactions");
-        fetchData(true); // Force refresh pour éviter le cache
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    // Écouter les nouvelles notifications ajoutées
-    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("Transaction stock") ||
+            notification.title?.includes("Transaction") ||
+            notification.title?.includes("Transfert") ||
+            notification.metadata?.toolkit === "stock")
+        ) {
+          console.log(
+            "🔔 Notification RTDB reçue - Rechargement des transactions"
+          );
+          fetchData(true); // Force refresh pour éviter le cache
+        }
+      };
+
+      // Écouter les nouvelles notifications ajoutées
+      const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsubscribe);
+    });
 
     return () => {
-      unsubscribe();
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchData]);
 
@@ -1735,28 +1752,36 @@ export function useOperationsQueue(filter = {}) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les mises à jour en temps réel via RTDB
+  // Écouter les mises à jour en temps réel via RTDB (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        (notification.title?.includes("Transaction stock") ||
-          notification.title?.includes("Opération") ||
-          notification.title?.includes("opération"))
-      ) {
-        console.log("🔔 Notification RTDB reçue - Rechargement de la queue d'opérations");
-        fetchData();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    // Écouter les nouvelles notifications ajoutées
-    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("Transaction stock") ||
+            notification.title?.includes("Opération") ||
+            notification.title?.includes("opération") ||
+            notification.metadata?.toolkit === "stock")
+        ) {
+          console.log(
+            "🔔 Notification RTDB reçue - Rechargement de la queue d'opérations"
+          );
+          fetchData();
+        }
+      };
+
+      // Écouter les nouvelles notifications ajoutées
+      const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsubscribe);
+    });
 
     return () => {
-      unsubscribe();
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchData]);
 
@@ -1837,22 +1862,24 @@ export function useStockByEmplacement(elementId) {
       const stockData = [];
 
       // Parcourir tous les emplacements
-      Object.entries(emplacements).forEach(([emplacementId, emplacementData]) => {
-        // Vérifier si cet emplacement a le stock de l'élément recherché
-        const stockActuel = emplacementData.stock_actuel || {};
-        const elementStock = stockActuel[elementId];
+      Object.entries(emplacements).forEach(
+        ([emplacementId, emplacementData]) => {
+          // Vérifier si cet emplacement a le stock de l'élément recherché
+          const stockActuel = emplacementData.stock_actuel || {};
+          const elementStock = stockActuel[elementId];
 
-        if (elementStock && elementStock.quantite_actuelle > 0) {
-          stockData.push({
-            emplacementId,
-            emplacementNom: emplacementData.denomination || emplacementId,
-            quantite: elementStock.quantite_actuelle || 0,
-            element: elementStock,
-            type: emplacementData.type,
-            position: emplacementData.position,
-          });
+          if (elementStock && elementStock.quantite_actuelle > 0) {
+            stockData.push({
+              emplacementId,
+              emplacementNom: emplacementData.denomination || emplacementId,
+              quantite: elementStock.quantite_actuelle || 0,
+              element: elementStock,
+              type: emplacementData.type,
+              position: emplacementData.position,
+            });
+          }
         }
-      });
+      );
 
       // Trier par quantité décroissante
       stockData.sort((a, b) => b.quantite - a.quantite);
@@ -1871,29 +1898,37 @@ export function useStockByEmplacement(elementId) {
     fetchData();
   }, [fetchData]);
 
-  // Écouter les notifications en temps réel
+  // Écouter les notifications en temps réel (paths legacy + nouveau)
   useEffect(() => {
     if (!elementId) return;
 
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notification = snapshot.val();
-      if (
-        notification &&
-        (notification.title?.includes("Transaction stock") ||
-          notification.title?.includes("Transaction") ||
-          notification.title?.includes("Transfert"))
-      ) {
-        console.log("🔔 Notification RTDB reçue - Rechargement du stock par emplacement");
-        fetchData();
-      }
-    };
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-    const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+      const handleNotification = (snapshot) => {
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("Transaction stock") ||
+            notification.title?.includes("Transaction") ||
+            notification.title?.includes("Transfert") ||
+            notification.metadata?.toolkit === "stock")
+        ) {
+          console.log(
+            "🔔 Notification RTDB reçue - Rechargement du stock par emplacement"
+          );
+          fetchData();
+        }
+      };
+
+      const unsubscribe = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsubscribe);
+    });
 
     return () => {
-      unsubscribe();
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [elementId, fetchData]);
 
@@ -1968,7 +2003,8 @@ export function useStockAnalytics(days = 30) {
         analytics.articles_par_type[element.type]++;
 
         // Calculer valeur du stock
-        const valeur = (element.quantite_actuelle || 0) * (element.prix_unitaire || 0);
+        const valeur =
+          (element.quantite_actuelle || 0) * (element.prix_unitaire || 0);
         analytics.valeur_totale_stock += valeur;
 
         // Détecter alertes et ruptures
@@ -1995,7 +2031,10 @@ export function useStockAnalytics(days = 30) {
         analytics.transactions_par_type[transaction.type]++;
 
         // Analyser la consommation (sorties)
-        if (transaction.type === TRANSACTION_TYPES.SORTIE && transaction.element) {
+        if (
+          transaction.type === TRANSACTION_TYPES.SORTIE &&
+          transaction.element
+        ) {
           const elementId = transaction.element.id;
           if (consommationMap.has(elementId)) {
             const consomData = consommationMap.get(elementId);
@@ -2035,9 +2074,10 @@ export function useStockAnalytics(days = 30) {
         const consommation_moyenne_jour = c.quantite_sortie / days;
 
         // Prévision de rupture (en jours)
-        const jours_avant_rupture = consommation_moyenne_jour > 0
-          ? Math.floor(quantite_actuelle / consommation_moyenne_jour)
-          : Infinity;
+        const jours_avant_rupture =
+          consommation_moyenne_jour > 0
+            ? Math.floor(quantite_actuelle / consommation_moyenne_jour)
+            : Infinity;
 
         // Article critique si rupture prévue dans moins de 7 jours ou en alerte
         if (
@@ -2051,13 +2091,17 @@ export function useStockAnalytics(days = 30) {
             unite: element.unite,
             quantite_actuelle,
             seuil_alerte: seuil,
-            consommation_moyenne_jour: parseFloat(consommation_moyenne_jour.toFixed(2)),
-            jours_avant_rupture: jours_avant_rupture === Infinity ? null : jours_avant_rupture,
-            statut: quantite_actuelle === 0
-              ? "rupture"
-              : jours_avant_rupture < 7
-              ? "critique"
-              : "alerte",
+            consommation_moyenne_jour: parseFloat(
+              consommation_moyenne_jour.toFixed(2)
+            ),
+            jours_avant_rupture:
+              jours_avant_rupture === Infinity ? null : jours_avant_rupture,
+            statut:
+              quantite_actuelle === 0
+                ? "rupture"
+                : jours_avant_rupture < 7
+                ? "critique"
+                : "alerte",
             type: element.type,
             imgURL: element.imgURL,
           });
@@ -2070,8 +2114,10 @@ export function useStockAnalytics(days = 30) {
         if (statutOrder[a.statut] !== statutOrder[b.statut]) {
           return statutOrder[a.statut] - statutOrder[b.statut];
         }
-        const aJours = a.jours_avant_rupture === null ? Infinity : a.jours_avant_rupture;
-        const bJours = b.jours_avant_rupture === null ? Infinity : b.jours_avant_rupture;
+        const aJours =
+          a.jours_avant_rupture === null ? Infinity : a.jours_avant_rupture;
+        const bJours =
+          b.jours_avant_rupture === null ? Infinity : b.jours_avant_rupture;
         return aJours - bJours;
       });
 
@@ -2082,7 +2128,9 @@ export function useStockAnalytics(days = 30) {
       for (let i = days - 1; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
 
         evolutionMap.set(dateKey, {
           date: dateKey,
@@ -2096,7 +2144,9 @@ export function useStockAnalytics(days = 30) {
       // Remplir avec les données de transactions
       transactionsArray.forEach((transaction) => {
         const date = new Date(transaction.date);
-        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
 
         if (evolutionMap.has(dateKey)) {
           const dayData = evolutionMap.get(dateKey);
@@ -2162,7 +2212,9 @@ export function useArticleAnalytics(articleId, days = 30) {
 
         if (transactionDoc.exists()) {
           const dayTransactions = transactionDoc.data().transactions || [];
-          const filtered = dayTransactions.filter((t) => t.element?.id === articleId);
+          const filtered = dayTransactions.filter(
+            (t) => t.element?.id === articleId
+          );
           transactionsArray.push(...filtered);
         }
       }
@@ -2220,7 +2272,9 @@ export function useArticleAnalytics(articleId, days = 30) {
       for (let i = days - 1; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
 
         evolutionMap.set(dateKey, {
           date: dateKey,
@@ -2235,7 +2289,9 @@ export function useArticleAnalytics(articleId, days = 30) {
 
       transactionsArray.forEach((transaction) => {
         const date = new Date(transaction.date);
-        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const dateKey = `${String(date.getDate()).padStart(2, "0")}/${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
         const prix = transaction.prix_unitaire || 0;
         const quantite = transaction.quantite || 0;
 
@@ -2288,19 +2344,22 @@ export function useArticleAnalytics(articleId, days = 30) {
 
       // Calculer le prix moyen d'achat
       if (prixArray.length > 0) {
-        analytics.prix_moyen_achat = prixArray.reduce((a, b) => a + b, 0) / prixArray.length;
+        analytics.prix_moyen_achat =
+          prixArray.reduce((a, b) => a + b, 0) / prixArray.length;
       }
       if (analytics.prix_min_achat === Infinity) {
         analytics.prix_min_achat = 0;
       }
 
       // Calculer l'évolution
-      analytics.evolution_quantite = Array.from(evolutionMap.values()).map((day) => ({
-        date: day.date,
-        quantite_entree: day.quantite_entree,
-        quantite_sortie: day.quantite_sortie,
-        solde: day.solde,
-      }));
+      analytics.evolution_quantite = Array.from(evolutionMap.values()).map(
+        (day) => ({
+          date: day.date,
+          quantite_entree: day.quantite_entree,
+          quantite_sortie: day.quantite_sortie,
+          solde: day.solde,
+        })
+      );
 
       analytics.evolution_prix = Array.from(evolutionMap.values())
         .filter((day) => day.nb_achats > 0)
@@ -2313,7 +2372,10 @@ export function useArticleAnalytics(articleId, days = 30) {
       analytics.consommation_moyenne_jour = analytics.quantite_sortie / days;
 
       // Prévision de rupture
-      if (analytics.consommation_moyenne_jour > 0 && analytics.quantite_actuelle > 0) {
+      if (
+        analytics.consommation_moyenne_jour > 0 &&
+        analytics.quantite_actuelle > 0
+      ) {
         analytics.jours_avant_rupture = Math.floor(
           analytics.quantite_actuelle / analytics.consommation_moyenne_jour
         );
@@ -2330,7 +2392,8 @@ export function useArticleAnalytics(articleId, days = 30) {
           .reduce((sum, d) => sum + d.quantite_sortie, 0);
 
         const avgFirst = firstHalf / mid;
-        const avgSecond = secondHalf / (analytics.evolution_quantite.length - mid);
+        const avgSecond =
+          secondHalf / (analytics.evolution_quantite.length - mid);
 
         if (avgSecond > avgFirst * 1.1) {
           analytics.trend = "hausse";
@@ -2370,8 +2433,21 @@ export function useArticleAnalytics(articleId, days = 30) {
         });
 
         if (meilleurMois) {
-          const nomsMois = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                           "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+          const nomsMois = [
+            "",
+            "Janvier",
+            "Février",
+            "Mars",
+            "Avril",
+            "Mai",
+            "Juin",
+            "Juillet",
+            "Août",
+            "Septembre",
+            "Octobre",
+            "Novembre",
+            "Décembre",
+          ];
           analytics.periode_optimale_achat = {
             mois: nomsMois[parseInt(meilleurMois)],
             prix_moyen: prixMin,

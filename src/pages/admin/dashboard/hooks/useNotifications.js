@@ -1,18 +1,46 @@
 /**
  * Hook personnalisé pour gérer les notifications du dashboard
  * Écoute les notifications RTDB et permet de les marquer comme lues
+ * Nettoie automatiquement les notifications de plus de 48h
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { ref, onChildAdded, query, limitToLast, update } from "firebase/database";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { ref, onChildAdded, query, limitToLast, update, remove, get } from "firebase/database";
 import { rtdb } from "@/firebase.js";
+import {
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+} from "@/utils/notificationHelpers";
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-const RTDB_NOTIFICATIONS_PATHS = ["notification", "notifications"]; // Deux nœuds RTDB
+// Tous les paths à écouter (legacy + nouveaux modules)
+const RTDB_NOTIFICATIONS_PATHS = [
+  // Legacy paths
+  LEGACY_PATHS.NOTIFICATION,
+  LEGACY_PATHS.NOTIFICATIONS,
+  LEGACY_PATHS.COMMANDES_QUEUE,
+  LEGACY_PATHS.COMPTABILITE_QUEUE,
+  LEGACY_PATHS.ADRESSES,
+  // Nouveaux paths par module
+  NOTIFICATION_PATHS.STOCK,
+  NOTIFICATION_PATHS.MENU,
+  NOTIFICATION_PATHS.MENU_COMPOSE,
+  NOTIFICATION_PATHS.BOISSON,
+  NOTIFICATION_PATHS.PRODUCTION,
+  NOTIFICATION_PATHS.EMPLACEMENT,
+  NOTIFICATION_PATHS.COMMANDE,
+  NOTIFICATION_PATHS.COMPTABILITE,
+  NOTIFICATION_PATHS.ADRESSE,
+  NOTIFICATION_PATHS.TODO,
+  NOTIFICATION_PATHS.USER,
+  NOTIFICATION_PATHS.SYSTEM,
+];
 const MAX_NOTIFICATIONS = 50; // Nombre max de notifications à garder
+const NOTIFICATION_TTL_MS = 48 * 60 * 60 * 1000; // 48 heures en millisecondes
+const CLEANUP_LOCALSTORAGE_KEY = "lsd_notifications_last_cleanup";
 
 // ============================================================================
 // HELPERS
@@ -98,6 +126,82 @@ const useNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const cleanupRunRef = useRef(false); // Pour éviter les exécutions multiples
+
+  // ============================================================================
+  // FONCTION: NETTOYER LES NOTIFICATIONS OBSOLÈTES (> 48H)
+  // ============================================================================
+  const cleanupOldNotifications = useCallback(async () => {
+    // Éviter les exécutions multiples dans la même session
+    if (cleanupRunRef.current) {
+      console.log("🧹 useNotifications: Cleanup déjà effectué dans cette session");
+      return;
+    }
+
+    // Vérifier si un cleanup a été fait récemment (dans les 6 dernières heures)
+    const lastCleanup = localStorage.getItem(CLEANUP_LOCALSTORAGE_KEY);
+    const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
+
+    if (lastCleanup && parseInt(lastCleanup, 10) > sixHoursAgo) {
+      console.log("🧹 useNotifications: Cleanup récent, skip");
+      cleanupRunRef.current = true;
+      return;
+    }
+
+    console.log("🧹 useNotifications: Démarrage du nettoyage des notifications > 48h...");
+    const now = Date.now();
+    const cutoffTime = now - NOTIFICATION_TTL_MS;
+    let totalDeleted = 0;
+
+    try {
+      // Parcourir chaque nœud RTDB
+      for (const nodePath of RTDB_NOTIFICATIONS_PATHS) {
+        const nodeRef = ref(rtdb, nodePath);
+        const snapshot = await get(nodeRef);
+
+        if (!snapshot.exists()) {
+          console.log(`🧹 useNotifications: Nœud ${nodePath} vide`);
+          continue;
+        }
+
+        const notifications = snapshot.val();
+        const deletePromises = [];
+
+        // Vérifier chaque notification
+        Object.entries(notifications).forEach(([key, notification]) => {
+          const timestamp = notification.timestamp || 0;
+
+          if (timestamp < cutoffTime) {
+            console.log(`🗑️ useNotifications: Suppression ${nodePath}/${key} (${new Date(timestamp).toLocaleString("fr-FR")})`);
+            const notifRef = ref(rtdb, `${nodePath}/${key}`);
+            deletePromises.push(remove(notifRef));
+            totalDeleted++;
+          }
+        });
+
+        // Exécuter les suppressions en parallèle
+        if (deletePromises.length > 0) {
+          await Promise.all(deletePromises);
+          console.log(`🧹 useNotifications: ${deletePromises.length} notification(s) supprimée(s) de ${nodePath}`);
+        }
+      }
+
+      // Marquer le cleanup comme effectué
+      localStorage.setItem(CLEANUP_LOCALSTORAGE_KEY, now.toString());
+      cleanupRunRef.current = true;
+
+      console.log(`✅ useNotifications: Nettoyage terminé - ${totalDeleted} notification(s) supprimée(s) au total`);
+    } catch (err) {
+      console.error("❌ useNotifications: Erreur lors du nettoyage:", err);
+    }
+  }, []);
+
+  // ============================================================================
+  // EFFET: NETTOYER LES NOTIFICATIONS AU MONTAGE (CONNEXION ADMIN)
+  // ============================================================================
+  useEffect(() => {
+    cleanupOldNotifications();
+  }, [cleanupOldNotifications]);
 
   // ============================================================================
   // EFFET: ÉCOUTER LES NOTIFICATIONS RTDB (DEUX NŒUDS)

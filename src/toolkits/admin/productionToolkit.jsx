@@ -16,10 +16,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { doc, getDoc, setDoc, runTransaction } from "firebase/firestore";
-import { ref, push, onValue, off, onChildAdded } from "firebase/database";
+import { ref, push, onChildAdded } from "firebase/database";
 import { db, rtdb } from "../../firebase.js";
 import { nanoid } from "nanoid";
 import { auth } from "../../firebase.js";
+import {
+  productionNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+  setCacheWithTTL,
+  getCacheWithTTL,
+  CACHE_TTL,
+} from "@/utils/notificationHelpers";
 
 // ============================================================================
 // CONSTANTES
@@ -52,7 +60,8 @@ const PRODUCTIONS_OPERATIONS_QUEUE_DOC = "productions/operationsQueue";
 const LOCAL_PRODUCTIONS_KEY = "local_prod_definitions";
 const LOCAL_EN_ATTENTE_KEY = "local_prod_en_attente";
 const LOCAL_DAY_KEY_PREFIX = "local_prod_day_";
-const RTDB_NOTIFICATIONS_PATH = "notification";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.NOTIFICATION, NOTIFICATION_PATHS.PRODUCTION];
 const RTDB_QUEUE_TRIGGER_PATH = "productions_queue_trigger"; // Trigger pour le worker
 
 // ============================================================================
@@ -223,20 +232,15 @@ export const queuedProductionOperationSchema = z.object({
 });
 
 // ============================================================================
-// GESTION DU CACHE LOCAL - DEFINITIONS
+// GESTION DU CACHE LOCAL AVEC TTL - DEFINITIONS
 // ============================================================================
 
 /**
- * Sauvegarde les définitions dans le LocalStorage
+ * Sauvegarde les définitions dans le LocalStorage avec TTL
  */
 function saveDefinitionsToCache(definitions) {
   try {
-    const dataToStore = {
-      data: definitions,
-      lastSync: Date.now(),
-    };
-    localStorage.setItem(LOCAL_PRODUCTIONS_KEY, JSON.stringify(dataToStore));
-    console.log("✅ Définitions de production sauvegardées en cache");
+    setCacheWithTTL(LOCAL_PRODUCTIONS_KEY, definitions, CACHE_TTL.PRODUCTION_DEFINITIONS);
     return true;
   } catch (error) {
     console.error("❌ Erreur sauvegarde cache définitions:", error);
@@ -246,27 +250,14 @@ function saveDefinitionsToCache(definitions) {
 
 /**
  * Récupère les définitions depuis le LocalStorage
- * Vérifie si le cache est encore valide (< 5 minutes)
  */
 function getDefinitionsFromCache() {
   try {
-    const data = localStorage.getItem(LOCAL_PRODUCTIONS_KEY);
-    if (!data) return null;
-
-    const parsed = JSON.parse(data);
-
-    // Vérifier l'expiration du cache (5 minutes = 300000 ms)
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-    const now = Date.now();
-    const cacheAge = now - parsed.lastSync;
-
-    if (cacheAge > CACHE_DURATION) {
-      console.log("⏰ [getDefinitionsFromCache] Cache expiré (", Math.round(cacheAge / 60000), "minutes)");
-      return null; // Cache expiré
+    const cached = getCacheWithTTL(LOCAL_PRODUCTIONS_KEY);
+    if (cached) {
+      return { data: cached, lastSync: Date.now() }; // Format compatible
     }
-
-    console.log("✅ [getDefinitionsFromCache] Cache valide (", Math.round(cacheAge / 1000), "secondes)");
-    return parsed;
+    return null;
   } catch (error) {
     console.error("❌ Erreur lecture cache définitions:", error);
     return null;
@@ -282,20 +273,15 @@ export function clearDefinitionsCache() {
 }
 
 // ============================================================================
-// GESTION DU CACHE LOCAL - HISTORIQUE PAR JOUR
+// GESTION DU CACHE LOCAL AVEC TTL - HISTORIQUE PAR JOUR
 // ============================================================================
 
 /**
- * Sauvegarde les productions d'un jour dans le LocalStorage
+ * Sauvegarde les productions d'un jour dans le LocalStorage avec TTL
  */
 function saveDayToCache(dayKey, items) {
   try {
-    const dataToStore = {
-      data: items,
-      lastSync: Date.now(),
-    };
-    localStorage.setItem(LOCAL_DAY_KEY_PREFIX + dayKey, JSON.stringify(dataToStore));
-    console.log(`✅ Productions du jour ${dayKey} sauvegardées en cache`);
+    setCacheWithTTL(LOCAL_DAY_KEY_PREFIX + dayKey, items, CACHE_TTL.PRODUCTION_DEFINITIONS);
     return true;
   } catch (error) {
     console.error(`❌ Erreur sauvegarde cache jour ${dayKey}:`, error);
@@ -308,12 +294,11 @@ function saveDayToCache(dayKey, items) {
  */
 function getDayFromCache(dayKey) {
   try {
-    const data = localStorage.getItem(LOCAL_DAY_KEY_PREFIX + dayKey);
-    if (!data) return null;
-
-    const parsed = JSON.parse(data);
-    console.log(`✅ Productions du jour ${dayKey} récupérées du cache`);
-    return parsed;
+    const cached = getCacheWithTTL(LOCAL_DAY_KEY_PREFIX + dayKey);
+    if (cached) {
+      return { data: cached, lastSync: Date.now() }; // Format compatible
+    }
+    return null;
   } catch (error) {
     console.error(`❌ Erreur lecture cache jour ${dayKey}:`, error);
     return null;
@@ -329,20 +314,15 @@ export function clearDayCache(dayKey) {
 }
 
 // ============================================================================
-// GESTION DU CACHE LOCAL - PRODUCTIONS EN ATTENTE
+// GESTION DU CACHE LOCAL AVEC TTL - PRODUCTIONS EN ATTENTE
 // ============================================================================
 
 /**
- * Sauvegarde les productions en attente dans le LocalStorage
+ * Sauvegarde les productions en attente dans le LocalStorage avec TTL
  */
 function saveEnAttenteToCache(items) {
   try {
-    const dataToStore = {
-      data: items,
-      lastSync: Date.now(),
-    };
-    localStorage.setItem(LOCAL_EN_ATTENTE_KEY, JSON.stringify(dataToStore));
-    console.log("✅ Productions en attente sauvegardées en cache");
+    setCacheWithTTL(LOCAL_EN_ATTENTE_KEY, items, CACHE_TTL.PRODUCTION_EN_ATTENTE);
     return true;
   } catch (error) {
     console.error("❌ Erreur sauvegarde cache en_attente:", error);
@@ -355,12 +335,11 @@ function saveEnAttenteToCache(items) {
  */
 function getEnAttenteFromCache() {
   try {
-    const data = localStorage.getItem(LOCAL_EN_ATTENTE_KEY);
-    if (!data) return null;
-
-    const parsed = JSON.parse(data);
-    console.log("✅ Productions en attente récupérées du cache");
-    return parsed;
+    const cached = getCacheWithTTL(LOCAL_EN_ATTENTE_KEY);
+    if (cached) {
+      return { data: cached, lastSync: Date.now() }; // Format compatible
+    }
+    return null;
   } catch (error) {
     console.error("❌ Erreur lecture cache en_attente:", error);
     return null;
@@ -381,33 +360,11 @@ export function clearEnAttenteCache() {
 
 /**
  * Crée une notification dans RTDB pour signaler une modification
+ * (Wrapper vers le helper centralisé)
  */
 async function createRTDBNotification(title, message, type = "info", meta = {}) {
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn("⚠️ Utilisateur non authentifié, notification RTDB non envoyée");
-      return;
-    }
-
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notification = {
-      userId: currentUser.uid,
-      title,
-      message,
-      type,
-      read: false,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      meta,
-    };
-
-    await push(notificationsRef, notification);
-    console.log(`✅ Notification RTDB créée: ${title}`);
-  } catch (error) {
-    console.error("❌ Erreur création notification RTDB:", error);
-    // Ne pas bloquer l'opération si la notification échoue
-  }
+  // Utiliser le helper centralisé
+  await productionNotifications.custom(title, message, type, meta);
 }
 
 // ============================================================================
@@ -1740,43 +1697,53 @@ export function useProductionDefinitions() {
     }
   }, [sync]);
 
-  // Écouter les notifications RTDB pour synchronisation automatique
+  // Écouter RTDB pour synchronisation auto (pattern stockToolkit optimal)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    let isInitialLoad = true; // Grace period flag
+    let debounceTimer = null; // Debounce timer
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    // Écouter les deux paths (legacy et nouveau) avec onChildAdded
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));
+      const handleNotification = (snapshot) => {
+        if (isInitialLoad) return; // Ignorer pendant grace period
 
-      // Chercher une notification "nouvelle_recette" récente (< 10 secondes)
-      const now = Date.now();
-      const recentNotif = notificationsList.find(
-        (notif) =>
-          (notif.title === "nouvelle_recette" ||
-           notif.title === "Production:Liste:Update") &&
-          now - notif.createdAt < 10000
-      );
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("production") || // Détection flexible
+            notification.title?.includes("Production") ||
+            notification.title?.includes("recette") ||
+            notification.metadata?.toolkit === "production")
+        ) {
+          console.log("🔔 [useProductionDefinitions] Notification détectée - Rechargement différé");
 
-      if (recentNotif) {
-        console.log(
-          "🔔 [useProductionDefinitions] Notification détectée:", recentNotif.title, "- Synchronisation..."
-        );
-        clearDefinitionsCache(); // Forcer le rafraîchissement
-        sync();
-      }
-    };
+          // Debounce: annuler le timer précédent
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // Lancer sync après 500ms
+          debounceTimer = setTimeout(() => {
+            clearDefinitionsCache(); // Forcer le rafraîchissement
+            sync();
+          }, 500);
+        }
+      };
 
-    // Écouter les changements
-    onValue(notificationsRef, handleNotification);
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
 
-    // Cleanup
+    // Grace period: 1s pour ignorer les notifications initiales
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ useProductionDefinitions - Écoute des nouvelles notifications activée");
+    }, 1000);
+
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      clearTimeout(initTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 
@@ -1824,40 +1791,50 @@ export function useProductionsEnAttente() {
     }
   }, [sync]);
 
-  // Écouter les notifications RTDB pour synchronisation automatique
+  // Écouter RTDB pour synchronisation auto (pattern stockToolkit optimal)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    let isInitialLoad = true; // Grace period flag
+    let debounceTimer = null; // Debounce timer
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    // Écouter les deux paths (legacy et nouveau) avec onChildAdded
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));
+      const handleNotification = (snapshot) => {
+        if (isInitialLoad) return; // Ignorer pendant grace period
 
-      // Chercher une notification "Production:EnAttente:Update" récente (< 5 secondes)
-      const now = Date.now();
-      const recentNotif = notificationsList.find(
-        (notif) =>
-          notif.title === "Production:EnAttente:Update" && now - notif.createdAt < 5000
-      );
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("production") || // Détection flexible
+            notification.title?.includes("Production") ||
+            notification.title?.includes("EnAttente") ||
+            notification.metadata?.toolkit === "production")
+        ) {
+          console.log("🔔 [useProductionsEnAttente] Notification détectée - Rechargement différé");
 
-      if (recentNotif) {
-        console.log(
-          "🔔 Notification détectée: Production:EnAttente:Update - Synchronisation..."
-        );
-        sync();
-      }
-    };
+          // Debounce: annuler le timer précédent
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // Lancer sync après 500ms
+          debounceTimer = setTimeout(() => sync(), 500);
+        }
+      };
 
-    // Écouter les changements
-    onValue(notificationsRef, handleNotification);
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
 
-    // Cleanup
+    // Grace period: 1s pour ignorer les notifications initiales
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ useProductionsEnAttente - Écoute des nouvelles notifications activée");
+    }, 1000);
+
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      clearTimeout(initTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 
@@ -1909,42 +1886,48 @@ export function useProductionsDay(dayKey) {
     }
   }, [currentDayKey, sync]);
 
-  // Écouter les notifications RTDB pour synchronisation automatique
+  // Écouter les notifications RTDB pour synchronisation automatique (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));
+      const handleNotification = (snapshot) => {
+        if (!snapshot.exists()) return;
 
-      // Chercher une notification "Production:Historique:Update" récente (< 5 secondes)
-      const now = Date.now();
-      const recentNotif = notificationsList.find(
-        (notif) =>
-          notif.title === "Production:Historique:Update" &&
-          notif.meta?.day === currentDayKey &&
-          now - notif.createdAt < 5000
-      );
+        const notifications = snapshot.val();
+        const notificationsList = Object.entries(notifications).map(([key, value]) => ({
+          id: key,
+          ...value,
+        }));
 
-      if (recentNotif) {
-        console.log(
-          `🔔 Notification détectée: Production:Historique:Update (${currentDayKey}) - Synchronisation...`
+        // Chercher une notification "Production:Historique:Update" récente (< 5 secondes)
+        const now = Date.now();
+        const recentNotif = notificationsList.find(
+          (notif) =>
+            (notif.title === "Production:Historique:Update" ||
+             notif.metadata?.toolkit === "production") &&
+            (notif.meta?.day === currentDayKey || notif.metadata?.day === currentDayKey) &&
+            now - (notif.createdAt || notif.timestamp || 0) < 5000
         );
-        sync(currentDayKey);
-      }
-    };
 
-    // Écouter les changements
-    onValue(notificationsRef, handleNotification);
+        if (recentNotif) {
+          console.log(
+            `🔔 Notification détectée: Production:Historique:Update (${currentDayKey}) - Synchronisation...`
+          );
+          sync(currentDayKey);
+        }
+      };
+
+      // Écouter les changements
+      onValue(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "value", handleNotification));
+    });
 
     // Cleanup
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [currentDayKey, sync]);
 
@@ -2076,42 +2059,48 @@ export function useProductionStatistiques() {
     sync();
   }, [sync]);
 
-  // Écouter les notifications RTDB pour synchronisation automatique
+  // Écouter les notifications RTDB pour synchronisation automatique (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));
+      const handleNotification = (snapshot) => {
+        if (!snapshot.exists()) return;
 
-      // Chercher une notification "Production:Historique:Update" avec action "complete"
-      const now = Date.now();
-      const recentNotif = notificationsList.find(
-        (notif) =>
-          notif.title === "Production:Historique:Update" &&
-          notif.meta?.action === "complete" &&
-          now - notif.createdAt < 5000
-      );
+        const notifications = snapshot.val();
+        const notificationsList = Object.entries(notifications).map(([key, value]) => ({
+          id: key,
+          ...value,
+        }));
 
-      if (recentNotif) {
-        console.log(
-          "🔔 Notification détectée: Production terminée - Synchronisation statistiques..."
+        // Chercher une notification "Production:Historique:Update" avec action "complete"
+        const now = Date.now();
+        const recentNotif = notificationsList.find(
+          (notif) =>
+            (notif.title === "Production:Historique:Update" ||
+             notif.metadata?.toolkit === "production") &&
+            (notif.meta?.action === "complete" || notif.metadata?.action === "complete") &&
+            now - (notif.createdAt || notif.timestamp || 0) < 5000
         );
-        sync();
-      }
-    };
 
-    // Écouter les changements
-    onValue(notificationsRef, handleNotification);
+        if (recentNotif) {
+          console.log(
+            "🔔 Notification détectée: Production terminée - Synchronisation statistiques..."
+          );
+          sync();
+        }
+      };
+
+      // Écouter les changements
+      onValue(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "value", handleNotification));
+    });
 
     // Cleanup
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 
@@ -2411,35 +2400,41 @@ export function useProductionStatistiquesJour() {
     return () => clearInterval(intervalId);
   }, [checkAndRefreshIfNewDay]);
 
-  // Écouter les notifications RTDB pour mise à jour en temps réel
+  // Écouter les notifications RTDB pour mise à jour en temps réel (paths legacy + nouveau)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      const notifications = snapshot.val();
-      if (!notifications) return;
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notificationsList = Object.values(notifications);
-      const now = Date.now();
+      const handleNotification = (snapshot) => {
+        const notifications = snapshot.val();
+        if (!notifications) return;
 
-      // Détecter une production terminée ou modifiée récemment
-      const recentProductionUpdate = notificationsList.find(
-        (notif) =>
-          (notif.title === "Production:Historique:Update" ||
-           notif.title === "Production:EnAttente:Update") &&
-          now - notif.createdAt < 5000
-      );
+        const notificationsList = Object.values(notifications);
+        const now = Date.now();
 
-      if (recentProductionUpdate) {
-        console.log("🔔 Notification production détectée - Rafraîchissement stats...");
-        fetchStatistiques();
-      }
-    };
+        // Détecter une production terminée ou modifiée récemment
+        const recentProductionUpdate = notificationsList.find(
+          (notif) =>
+            (notif.title === "Production:Historique:Update" ||
+             notif.title === "Production:EnAttente:Update" ||
+             notif.metadata?.toolkit === "production") &&
+            now - (notif.createdAt || notif.timestamp || 0) < 5000
+        );
 
-    onValue(notificationsRef, handleNotification);
+        if (recentProductionUpdate) {
+          console.log("🔔 Notification production détectée - Rafraîchissement stats...");
+          fetchStatistiques();
+        }
+      };
+
+      onValue(notificationsRef, handleNotification);
+      unsubscribers.push(() => off(notificationsRef, "value", handleNotification));
+    });
 
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [fetchStatistiques]);
 

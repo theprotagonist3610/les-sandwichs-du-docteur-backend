@@ -6,10 +6,19 @@ import { useUser } from "@/toolkits/global/userToolkit";
 import { useClotureObligatoire } from "@/hooks/useClotureObligatoire";
 import ClotureObligatoireDialog from "@/components/dialogs/ClotureObligatoireDialog";
 import NotificationCloture23h from "@/components/dialogs/NotificationCloture23h";
+import { usePendingAlerts } from "@/hooks/usePendingAlerts";
+import FloatingAlertsNotification from "@/components/dialogs/FloatingAlertsNotification";
+import { useAutoCleanup, useAutoCleanupCaches } from "@/utils/notificationHelpers";
 
 const MainLayout = () => {
   // Initialiser le système de comptabilité (notifications, nettoyage, etc.)
   useComptabiliteSystem();
+
+  // Nettoyage automatique des notifications obsolètes (> 48h)
+  useAutoCleanup();
+
+  // Nettoyage automatique des caches expirés (toutes les 10 min)
+  useAutoCleanupCaches();
 
   // Initialiser le système de présence avec heartbeat automatique
   usePresenceManager({
@@ -32,6 +41,14 @@ const MainLayout = () => {
     cacherNotification23h,
     ouvrirClotureManuelle,
   } = useClotureObligatoire(true); // Activé pour tout le monde
+
+  // Hook pour les alertes en attente (vérification cyclique chaque heure)
+  const {
+    pendingTodos,
+    pendingNotifications,
+    showAlert,
+    dismissAlert,
+  } = usePendingAlerts();
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,6 +79,15 @@ const MainLayout = () => {
           onFaireCloture={ouvrirClotureManuelle}
         />
       )*/}
+
+      {/* Notification flottante des alertes en attente (Mobile: bas gauche) */}
+      <FloatingAlertsNotification
+        show={showAlert}
+        pendingTodos={pendingTodos}
+        pendingNotifications={pendingNotifications}
+        onDismiss={dismissAlert}
+        isMobile={true}
+      />
     </div>
   );
 };

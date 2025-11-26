@@ -10,10 +10,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { ref, push, onValue, off } from "firebase/database";
+import { ref, onChildAdded } from "firebase/database";
 import { db, rtdb } from "@/firebase.js";
 import { nanoid } from "nanoid";
-import { auth } from "@/firebase.js";
+import {
+  menuNotifications,
+  NOTIFICATION_PATHS,
+  LEGACY_PATHS,
+  createNotification,
+  NOTIFICATION_TYPES,
+  setCacheWithTTL,
+  getCacheWithTTL,
+  CACHE_TTL,
+} from "@/utils/notificationHelpers";
 
 // ============================================================================
 // CONSTANTES
@@ -23,7 +32,8 @@ const MENUS_DOC_PATH = "menus/liste_menus";
 const INGREDIENTS_DOC_PATH = "menus/liste_ingredients";
 const LOCAL_MENUS_KEY = "local_lsd_menus";
 const LOCAL_INGREDIENTS_KEY = "local_lsd_ingredients";
-const RTDB_NOTIFICATIONS_PATH = "notification";
+// Paths RTDB à écouter pour synchronisation (legacy + nouveau)
+const RTDB_SYNC_PATHS = [LEGACY_PATHS.NOTIFICATION, NOTIFICATION_PATHS.MENU];
 
 // ============================================================================
 // SCHEMAS ZOD
@@ -75,20 +85,15 @@ export const menuSchema = z.object({
 });
 
 // ============================================================================
-// GESTION DU CACHE LOCAL - INGREDIENTS
+// GESTION DU CACHE LOCAL AVEC TTL - INGREDIENTS
 // ============================================================================
 
 /**
- * Sauvegarde les ingrédients dans le LocalStorage
+ * Sauvegarde les ingrédients dans le LocalStorage avec TTL
  */
 function saveIngredientsToCache(ingredients) {
   try {
-    const dataToStore = {
-      ingredients,
-      lastSync: Date.now(),
-    };
-    localStorage.setItem(LOCAL_INGREDIENTS_KEY, JSON.stringify(dataToStore));
-    console.log("✅ Ingrédients sauvegardés en cache");
+    setCacheWithTTL(LOCAL_INGREDIENTS_KEY, ingredients, CACHE_TTL.INGREDIENTS);
     return true;
   } catch (error) {
     console.error("❌ Erreur sauvegarde cache ingrédients:", error);
@@ -101,12 +106,8 @@ function saveIngredientsToCache(ingredients) {
  */
 function getIngredientsFromCache() {
   try {
-    const data = localStorage.getItem(LOCAL_INGREDIENTS_KEY);
-    if (!data) return null;
-
-    const parsed = JSON.parse(data);
-    console.log("✅ Ingrédients récupérés du cache");
-    return parsed;
+    const cached = getCacheWithTTL(LOCAL_INGREDIENTS_KEY);
+    return cached; // Retourne null si expiré ou inexistant
   } catch (error) {
     console.error("❌ Erreur lecture cache ingrédients:", error);
     return null;
@@ -122,20 +123,15 @@ function clearIngredientsCache() {
 }
 
 // ============================================================================
-// GESTION DU CACHE LOCAL - MENUS
+// GESTION DU CACHE LOCAL AVEC TTL - MENUS
 // ============================================================================
 
 /**
- * Sauvegarde les menus dans le LocalStorage
+ * Sauvegarde les menus dans le LocalStorage avec TTL
  */
 function saveMenusToCache(menus) {
   try {
-    const dataToStore = {
-      menus,
-      lastSync: Date.now(),
-    };
-    localStorage.setItem(LOCAL_MENUS_KEY, JSON.stringify(dataToStore));
-    console.log("✅ Menus sauvegardés en cache");
+    setCacheWithTTL(LOCAL_MENUS_KEY, menus, CACHE_TTL.MENUS);
     return true;
   } catch (error) {
     console.error("❌ Erreur sauvegarde cache menus:", error);
@@ -148,12 +144,8 @@ function saveMenusToCache(menus) {
  */
 function getMenusFromCache() {
   try {
-    const data = localStorage.getItem(LOCAL_MENUS_KEY);
-    if (!data) return null;
-
-    const parsed = JSON.parse(data);
-    console.log("✅ Menus récupérés du cache");
-    return parsed;
+    const cached = getCacheWithTTL(LOCAL_MENUS_KEY);
+    return cached; // Retourne null si expiré ou inexistant
   } catch (error) {
     console.error("❌ Erreur lecture cache menus:", error);
     return null;
@@ -169,42 +161,32 @@ function clearMenusCache() {
 }
 
 // ============================================================================
-// RTDB HELPERS - NOTIFICATIONS
+// RTDB HELPERS - NOTIFICATIONS (utilise les helpers centralisés)
 // ============================================================================
+// Les notifications sont maintenant gérées par @/utils/notificationHelpers
+// Voir: menuNotifications.create(), menuNotifications.update(), etc.
 
 /**
- * Crée une notification dans RTDB pour signaler une modification
- * @param {string} title - "Modification Menus" ou "Modification Ingredients"
- * @param {string} message - Message descriptif
- * @param {string} type - "info" | "success" | "warning" | "error"
+ * Notification pour les ingrédients (custom car pas de helper dédié)
  */
-async function createRTDBNotification(title, message, type = "info") {
-  try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn(
-        "⚠️ Utilisateur non authentifié, notification RTDB non envoyée"
-      );
-      return;
-    }
+async function notifyIngredientChange(action, ingredientName) {
+  const titles = {
+    create: "Ingrédient créé",
+    update: "Ingrédient modifié",
+    delete: "Ingrédient supprimé",
+  };
+  const types = {
+    create: NOTIFICATION_TYPES.SUCCESS,
+    update: NOTIFICATION_TYPES.INFO,
+    delete: NOTIFICATION_TYPES.WARNING,
+  };
 
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
-    const notification = {
-      userId: currentUser.uid,
-      title,
-      message,
-      type,
-      read: false,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    await push(notificationsRef, notification);
-    console.log(`✅ Notification RTDB créée: ${title}`);
-  } catch (error) {
-    console.error("❌ Erreur création notification RTDB:", error);
-    // Ne pas bloquer l'opération si la notification échoue
-  }
+  await createNotification(NOTIFICATION_PATHS.MENU, {
+    title: titles[action] || "Modification Ingrédients",
+    message: `${ingredientName} a été ${action === "create" ? "créé" : action === "update" ? "modifié" : "supprimé"}`,
+    type: types[action] || NOTIFICATION_TYPES.INFO,
+    metadata: { toolkit: "menu", action, itemType: "ingredient", itemName: ingredientName },
+  });
 }
 
 // ============================================================================
@@ -273,12 +255,8 @@ export async function createIngredient(ingredientData) {
     // Mettre à jour le cache
     saveIngredientsToCache(updatedIngredients);
 
-    // Créer une notification RTDB
-    await createRTDBNotification(
-      "Modification Ingredients",
-      `Nouvel ingrédient créé: ${validatedIngredient.nom}`,
-      "success"
-    );
+    // Notification RTDB (helper centralisé)
+    await notifyIngredientChange("create", validatedIngredient.nom);
 
     console.log("✅ Ingrédient créé:", validatedIngredient.id);
     return validatedIngredient;
@@ -325,12 +303,8 @@ export async function updateIngredient(ingredientId, updateData) {
     // Mettre à jour le cache
     saveIngredientsToCache(currentIngredients);
 
-    // Créer une notification RTDB
-    await createRTDBNotification(
-      "Modification Ingredients",
-      `Ingrédient modifié: ${validatedIngredient.nom}`,
-      "info"
-    );
+    // Notification RTDB (helper centralisé)
+    await notifyIngredientChange("update", validatedIngredient.nom);
 
     console.log("✅ Ingrédient mis à jour:", ingredientId);
     return validatedIngredient;
@@ -416,12 +390,8 @@ export async function createMenu(menuData) {
     // Mettre à jour le cache
     saveMenusToCache(updatedMenus);
 
-    // Créer une notification RTDB
-    await createRTDBNotification(
-      "Modification Menus",
-      `Nouveau menu créé: ${validatedMenu.denomination}`,
-      "success"
-    );
+    // Notification RTDB (helper centralisé)
+    await menuNotifications.create(validatedMenu.denomination);
 
     console.log("✅ Menu créé:", validatedMenu.id);
     return validatedMenu;
@@ -466,12 +436,8 @@ export async function updateMenu(menuId, updateData) {
     // Mettre à jour le cache
     saveMenusToCache(currentMenus);
 
-    // Créer une notification RTDB
-    await createRTDBNotification(
-      "Modification Menus",
-      `Menu modifié: ${validatedMenu.denomination}`,
-      "info"
-    );
+    // Notification RTDB (helper centralisé)
+    await menuNotifications.update(validatedMenu.denomination);
 
     console.log("✅ Menu mis à jour:", menuId);
     return validatedMenu;
@@ -525,52 +491,60 @@ export function useIngredients() {
   // Charger depuis le cache au montage et synchroniser avec Firestore
   useEffect(() => {
     const cached = getIngredientsFromCache();
-    if (cached && cached.ingredients) {
-      setIngredients(cached.ingredients);
+    if (cached) {
+      setIngredients(cached);
       setLoading(false);
     }
-    
+
     // Vérification initiale avec Firestore pour s'assurer que le cache est à jour
     sync();
   }, [sync]);
 
-  // Écouter les notifications RTDB pour synchronisation automatique
+  // Écouter RTDB pour synchronisation auto (pattern stockToolkit optimal)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    let isInitialLoad = true; // Grace period flag
+    let debounceTimer = null; // Debounce timer
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    // Écouter les deux paths (legacy et nouveau) avec onChildAdded
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(
-        ([key, value]) => ({
-          id: key,
-          ...value,
-        })
-      );
+      const handleNotification = (snapshot) => {
+        if (isInitialLoad) return; // Ignorer pendant grace period
 
-      // Chercher une notification "Modification Ingredients" récente (< 5 secondes)
-      const now = Date.now();
-      const recentIngredientNotif = notificationsList.find(
-        (notif) =>
-          notif.title === "Modification Ingredients" &&
-          now - notif.createdAt < 5000
-      );
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("ingrédient") || // Détection flexible
+            notification.title?.includes("Ingrédient") ||
+            notification.title?.includes("ingredient") ||
+            notification.title?.includes("Ingredient") ||
+            notification.metadata?.itemType === "ingredient")
+        ) {
+          console.log("🔔 Notification ingrédient détectée - Rechargement différé");
 
-      if (recentIngredientNotif) {
-        console.log(
-          "🔔 Notification détectée: Modification Ingredients - Synchronisation..."
-        );
-        sync();
-      }
-    };
+          // Debounce: annuler le timer précédent
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // Lancer sync après 500ms
+          debounceTimer = setTimeout(() => sync(), 500);
+        }
+      };
 
-    // Écouter les changements
-    onValue(notificationsRef, handleNotification);
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
 
-    // Cleanup
+    // Grace period: 1s pour ignorer les notifications initiales
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ useIngredients - Écoute des nouvelles notifications activée");
+    }, 1000);
+
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      clearTimeout(initTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 
@@ -610,51 +584,58 @@ export function useMenus() {
   // Charger depuis le cache au montage et synchroniser avec Firestore
   useEffect(() => {
     const cached = getMenusFromCache();
-    if (cached && cached.menus) {
-      setMenus(cached.menus);
+    if (cached) {
+      setMenus(cached);
       setLoading(false);
     }
-    
+
     // Vérification initiale avec Firestore pour s'assurer que le cache est à jour
     sync();
   }, [sync]);
 
-  // Écouter les notifications RTDB pour synchronisation automatique
+  // Écouter RTDB pour synchronisation auto (pattern stockToolkit optimal)
   useEffect(() => {
-    const notificationsRef = ref(rtdb, RTDB_NOTIFICATIONS_PATH);
+    let isInitialLoad = true; // Grace period flag
+    let debounceTimer = null; // Debounce timer
+    const unsubscribers = [];
 
-    const handleNotification = (snapshot) => {
-      if (!snapshot.exists()) return;
+    // Écouter les deux paths (legacy et nouveau) avec onChildAdded
+    RTDB_SYNC_PATHS.forEach((path) => {
+      const notificationsRef = ref(rtdb, path);
 
-      const notifications = snapshot.val();
-      const notificationsList = Object.entries(notifications).map(
-        ([key, value]) => ({
-          id: key,
-          ...value,
-        })
-      );
+      const handleNotification = (snapshot) => {
+        if (isInitialLoad) return; // Ignorer pendant grace period
 
-      // Chercher une notification "Modification Menus" récente (< 5 secondes)
-      const now = Date.now();
-      const recentMenuNotif = notificationsList.find(
-        (notif) =>
-          notif.title === "Modification Menus" && now - notif.createdAt < 5000
-      );
+        const notification = snapshot.val();
+        if (
+          notification &&
+          (notification.title?.includes("menu") || // Détection flexible
+            notification.title?.includes("Menu") ||
+            (notification.metadata?.toolkit === "menu" && notification.metadata?.itemType !== "ingredient"))
+        ) {
+          console.log("🔔 Notification menu détectée - Rechargement différé");
 
-      if (recentMenuNotif) {
-        console.log(
-          "🔔 Notification détectée: Modification Menus - Synchronisation..."
-        );
-        sync();
-      }
-    };
+          // Debounce: annuler le timer précédent
+          if (debounceTimer) clearTimeout(debounceTimer);
+          // Lancer sync après 500ms
+          debounceTimer = setTimeout(() => sync(), 500);
+        }
+      };
 
-    // Écouter les changements
-    onValue(notificationsRef, handleNotification);
+      const unsub = onChildAdded(notificationsRef, handleNotification);
+      unsubscribers.push(unsub);
+    });
 
-    // Cleanup
+    // Grace period: 1s pour ignorer les notifications initiales
+    const initTimer = setTimeout(() => {
+      isInitialLoad = false;
+      console.log("✅ useMenus - Écoute des nouvelles notifications activée");
+    }, 1000);
+
     return () => {
-      off(notificationsRef, "value", handleNotification);
+      clearTimeout(initTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, [sync]);
 

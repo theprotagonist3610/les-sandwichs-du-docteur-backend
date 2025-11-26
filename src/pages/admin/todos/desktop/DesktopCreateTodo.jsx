@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCreateTodoStore } from "@/stores/useCreateTodoStore";
 import { createTodo } from "@/toolkits/admin/todoToolkit";
+import { useUser } from "@/toolkits/global/userToolkit";
 import {
   InputGroup,
   InputGroupAddon,
@@ -43,6 +44,9 @@ const DesktopCreateTodo = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Récupérer l'utilisateur courant
+  const { user } = useUser();
+
   // Consommer les états individuellement pour éviter rerenders
   const title = useCreateTodoStore((state) => state.title);
   const description = useCreateTodoStore((state) => state.description);
@@ -74,6 +78,7 @@ const DesktopCreateTodo = () => {
         concern,
         concernBy,
         deadline,
+        createdBy: user?.id || "inconnu",
       });
 
       toast.success("TODO créé avec succès !");

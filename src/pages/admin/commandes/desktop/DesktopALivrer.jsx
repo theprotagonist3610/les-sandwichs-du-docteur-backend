@@ -139,7 +139,10 @@ const DesktopALivrer = () => {
 
       const commandeData = {
         point_de_vente: pointDeVente,
-        client,
+        client: {
+          nom: client.nom || "inconnu",
+          numero: client.numero || "000000000",
+        },
         details,
         type: "a livrer",
         statut: "non livree",
@@ -147,7 +150,7 @@ const DesktopALivrer = () => {
         ...(personneALivrerData && { personne_a_livrer: personneALivrerData }),
         adresse_livraison: {
           id: selectedAddressComplete.id,
-          description: adresseLivraison?.description || "",
+          description: adresseLivraison?.description || "inconnu",
         },
         paiement: {
           ...paiement,
@@ -157,8 +160,8 @@ const DesktopALivrer = () => {
           monnaie_rendue: monnaieRendue,
           dette,
         },
-        ...(incident && { incident }),
-        ...(commentaire && { commentaire }),
+        incident: incident || "inconnu",
+        commentaire: commentaire || "inconnu",
       };
 
       await CreateCommande(commandeData, userId);
